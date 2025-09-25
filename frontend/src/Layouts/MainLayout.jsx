@@ -42,7 +42,6 @@ export default function MainLayout() {
             flexGrow: 1,
             overflowY: "auto", // scroll verticale
             overflowX: "hidden",
-            p: 2, // padding opzionale
           }}
         >
           <Outlet />

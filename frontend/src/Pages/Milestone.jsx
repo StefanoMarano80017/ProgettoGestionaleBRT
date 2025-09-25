@@ -1,9 +1,10 @@
 import * as React from "react";
-import { Box } from "@mui/material";
+import { Badge, Box } from "@mui/material";
 import NavigationBar from "../Components/MilestonePage/NavigationBar";
 import SpreadsheetFilter from "../Components/Spreedsheet/SpreadsheetFilter";
 import ProjectCalendar from "../Components/Calendar/ProjectCalendar";
 import { useProjects } from "../Hooks/useProject";
+import BadgeCard from "../Components/BadgeCard/BadgeCard";
 
 export default function Milestone() {
   // React Query
@@ -58,5 +59,6 @@ export default function Milestone() {
         />
       )}
     </Box>
-  );
+  
+);
 }

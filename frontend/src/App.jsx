@@ -5,6 +5,7 @@ import Layout from "./Layouts/MainLayout";
 import Home from "./Pages/Home";
 import About from "./Pages/About";
 import Milestone from "./Pages/Milestone";
+import DipendentiHome from "./Pages/DipendenteHome";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
             <Route index element={<Home />} />  
             <Route path="about" element={<About />} />
             <Route path="milestone" element={<Milestone/>} />
+            <Route path="timesheet" element={<DipendentiHome/>} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -8,7 +8,6 @@ export default function CalendarBase({
   currentMonth,
   setCurrentMonth,
   renderDay,
-  width = "100%",
 }) {
   // Componente custom Day wrapper che delega lo stile a renderDay
   const CustomDay = (props) => {
@@ -17,7 +16,6 @@ export default function CalendarBase({
   };
 
   return (
-    <Box sx={{ width }}>
       <DateCalendar
         value={selectedDate}
         onChange={(newDate) => {
@@ -26,6 +24,5 @@ export default function CalendarBase({
         onMonthChange={(newMonth) => setCurrentMonth(newMonth.getMonth())}
         slots={{ day: CustomDay }}
       />
-    </Box>
   );
 }
