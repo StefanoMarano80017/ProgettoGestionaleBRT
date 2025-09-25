@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  reverse-proxy:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - apigateway
+
+  frontend:
+    image: my-frontend:latest
+    expose:
+      - "3000"
+
+  apigateway:
+    image: my-apigateway:latest
+    expose:
+      - "8080"

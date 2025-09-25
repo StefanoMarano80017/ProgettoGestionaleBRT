@@ -1,0 +1,38 @@
+services:
+  reverse-proxy:
+    build:
+      context: ./reverseProxy
+      dockerfile: Dockerfile
+    container_name: reverse-proxy
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - apigateway
+    networks:
+      - app_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    expose:
+      - "3000"
+    networks:
+      - app_net
+
+  apigateway:
+    build:
+      context: ./gateways/apigateway
+      dockerfile: Dockerfile
+    container_name: apigateway
+    expose:
+      - "8080"
+    networks:
+      - app_net
+
+
+networks:
+  app_net:
+    driver: bridge
