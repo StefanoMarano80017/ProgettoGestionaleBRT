@@ -7,7 +7,7 @@ const getColor = (progress) => {
   return "#4caf50"; // verde
 };
 
-const CustomProgressBar = ({ progress = 80 }) => {
+const CustomProgressBar = ({ progress }) => {
   const color = getColor(progress);
 
   return (

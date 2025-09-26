@@ -5,7 +5,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import CustomAvatarGroup from "../Avatar/CustomAvatarGroup";
 import CustomProgressBar from "../ProgressBar/CustomProgressBar";
 
-export default function ProjectTasksDataGrid({ tasks, employees }) {
+export default function ProjectTasksDataGrid({ tasks }) {
   const columns = [
     { field: "id", headerName: "id"},
     { field: "title", headerName: "Titolo"},
@@ -41,7 +41,7 @@ export default function ProjectTasksDataGrid({ tasks, employees }) {
       field: "progress",
       headerName: "Progresso",
       width: 150,
-      renderCell: (params) => <CustomProgressBar value={params.value} />,
+      renderCell: (params) => <CustomProgressBar progress={params.value} />,
     },
     {
       field: "actions",
