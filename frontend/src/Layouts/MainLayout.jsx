@@ -40,7 +40,8 @@ export default function MainLayout() {
         <Box
           sx={{
             flexGrow: 1,
-            overflowY: "auto", // scroll verticale
+            display: "flex",
+            overflowY: "auto", 
             overflowX: "hidden",
           }}
         >

@@ -10,13 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/modifiers": "^9.0.0",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.2",
     "@mui/lab": "^7.0.0-beta.17",
     "@mui/material": "^7.3.2",
     "@mui/x-charts": "^8.11.3",
-    "@mui/x-data-grid": "^8.11.3",
+    "@mui/x-data-grid": "^8.12.1",
     "@mui/x-date-pickers": "^8.11.3",
     "@mui/x-date-pickers-pro": "^8.11.3",
     "@mui/x-tree-view": "^8.11.3",
@@ -25,6 +29,7 @@
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.18",
     "react": "^18.3.1",
+    "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.9.1",
     "tailgrids": "^2.3.0"

@@ -34,8 +34,8 @@ export default function Milestone() {
       <NavigationBar
         tabIndex={tabIndex}
         setTabIndex={setTabIndex}
-        projects={projects}                // lista dei progetti
-        selectedProject={selectedProject}  // progetto selezionato
+        projects={projects} // lista dei progetti
+        selectedProject={selectedProject} // progetto selezionato
         setSelectedProject={setSelectedProject} // setter per aggiornare
       />
 
@@ -59,6 +59,5 @@ export default function Milestone() {
         />
       )}
     </Box>
-  
-);
+  );
 }
