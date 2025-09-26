@@ -13,7 +13,7 @@ import {
   LinearProgress,
   Typography,
 } from "@mui/material";
-import CustomAvatarGroup from "../Avatar/CustomAvatarGroup";
+import CustomAvatarGroup from "../../Avatar/CustomAvatarGroup";
 import { useTheme } from "@mui/material/styles";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";

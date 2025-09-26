@@ -5,7 +5,7 @@ export const projectsMock = [
     description: "Implementazione piattaforma",
     tasks: [
       {
-        id: 1,
+        id: "1_1",
         title: "UI principale",
         description: "Header, Sidebar e Footer",
         progress: 100,
@@ -20,7 +20,7 @@ export const projectsMock = [
         ],
       },
       {
-        id: 2,
+        id: "1_2",
         title: "Bug fix modulo login",
         description: "Correzione bug login",
         progress: 70,
@@ -35,7 +35,7 @@ export const projectsMock = [
         ],
       },
       {
-        id: 3,
+        id: "1_3",
         title: "Test funzionale",
         description: "Test delle funzionalità principali",
         progress: 20,
@@ -57,7 +57,7 @@ export const projectsMock = [
     description: "Modulo API",
     tasks: [
       {
-        id: 4,
+        id: "2_1",
         title: "Definizione specifiche",
         description: "Specifica documentazione e API",
         progress: 40,
@@ -72,7 +72,7 @@ export const projectsMock = [
         ],
       },
       {
-        id: 5,
+        id: "2_2",
         title: "Scrittura documentazione",
         description: "Manuale utente e release notes",
         progress: 10,
@@ -94,7 +94,7 @@ export const projectsMock = [
     description: "Integrazione sistema",
     tasks: [
       {
-        id: 6,
+        id: "3_1",
         title: "Analisi requisiti",
         description: "Raccolta e validazione requisiti",
         progress: 50,
@@ -109,7 +109,7 @@ export const projectsMock = [
         ],
       },
       {
-        id: 7,
+        id: "3_2",
         title: "Configurazione server",
         description: "Server dev e prod",
         progress: 40,

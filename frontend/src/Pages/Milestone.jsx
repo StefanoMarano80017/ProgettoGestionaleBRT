@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Badge, Box } from "@mui/material";
 import NavigationBar from "../Components/MilestonePage/NavigationBar";
-import SpreadsheetFilter from "../Components/Spreedsheet/SpreadsheetFilter";
+import SpreadsheetFilter from "../Components/dashboardCoordinatore/Spreedsheet/SpreadsheetFilter";
 import ProjectCalendar from "../Components/Calendar/ProjectCalendar";
 import { useProjects } from "../Hooks/useProject";
 import BadgeCard from "../Components/BadgeCard/BadgeCard";

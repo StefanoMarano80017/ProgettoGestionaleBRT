@@ -1,26 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   Card,
   CardContent,
-  Typography,
-  Pagination,
+  Stack,
+  Chip,
+  Divider,
   Select,
   MenuItem,
-  Stack,
-  Divider,
-  Chip,
+  Typography,
+  Pagination,
 } from "@mui/material";
+import CustomDataGrid from "./CustomDataGrid";
+import FiltersMenu from "./Spreedsheet/Filters/FiltersMenu"; // riusa il tuo componente esistente
+import CustomAvatarGroup from "../Avatar/CustomAvatarGroup";
 
-import Spreadsheet from "./Spreadsheet";
-import FiltersMenu from "./Filters/FiltersMenu";
-import CustomAvatarGroup from "../Avatar/CustomAvatarGroup"; // importa il componente già esistente
-
-const SpreadsheetWithFiltersAndPagination = ({
-  projects,
-  employees,
-  selectedProject,
-}) => {
+export default function DataGridWithFilters({ tasks, employees }) {
   const [textFilter, setTextFilter] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState([]);
   const [statusFilter, setStatusFilter] = useState([]);
@@ -31,55 +26,51 @@ const SpreadsheetWithFiltersAndPagination = ({
 
   const statusOptions = ["In corso", "Urgente", "Completato"];
 
-  // Filtraggio progetti in base al prop selectedProject
-  const filteredProjects = projects
-    .filter((project) =>
-      !selectedProject || selectedProject === "Tutti"
-        ? true
-        : project.title === selectedProject
-    )
-    .map((project) => {
-      const filteredTasks = (project.tasks ?? []).filter((task) => {
-        const matchesText =
-          !textFilter ||
-          task.title.toLowerCase().includes(textFilter.toLowerCase()) ||
-          project.title.toLowerCase().includes(textFilter.toLowerCase());
+  // Filtraggio dei task
+  const filteredTasks = useMemo(() => {
+    return (tasks || []).filter((task) => {
+      const matchesText =
+        !textFilter ||
+        task.title.toLowerCase().includes(textFilter.toLowerCase());
 
-        const matchesEmployee =
-          employeeFilter.length === 0 ||
-          employeeFilter.some((empId) => task.assigned.includes(empId));
+      const matchesEmployee =
+        employeeFilter.length === 0 ||
+        employeeFilter.some((empId) => task.assigned.includes(empId));
 
-        const matchesStatus =
-          statusFilter.length === 0 || statusFilter.includes(task.tag);
+      const matchesStatus =
+        statusFilter.length === 0 || statusFilter.includes(task.tag);
 
-        const matchesCreated =
-          !createdFrom ||
-          (task.created && new Date(task.created) >= new Date(createdFrom));
+      const matchesCreated =
+        !createdFrom ||
+        (task.createdAt && new Date(task.createdAt) >= new Date(createdFrom));
 
-        const matchesCompleted =
-          !completedTo ||
-          (task.completed && new Date(task.completed) <= new Date(completedTo));
+      const matchesCompleted =
+        !completedTo ||
+        (task.completed && new Date(task.completed) <= new Date(completedTo));
 
-        return (
-          matchesText &&
-          matchesEmployee &&
-          matchesStatus &&
-          matchesCreated &&
-          matchesCompleted
-        );
-      });
+      return (
+        matchesText &&
+        matchesEmployee &&
+        matchesStatus &&
+        matchesCreated &&
+        matchesCompleted
+      );
+    });
+  }, [
+    tasks,
+    textFilter,
+    employeeFilter,
+    statusFilter,
+    createdFrom,
+    completedTo,
+  ]);
 
-      return { ...project, tasks: filteredTasks };
-    })
-    .filter((project) => project.tasks.length > 0);
-
-  const pageCount = Math.ceil(filteredProjects.length / rowsPerPage);
-  const displayedProjects = filteredProjects.slice(
+  const pageCount = Math.ceil(filteredTasks.length / rowsPerPage);
+  const displayedTasks = filteredTasks.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
   );
 
-  // Funzione per rimuovere un filtro
   const removeFilter = (type) => {
     switch (type) {
       case "text":
@@ -103,11 +94,9 @@ const SpreadsheetWithFiltersAndPagination = ({
   };
 
   return (
-    <Card sx={{ height: 600, display: "flex", flexDirection: "column" }}>
-      {/* Barra filtri */}
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardContent
         sx={{
-          borderBottom: "1px solid #ccc",
           display: "flex",
           flexDirection: "row",
           alignItems: "center",
@@ -188,43 +177,11 @@ const SpreadsheetWithFiltersAndPagination = ({
         </Box>
       </CardContent>
 
-      {/* Tabella scrollabile */}
+      {/* DataGrid */}
       <Box sx={{ flex: 1, overflow: "auto" }}>
-        <Spreadsheet projects={displayedProjects} employees={employees} />
+        <CustomDataGrid tasks={displayedTasks} />
       </Box>
 
-      <Divider />
-      {/* Paginazione */}
-      <CardContent
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Pagination
-          count={pageCount}
-          page={page}
-          onChange={(e, value) => setPage(value)}
-          color="primary"
-        />
-        <Box display="flex" alignItems="center" gap={1}>
-          <Typography>Righe per pagina:</Typography>
-          <Select
-            value={rowsPerPage}
-            size="small"
-            onChange={(e) => setRowsPerPage(parseInt(e.target.value))}
-          >
-            {[5, 10, 20, 50].map((n) => (
-              <MenuItem value={n} key={n}>
-                {n}
-              </MenuItem>
-            ))}
-          </Select>
-        </Box>
-      </CardContent>
     </Card>
   );
-};
-
-export default SpreadsheetWithFiltersAndPagination;
+}

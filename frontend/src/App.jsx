@@ -7,6 +7,7 @@ import About from "./Pages/About";
 import Milestone from "./Pages/Milestone";
 import DipendentiHome from "./Pages/DipendenteHome";
 import DashboardAmministrazione from "./Pages/DashboardAmministrazione";
+import DashboardCoordinatore from "./Pages/DashboardCoordinatore";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="milestone" element={<Milestone/>} />
             <Route path="timesheet"                 element={<DipendentiHome/>} />
             <Route path="dashboardAmministrazione"  element={<DashboardAmministrazione/>} />
+            <Route path="dashboardCoordinatore"  element={<DashboardCoordinatore/>} />
           </Route>
         </Routes>
       </BrowserRouter>

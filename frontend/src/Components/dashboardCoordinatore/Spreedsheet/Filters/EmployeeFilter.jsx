@@ -1,6 +1,6 @@
 import React from "react";
 import { MenuItem, Checkbox, ListItemIcon, ListItemText, Box } from "@mui/material";
-import { AvatarInitials } from "../../Avatar/AvatarInitials"; 
+import { AvatarInitials } from "../../../Avatar/AvatarInitials"; 
 
 const EmployeeFilter = ({ employees, employeeFilter, setEmployeeFilter }) => {
   const toggleEmployee = (id) => {

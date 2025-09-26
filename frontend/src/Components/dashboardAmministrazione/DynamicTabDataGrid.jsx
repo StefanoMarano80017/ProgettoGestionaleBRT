@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import TabsBar from "../Bars/TabsBar"; // presuppone la TabsBar già implementata
 import { Box, Card, CardContent, Typography } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import CustomDataGrid from './CustomDataGrid';
 
 export default function DynamicTabDataGrid({ fullViewport = true }) {
   const [tabs, setTabs] = useState([]);
@@ -34,35 +34,7 @@ export default function DynamicTabDataGrid({ fullViewport = true }) {
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         {activeTab ? (
           // wrapper con minHeight:0 per consentire al DataGrid di ridursi
-          <Box sx={{ flex: 1, minHeight: 0 }}>
-            <DataGrid
-              rows={activeTab.rows}
-              columns={activeTab.columns}
-              pageSize={5}
-              rowsPerPageOptions={[5]}
-              showToolbar 
-              // imposta il grid a riempire lo spazio del wrapper
-              sx={{
-                height: "100%",
-                width: "100%",
-                // la virtual scroller (il corpo del grid) diventa l'unica area scrollabile
-                "& .MuiDataGrid-virtualScroller": {
-                  overflow: "auto",
-                },
-                // assicura che il contenuto interno non imponga min-height
-                "& .MuiDataGrid-main": {
-                  minHeight: 0,
-                },
-                // opzionale: mantieni header fisso visualmente corretto
-                "& .MuiDataGrid-columnHeaders": {
-                  flex: "0 0 auto",
-                },
-              }}
-              // evita che il DataGrid auto-calcoli altezza (lasciamo al CSS)
-              autoHeight={false}
-              disableSelectionOnClick
-            />
-          </Box>
+          <CustomDataGrid activeTab={activeTab} rows={activeTab.rows} columns={activeTab.columns}/>
         ) : (
           <Card
             sx={{
