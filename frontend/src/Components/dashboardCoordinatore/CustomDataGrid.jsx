@@ -7,9 +7,9 @@ import CustomProgressBar from "../ProgressBar/CustomProgressBar";
 
 export default function ProjectTasksDataGrid({ tasks }) {
   const columns = [
-    { field: "id", headerName: "id"},
-    { field: "title", headerName: "Titolo"},
-    { field: "description", headerName: "Descrizione"},
+    { field: "id", headerName: "id" },
+    { field: "title", headerName: "Titolo" },
+    { field: "description", headerName: "Descrizione" },
     {
       field: "assignedEmployees",
       headerName: "Assegnati",
@@ -40,8 +40,8 @@ export default function ProjectTasksDataGrid({ tasks }) {
     {
       field: "progress",
       headerName: "Progresso",
-      width: 150,
-      renderCell: (params) => <CustomProgressBar progress={params.value} />,
+      width: 200,
+      renderCell: (params) => <CustomProgressBar progress={params.value}/>,
     },
     {
       field: "actions",

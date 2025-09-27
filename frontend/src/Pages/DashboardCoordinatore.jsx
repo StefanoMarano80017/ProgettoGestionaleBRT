@@ -1,11 +1,16 @@
-import * as React from "react";
-import { Badge, Box } from "@mui/material";
+import React, { useState, useMemo, useEffect } from "react";
+import DataGridDashboardLayout from "../Layouts/DataGridDashboardLayout";
+import CustomDataGrid from "../Components/dashboardCoordinatore/CustomDataGrid";
+import ProjectCalendar from "../Components/Calendar/ProjectCalendar";
 import { useProjects } from "../Hooks/useProject";
 
-import CustomDataGridFiltred from "../Components/dashboardCoordinatore/CustomDataGridFiltred";
+// Hook dei filtri
+import { useTextFilter } from "../Components/DataGridDashboard/FiltersHooks/useTextFilter";
+import { useStatusFilter } from "../Components/DataGridDashboard/FiltersHooks/useStatusFilter";
+import { useEmployeeFilter } from "../Components/DataGridDashboard/FiltersHooks/useEmployeeFilter";
 
 export default function DashboardCoordinatore() {
-  const { data: projects, isLoading, error } = useProjects();
+  const { data: projects } = useProjects();
 
   const employees = [
     { id: 1, name: "Mario Rossi" },
@@ -15,36 +20,82 @@ export default function DashboardCoordinatore() {
     { id: 5, name: "Giulia Verdi" },
   ];
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  const [tabIndex, setTabIndex] = useState(0);
+  const [selectedProjects, setSelectedProjects] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Prepara tutte le task in formato "arricchito"
-  const allTasks = (projects || []).flatMap((project) => {
-    return (project.tasks || []).map((task) => {
-      // Prepara gli oggetti assegnati per CustomAvatarGroup
-      const assignedEmployees = (task.assigned || [])
-        .map((id) => employees.find((e) => e.id === id))
-        .filter(Boolean);
+  // Seleziona tutti i progetti inizialmente
+  useEffect(() => {
+    if (projects?.length) {
+      setSelectedProjects(projects.map((p) => p.title));
+    }
+  }, [projects]);
 
-      return {
-        ...task,
-        assignedEmployees, // array pronto da passare a CustomAvatarGroup
-        projectTitle: project.title, // opzionale: se vuoi mostrare il progetto
-      };
-    });
-  });
+  // --- Inizializza hook dei filtri ---
+  const textFilter = useTextFilter();
+  const employeeFilter = useEmployeeFilter(employees);
+  const statusFilter = useStatusFilter(["In corso", "Urgente", "Completato"]);
+
+  const filters = [textFilter, employeeFilter, statusFilter];
+  const activeFilters = filters.map((f) => f.label);
+
+  // --- Tasks filtrate per progetti selezionati ---
+  const tasks = useMemo(
+    () =>
+      (projects || [])
+        .filter(
+          (p) =>
+            selectedProjects.includes("Tutti") ||
+            selectedProjects.includes(p.title)
+        )
+        .flatMap((project) =>
+          (project.tasks || []).map((task) => ({
+            ...task,
+            assignedEmployees: (task.assigned || [])
+              .map((id) => employees.find((e) => e.id === id))
+              .filter(Boolean),
+            projectTitle: project.title,
+          }))
+        ),
+    [projects, employees, selectedProjects]
+  );
+
+  // --- Applica tutti i filtri ai task ---
+  const filteredTasks = useMemo(
+    () => filters.reduce((acc, f) => f.filterFn(acc), tasks),
+    [tasks, filters]
+  );
+
+  // --- Views ---
+  const views = {
+    0: <CustomDataGrid tasks={filteredTasks} employees={employees} />,
+    1: (
+      <ProjectCalendar
+        tasks={filteredTasks}      // array filtrato di task
+        employees={employees}      // lista dipendenti per side panel
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        currentMonth={currentMonth}
+        setCurrentMonth={setCurrentMonth}
+        cellSize={40}              // dimensione dei giorni
+        calendarFlex={1}           // proporzione calendario
+        sidePanelFlex={2}          // proporzione side panel
+      />
+    ),
+  };
 
   return (
-    <Box
-      style={{
-        height: "100%",
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        minHeight: 0,
-      }}
-    >
-      <CustomDataGridFiltred tasks={allTasks}  employees={employees} />
-    </Box>
+    <DataGridDashboardLayout
+      tabIndex={tabIndex}
+      setTabIndex={setTabIndex}
+      projects={projects}
+      selectedProjects={selectedProjects}
+      setSelectedProjects={setSelectedProjects}
+      filtersProps={{ filters, activeFilters }}
+      employees={employees}
+      statusOptions={["In corso", "Urgente", "Completato"]}
+      views={views}
+    />
   );
 }

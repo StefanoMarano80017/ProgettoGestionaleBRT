@@ -6,6 +6,8 @@ import ProjectCalendar from "../Components/Calendar/ProjectCalendar";
 import { useProjects } from "../Hooks/useProject";
 import BadgeCard from "../Components/BadgeCard/BadgeCard";
 
+
+
 export default function Milestone() {
   // React Query
   const { data: projects, isLoading, error } = useProjects();

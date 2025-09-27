@@ -14,17 +14,20 @@ const CustomProgressBar = ({ progress }) => {
     <Box
       sx={{
         display: "flex",
-        justifyContent: "space-between",
-        mx: 0.5,
+        alignItems: "center",  
+        justifyContent: "center", 
+        width: "100%",        // importante
+        my:2,
       }}
     >
-      <Typography variant="body2" fontWeight="bold">
+      <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 40 }}>
         {progress} h
       </Typography>
       <LinearProgress
         variant="determinate"
         value={progress}
         sx={{
+          flexGrow: 1,        // occupa tutto lo spazio rimanente
           height: 10,
           borderRadius: 5,
           [`& .MuiLinearProgress-bar`]: {
@@ -35,5 +38,6 @@ const CustomProgressBar = ({ progress }) => {
     </Box>
   );
 };
+
 
 export default CustomProgressBar;

@@ -1,32 +1,106 @@
-import React, { useState, useMemo } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Stack,
-  Chip,
-  Divider,
-  Select,
-  MenuItem,
-  Typography,
-  Pagination,
-} from "@mui/material";
+import React, { useState, useMemo, useCallback } from "react";
+import { Box, Card, CardContent, Stack, Chip } from "@mui/material";
 import CustomDataGrid from "./CustomDataGrid";
-import FiltersMenu from "./Spreedsheet/Filters/FiltersMenu"; // riusa il tuo componente esistente
+import FiltersMenu from "./Spreedsheet/Filters/FiltersMenu";
 import CustomAvatarGroup from "../Avatar/CustomAvatarGroup";
 
-export default function DataGridWithFilters({ tasks, employees }) {
+// Helper per arricchire le tasks
+const mapTasks = (projects, employees) =>
+  (projects || []).flatMap((project) =>
+    (project.tasks || []).map((task) => {
+      const assignedEmployees = (task.assigned || [])
+        .map((id) => employees.find((e) => e.id === id))
+        .filter(Boolean);
+
+      return {
+        ...task,
+        assignedEmployees,
+        projectTitle: project.title,
+      };
+    })
+  );
+
+// Component per mostrare i filtri attivi come chip
+function ActiveFilters({
+  textFilter,
+  employeeFilter,
+  statusFilter,
+  createdFrom,
+  completedTo,
+  employees,
+  onRemove,
+}) {
+  return (
+    <Stack
+      direction="row"
+      spacing={1}
+      gap={1}
+      sx={{ flexWrap: "nowrap", flexDirection: "row-reverse", mr: 1 }}
+    >
+      {textFilter && (
+        <Chip
+          label={`Testo: ${textFilter}`}
+          color="primary"
+          onDelete={() => onRemove("text")}
+        />
+      )}
+      {employeeFilter.length > 0 && (
+        <Chip
+          color="secondary"
+          onDelete={() => onRemove("employee")}
+          label={
+            <Box display="flex" alignItems="center">
+              <CustomAvatarGroup
+                data={employees.filter((e) => employeeFilter.includes(e.id))}
+                max={2}
+              />
+            </Box>
+          }
+        />
+      )}
+      {statusFilter.length > 0 && (
+        <Chip
+          label={`Stato: ${statusFilter.join(", ")}`}
+          color="success"
+          onDelete={() => onRemove("status")}
+        />
+      )}
+      {createdFrom && (
+        <Chip
+          label={`Creati da: ${createdFrom}`}
+          color="warning"
+          onDelete={() => onRemove("createdFrom")}
+        />
+      )}
+      {completedTo && (
+        <Chip
+          label={`Chiusi entro: ${completedTo}`}
+          color="warning"
+          onDelete={() => onRemove("completedTo")}
+        />
+      )}
+    </Stack>
+  );
+}
+
+export default function DataGridWithFilters({ projects, employees }) {
+  // Stato filtri
   const [textFilter, setTextFilter] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState([]);
   const [statusFilter, setStatusFilter] = useState([]);
   const [createdFrom, setCreatedFrom] = useState("");
   const [completedTo, setCompletedTo] = useState("");
+
+  // Stato paginazione
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
   const statusOptions = ["In corso", "Urgente", "Completato"];
 
-  // Filtraggio dei task
+  // Prepara le tasks solo quando cambiano progetti o employees
+  const tasks = useMemo(() => mapTasks(projects, employees), [projects, employees]);
+
+  // Logica filtraggio
   const filteredTasks = useMemo(() => {
     return (tasks || []).filter((task) => {
       const matchesText =
@@ -56,22 +130,17 @@ export default function DataGridWithFilters({ tasks, employees }) {
         matchesCompleted
       );
     });
-  }, [
-    tasks,
-    textFilter,
-    employeeFilter,
-    statusFilter,
-    createdFrom,
-    completedTo,
-  ]);
+  }, [tasks, textFilter, employeeFilter, statusFilter, createdFrom, completedTo]);
 
+  // Paginazione
   const pageCount = Math.ceil(filteredTasks.length / rowsPerPage);
   const displayedTasks = filteredTasks.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
   );
 
-  const removeFilter = (type) => {
+  // Reset singolo filtro
+  const removeFilter = useCallback((type) => {
     switch (type) {
       case "text":
         setTextFilter("");
@@ -91,7 +160,7 @@ export default function DataGridWithFilters({ tasks, employees }) {
       default:
         break;
     }
-  };
+  }, []);
 
   return (
     <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -105,57 +174,15 @@ export default function DataGridWithFilters({ tasks, employees }) {
         }}
       >
         {/* Chips dei filtri attivi */}
-        <Stack
-          direction="row"
-          spacing={1}
-          gap={1}
-          sx={{ flexWrap: "nowrap", flexDirection: "row-reverse", mr: 1 }}
-        >
-          {textFilter && (
-            <Chip
-              label={`Testo: ${textFilter}`}
-              color="primary"
-              onDelete={() => removeFilter("text")}
-            />
-          )}
-          {employeeFilter.length > 0 && (
-            <Chip
-              color="secondary"
-              onDelete={() => removeFilter("employee")}
-              label={
-                <Box display="flex" alignItems="center">
-                  <CustomAvatarGroup
-                    data={employees.filter((e) =>
-                      employeeFilter.includes(e.id)
-                    )}
-                    max={2} // numero massimo di avatar visibili
-                  />
-                </Box>
-              }
-            />
-          )}
-          {statusFilter.length > 0 && (
-            <Chip
-              label={`Stato: ${statusFilter.join(", ")}`}
-              color="success"
-              onDelete={() => removeFilter("status")}
-            />
-          )}
-          {createdFrom && (
-            <Chip
-              label={`Creati da: ${createdFrom}`}
-              color="warning"
-              onDelete={() => removeFilter("createdFrom")}
-            />
-          )}
-          {completedTo && (
-            <Chip
-              label={`Chiusi entro: ${completedTo}`}
-              color="warning"
-              onDelete={() => removeFilter("completedTo")}
-            />
-          )}
-        </Stack>
+        <ActiveFilters
+          textFilter={textFilter}
+          employeeFilter={employeeFilter}
+          statusFilter={statusFilter}
+          createdFrom={createdFrom}
+          completedTo={completedTo}
+          employees={employees}
+          onRemove={removeFilter}
+        />
 
         {/* Search bar + bottone filtri */}
         <Box sx={{ display: "flex", gap: 1, minWidth: 300 }}>
@@ -181,7 +208,6 @@ export default function DataGridWithFilters({ tasks, employees }) {
       <Box sx={{ flex: 1, overflow: "auto" }}>
         <CustomDataGrid tasks={displayedTasks} />
       </Box>
-
     </Card>
   );
 }

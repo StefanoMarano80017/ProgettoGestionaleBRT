@@ -43,15 +43,19 @@ export default function ProjectCalendar({
   const tasksMap = React.useMemo(() => generateTasksMap(projects), [projects]);
 
   // Rendering dei giorni
-  const renderDay = (day, _outsideCurrentMonth, other, selectedDate) => {
+  const renderDay = (day, _value, DayComponentProps) => {
     const key = formatDateLocal(day);
     const tasks = tasksMap[key] || [];
+
     return (
       <PickersDay
-        {...other}
-        day={day}
-        selected={isSameDay(day, selectedDate)}
-        sx={{ p: 0.5, width: cellSize, height: cellSize }}
+        {...DayComponentProps} 
+        sx={{
+          p: 0.5,
+          width: cellSize,
+          height: cellSize,
+          ...DayComponentProps.sx,
+        }}
       >
         <Box
           sx={{
@@ -75,7 +79,7 @@ export default function ProjectCalendar({
                   fontSize: Math.round(cellSize / 3.5),
                   height: Math.round(cellSize / 2.5),
                   minWidth: Math.round(cellSize / 2.5),
-                  mt:1,
+                  mt: 1,
                 },
               }}
             />
