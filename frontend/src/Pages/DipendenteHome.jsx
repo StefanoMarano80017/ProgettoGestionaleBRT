@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Box } from "@mui/material";
+import { Box, Container } from "@mui/material";
 import ContatoreIngressi from "../Components/DipendenteHomePage/ContatoreIngressi";
 import SetOreGiorno from "../Components/Calendar/SetOreGiorno";
 import LayoutDashboardDipendenti from "../Components/DipendenteHomePage/LayoutDashboardDipendenti";
@@ -9,6 +9,10 @@ import MultiProgressCard from "../Components/ProgressBar/MultiProgressCard";
 import TopBar from "../Components/DipendenteHomePage/TopBar";
 import { mockDaysInfo } from "../Components/Calendar/MockDaysInfo";
 import CommesseList from "../Components/DipendenteHomePage/CommesseList";
+import PageHeader from "../Components/PageHeader";
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import { Stack, Chip } from "@mui/material";
+import { Alert } from "@mui/material";
 
 export default function DipendenteHome() {
   const [selectedTab, setSelectedTab] = useState("tab1");
@@ -50,11 +54,23 @@ export default function DipendenteHome() {
   ];
 
   return (
-    <Box sx={{ width: "100%", minHeight: "100vh" }}>
+    <Container maxWidth="xl" sx={{ mt: 4 }}>
+      <PageHeader
+      title="Timesheet"
+      description="Qui puoi visualizzare il riepilogo dei dati inseriti del timesheet:"
+      icon={<AccessTimeIcon />}
+      extraContent={
+        <Stack direction="row" spacing={4}>
+          <Alert severity="success" variant="filled" > In verde i giorni inseriti correttamente.</Alert>
+          <Alert severity="warning" variant="filled"> In giallo i giorni con problemi di inserimento.</Alert>
+          <Alert severity="error" variant="filled"> In rosso i giorni non inseriti.</Alert>
+        </Stack>
+      }
+    />
       <LayoutDashboardDipendenti
         leftComponents={leftComponents}
         rightComponents={rightComponents}
       />
-    </Box>
+    </Container>
   );
 }

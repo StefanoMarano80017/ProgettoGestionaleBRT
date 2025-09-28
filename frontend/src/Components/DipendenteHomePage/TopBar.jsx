@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Typography,
-  ToggleButtonGroup,
-  ToggleButton,
-} from "@mui/material";
+import { Box, Typography, ToggleButtonGroup, ToggleButton } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 
@@ -21,25 +16,9 @@ const TopBar = ({ onTabChange }) => {
   };
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        py: 1,
-        width: "100%",
-      }}
-    >
-      <Box sx={{ flexGrow: 1 }}>
-        <Typography variant="body2">Dashboard Commesse</Typography>
-      </Box>
-
+    <Box sx={{ display: "flex", alignItems: "center", py: 1, width: "100%" }}>
       {/* Toggle a destra */}
-      <ToggleButtonGroup
-        value={selectedTab}
-        exclusive
-        onChange={handleTabChange}
-        size="small"
-      >
+      <ToggleButtonGroup value={selectedTab} exclusive onChange={handleTabChange} size="small">
         <ToggleButton value="tab1">
           <CalendarMonthIcon /> Timesheet
         </ToggleButton>

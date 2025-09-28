@@ -14,27 +14,10 @@ import SetOreGiorno from "../Calendar/SetOreGiorno";
  * - setCurrentMonth: function(number)
  * - daysInfo: object (mappa { "YYYY-MM-DD": { type, hours, ... } })
  */
-const ContatoreIngressi = ({
-  selectedDate,
-  setSelectedDate,
-  currentMonth,
-  setCurrentMonth,
-  daysInfo,
-}) => {
+const ContatoreIngressi = ({ selectedDate, setSelectedDate, currentMonth, setCurrentMonth, daysInfo }) => {
   return (
     <Box >
       <Card variant="outlined" sx={{ p: 2 }}>
-        <Box justifyContent={'flex-start'} flexGrow={1} paddingBottom={2}>
-          <Typography variant="h4" gutterBottom>
-            h4. Heading
-          </Typography>
-          <Stack direction="row" spacing={2} width={"100%"}>
-            <Alert severity="success"> This is a success Alert.</Alert>
-            <Alert severity="info"> This is an info Alert.</Alert>
-            <Alert severity="warning"> This is a warning Alert.</Alert>
-          </Stack>
-        </Box>
-
         <LayoutDashColumn spacing={0}
           left={
             <CalendarDipendenti

@@ -1,19 +1,5 @@
 import * as React from "react";
-import {
-  Box,
-  Card,
-  CardHeader,
-  CardContent,
-  CardActions,
-  Typography,
-  Paper,
-  IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-  Pagination,
-} from "@mui/material";
+import { Box, Card,CardHeader, CardContent, CardActions, Typography, Paper, IconButton, List, ListItem, ListItemText, Divider, Pagination } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
