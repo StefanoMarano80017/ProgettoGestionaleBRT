@@ -49,7 +49,6 @@ export default function TaskDetailCard({ task }) {
             display: "flex",
             alignItems: "center",
             gap: 1,
-            width: 120,
           }}
         >
           <ProgressChip
