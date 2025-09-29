@@ -7,7 +7,11 @@ import {
   Card,
   CardHeader,
   CardContent,
-  Autocomplete
+  Autocomplete,
+  TextField,
+  Checkbox,
+  ListItemText,
+  Stack,
 } from "@mui/material";
 import { BarChart } from "@mui/x-charts/BarChart";
 import FiltersBar from "../DataGridDashboard/FiltersBar";
@@ -111,32 +115,34 @@ export default function CoordinatorTaskChart({ projects }) {
 
   return (
     <Box sx={{ width: "100%" }}>
-      {/* Barra filtri */}
-      <FiltersBar
-        filters={filters}
-        activeFilters={activeFilters}
-        employees={null}
-      />
+      <Stack direction="row" spacing={2} alignContent="center">
+        {/* Barra filtri */}
+        <FiltersBar
+          filters={filters}
+          activeFilters={activeFilters}
+          employees={null}
+        />
 
-      <Autocomplete
-        multiple
-        size="small"
-        limitTags={2}
-        options={projects.map((p) => p.title)}
-        value={selectedProjectTitles}
-        onChange={(_, newValue) => handleProjectChange(newValue)}
-        clearOnEscape
-        disableCloseOnSelect
-        renderOption={(props, option, { selected }) => (
-          <li {...props}>
-            <Checkbox style={{ marginRight: 8 }} checked={selected} />
-            <ListItemText primary={option} />
-          </li>
-        )}
-        renderInput={(params) => (
-          <TextField {...params} label="Progetti" variant="outlined" />
-        )}
-      />
+        <Autocomplete
+          multiple
+          size="small"
+          limitTags={2}
+          options={projects.map((p) => p.title)}
+          value={selectedProjectTitles}
+          onChange={(_, newValue) => handleProjectChange(newValue)}
+          clearOnEscape
+          disableCloseOnSelect
+          renderOption={(props, option, { selected }) => (
+            <li {...props}>
+              <Checkbox style={{ marginRight: 8 }} checked={selected} />
+              <ListItemText primary={option} />
+            </li>
+          )}
+          renderInput={(params) => (
+            <TextField {...params} label="Progetti" variant="outlined" />
+          )}
+        />
+      </Stack>
 
       <Card>
         <CardHeader
