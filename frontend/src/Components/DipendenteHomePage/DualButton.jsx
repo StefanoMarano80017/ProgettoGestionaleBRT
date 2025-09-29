@@ -3,7 +3,7 @@ import { Box, Typography, ToggleButtonGroup, ToggleButton } from "@mui/material"
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 
-const TopBar = ({ onTabChange }) => {
+const DualButton = ({ onTabChange }) => {
   const [selectedTab, setSelectedTab] = useState("tab1");
 
   const handleTabChange = (event, newTab) => {
@@ -30,4 +30,4 @@ const TopBar = ({ onTabChange }) => {
   );
 };
 
-export default TopBar;
+export default DualButton;

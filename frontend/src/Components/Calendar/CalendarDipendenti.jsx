@@ -7,21 +7,15 @@ import { isSameDay, getYear, getMonth, getDay } from "date-fns";
 import CalendarBase from "./CalendarBase";
 import itLocale from "date-fns/locale/it";
 
-export default function CalendarDipendenti({
-  selectedDate,
-  setSelectedDate,
-  currentMonth,
-  setCurrentMonth,
-  daysInfo,
-}) {
+export default function CalendarDipendenti({ selectedDate, setSelectedDate, currentMonth, setCurrentMonth, daysInfo }) {
   const renderDay = (day, outsideCurrentMonth, otherProps) => {
     const dayKey = day.toISOString().split("T")[0];
     const dayData = daysInfo?.[dayKey];
 
     let textColor = "inherit";
-    if (dayData?.type === "worked") textColor = "green";
-    else if (dayData?.type === "vacation") textColor = "orange";
-    else if (dayData?.type === "not_worked") textColor = "red";
+    if (dayData?.type === "worked") textColor = "customGreen.main";
+    else if (dayData?.type === "vacation") textColor = "customYellow.main";
+    else if (dayData?.type === "not_worked") textColor = "customRed.main";
 
     const isDisabled = getDay(day) === 0 || getDay(day) === 6; // domenica o sabato
 
