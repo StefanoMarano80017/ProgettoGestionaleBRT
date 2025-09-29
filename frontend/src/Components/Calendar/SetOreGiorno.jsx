@@ -52,32 +52,8 @@ export default function SetOreGiorno({ selectedDate }) {
   };
 
   return (
-    <Card
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: 400, // Altezza fissa complessiva della card
-        minHeight: 300,
-        backgroundColor: 'transparent', 
-        boxShadow: 'none',
-      }}
-    >
-      {/* Header */}
-      <CardHeader
-        title={
-          selectedDate
-            ? selectedDate.toLocaleDateString("it-IT", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })
-            : "Seleziona un giorno"
-        }
-        sx={{ pb: 0 }}
-      />
-      <CardContent sx={{ pt: 1, pb: 1, flex: "0 0 auto"}}>
-        <Stack direction="row" spacing={1} flexWrap="wrap">
+    <Box >
+        <Stack direction="row" spacing={1} >
           <FormControl size="small" sx={{ width: 150, flexShrink: 0 }}>
             <InputLabel id="select-commessa-label">Commessa</InputLabel>
             <Select
@@ -92,43 +68,16 @@ export default function SetOreGiorno({ selectedDate }) {
             </Select>
           </FormControl>
 
-          <TextField
-            label="Ore"
-            type="number"
-            size="small"
-            value={oreInput}
-            inputProps={{ min: 0 }}
-            onChange={(e) => setOreInput(e.target.value)}
-            sx={{ maxWidth: 80 }}
-          />
+          <TextField  label="Ore"  type="number"  size="small"  value={oreInput}  inputProps={{ min: 0 }}  onChange={(e) => setOreInput(e.target.value)}  sx={{ maxWidth: 80 }}/>
 
-          <TextField
-            label="Descrizione"
-            type="text"
-            size="small"
-            value={descrizione}
-            onChange={(e) => setDescrizione(e.target.value)}
-            sx={{ flexGrow: 1, minWidth: 120 }}
-          />
+          <TextField  label="Descrizione"  type="text"  size="small"  value={descrizione}  onChange={(e) => setDescrizione(e.target.value)}  sx={{ flexGrow: 1, minWidth: 120 }}/>
 
           <Button variant="contained" size="small" onClick={handleAddCommessa}>
             <AddIcon />
           </Button>
         </Stack>
-      </CardContent>
 
       {/* Lista scrollabile */}
-      <CardContent
-        sx={{
-          flex: "1 1 auto",
-          overflowY: "auto",
-          pt: 0,
-          pb: 0,
-          minHeight: 0,
-          maxHeight: "calc(100% - 120px)", // header + footer circa 120px
-          border:1
-        }}
-      >
         {commesse.length === 0 ? (
           <Box
             display="flex"
@@ -137,13 +86,8 @@ export default function SetOreGiorno({ selectedDate }) {
             height="100%"
             p={2}
           >
-            <Paper
-              sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}
-              variant="outlined"
-            >
               <InfoOutlinedIcon color="info" />
               <Typography>Nessuna commessa aggiunta</Typography>
-            </Paper>
           </Box>
         ) : (
           <List dense>
@@ -163,12 +107,6 @@ export default function SetOreGiorno({ selectedDate }) {
                   <ListItemText
                     primary={`${c.commessa} - Ore: ${c.ore}`}
                     secondary={c.descrizione}
-                    primaryTypographyProps={{
-                      style: { wordBreak: "break-word", whiteSpace: "normal" },
-                    }}
-                    secondaryTypographyProps={{
-                      style: { wordBreak: "break-word", whiteSpace: "normal" },
-                    }}
                   />
                 </ListItem>
                 {idx < commesse.length - 1 && <Divider component="li" />}
@@ -176,15 +114,6 @@ export default function SetOreGiorno({ selectedDate }) {
             ))}
           </List>
         )}
-      </CardContent>
-
-      {/* Footer */}
-      <CardActions sx={{ justifyContent: "space-between", pt: 1, pb: 1, px: 2, flexShrink: 0 }}>
-        <Chip label={`Totale ore giornata: ${totaleOreGiornata}h`} color="primary" />
-        <Button variant="contained" color="success" startIcon={<PlayArrowIcon />}>
-          Submit
-        </Button>
-      </CardActions>
-    </Card>
+  </Box>
   );
 }

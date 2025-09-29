@@ -24,7 +24,7 @@ export default function CalendarDipendenti({ selectedDate, setSelectedDate, curr
         {...otherProps}
         day={day}
         outsideCurrentMonth={outsideCurrentMonth}
-        sx={{ color: textColor, width: 36, height: 36, fontSize: "1rem" }}
+        sx={{ color: textColor, width: 46, height: 36, fontSize: "1.2rem" }}
         selected={isSameDay(day, selectedDate)}
         disabled={isDisabled} // disabilita il giorno se è sabato o domenica
       />
