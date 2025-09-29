@@ -21,27 +21,6 @@ function TabPanel({ children, value, index }) {
   );
 }
 
-// Custom Tabs
-function CustomTabs() {
-  const [tabValue, setTabValue] = useState(0);
-  return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)}>
-        <Tab label="Tab 1" />
-        <Tab label="Tab 2" />
-      </Tabs>
-      <Box sx={{ flex: 1 }}>
-        <TabPanel value={tabValue} index={0}>
-          Contenuto Tab 1
-        </TabPanel>
-        <TabPanel value={tabValue} index={1}>
-          Contenuto Tab 2
-        </TabPanel>
-      </Box>
-    </Box>
-  );
-}
-
 // Uso del layout modulare
 export default function App() {
   return (

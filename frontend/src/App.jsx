@@ -7,6 +7,7 @@ import About from "./Pages/About";
 import DipendentiHome from "./Pages/DipendenteHome";
 import DashboardAmministrazione from "./Pages/DashboardAmministrazione";
 import DashboardCoordinatore from "./Pages/DashboardCoordinatore";
+import ChartExample from "./Pages/ChartExample";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="timesheet"                 element={<DipendentiHome/>} />
             <Route path="dashboardAmministrazione"  element={<DashboardAmministrazione/>} />
             <Route path="dashboardCoordinatore"  element={<DashboardCoordinatore/>} />
+            <Route path="ChartExample" element={<ChartExample/>} />
           </Route>
         </Routes>
       </BrowserRouter>

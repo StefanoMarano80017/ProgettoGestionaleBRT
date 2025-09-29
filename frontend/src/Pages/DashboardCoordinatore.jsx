@@ -36,7 +36,6 @@ export default function DashboardCoordinatore() {
   const textFilter = useTextFilter();
   const employeeFilter = useEmployeeFilter(employees);
   const statusFilter = useStatusFilter(["In corso", "Urgente", "Completato"]);
-
   const filters = [textFilter, employeeFilter, statusFilter];
   const activeFilters = filters.map((f) => f.label);
 
