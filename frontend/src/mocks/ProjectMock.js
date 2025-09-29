@@ -50,6 +50,7 @@ export const projectsMock = [
         ],
       },
     ],
+    hours: 10 + 10 + 5, // somma dei total dei task = 25
   },
   {
     id: 2,
@@ -87,6 +88,7 @@ export const projectsMock = [
         ],
       },
     ],
+    hours: 5 + 30, // somma dei total dei task = 35
   },
   {
     id: 3,
@@ -124,5 +126,6 @@ export const projectsMock = [
         ],
       },
     ],
+    hours: 10 + 10, 
   },
 ];
