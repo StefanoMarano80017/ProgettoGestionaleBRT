@@ -5,8 +5,8 @@ import SendIcon from "@mui/icons-material/Send";
 const Badge = ({ initialId= "", name= "", editable = false, onConfirm }) => {
   const styles = {
     container: {
-      width: "90%",
-      height: "180px",
+      width: "320px",
+      height: "130px",
       borderRadius: "12px",
       background: "linear-gradient(135deg, #4a90e2, #0052cc)",
       color: "white",

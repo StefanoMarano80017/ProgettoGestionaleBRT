@@ -6,6 +6,9 @@ export const lightTheme = createTheme({
     primary: { main: "#0582CA" },
     secondary: { main: "#D8315B" },
     background: { default: "#FFFAFF" },
+    customGreen: { main: "#34C759" },
+    customYellow: { main: "#FFCC00" },
+    customRed: { main: "#FF3B30" }, 
   },
 });
 
@@ -15,5 +18,8 @@ export const darkTheme = createTheme({
     primary: { main: "#0582CA" },
     secondary: { main: "#f48fb1" },
     background: { default: "#2C2C2C" },
+    customGreen: { main: "#34C759" },
+    customYellow: { main: "#FFCC00" },
+    customRed: { main: "#FF3B30" }, 
   },
 });
