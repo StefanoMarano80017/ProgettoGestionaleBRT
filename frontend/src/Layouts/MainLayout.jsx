@@ -12,42 +12,15 @@ export default function MainLayout() {
   };
 
   return (
-    <Box sx={{ display: "flex", height: "100vh", width: "100vw" }}>
-      {/* Sidebar verticale */}
-      <Sidebar sx={{ height: "100vh" }} collapsed={collapsed} />
-
-      {/* Main content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden", // previene scroll orizzontale
-        }}
-      >
-        <Header
-          breadcrumbItems={[
-            { label: "Commesse" , href: "/commesse"},
-            { label: "Commesse" , href: "/commesse"},
-            { label: "Commesse" , href: "/commesse"},
-            { label: "Commesse" , href: "/commesse"},
-          ]}
-          onToggleSidebar={handleToggleSidebar}
-        />
-
-        {/* Contenuto scrollabile sotto l'AppBar */}
-        <Box
-          sx={{
-            flexGrow: 1,
-            display: "flex",
-            overflowY: "auto", 
-            overflowX: "hidden",
-          }}
-        >
-          <Outlet />
-        </Box>
+    <Box sx={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column" }}>
+  <Header />
+    <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
+      <Sidebar sx={{ height: "100%" }} />
+      <Box sx={{ flexGrow: 1, overflowY: "auto", overflowX: "hidden" }}>
+        <Outlet />
       </Box>
     </Box>
+  </Box>
+
   );
 }

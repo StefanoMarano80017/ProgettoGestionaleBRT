@@ -2,7 +2,7 @@ import { Box, Breadcrumbs, Link, IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchBar from "../Inputs/SearchBar";
 import NotificationsMenu from "../NotificationMenu";
-import CustomBreadcrumbs from "../Buttons/CustomBreadcrumbs"
+import LogoGestionale from "../../Assets/LogoGestionale.png";
 
 export default function PageHeader({ breadcrumbItems = [], onToggleSidebar }) {
   return (
@@ -21,14 +21,11 @@ export default function PageHeader({ breadcrumbItems = [], onToggleSidebar }) {
     >
       {/* Sezione sinistra con burger + breadcrumb */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        {/* Burger menu */}
-        <IconButton onClick={onToggleSidebar} size="small">
-          <MenuIcon />
-        </IconButton>
-
-        {/* Breadcrumb */}
-        <CustomBreadcrumbs
-          items={breadcrumbItems}
+        <Box
+          component="img"
+          src={LogoGestionale}
+          alt="Logo Gestionale"
+          sx={{ height: 25, width: "auto", ml: 4.5 }}
         />
       </Box>
 

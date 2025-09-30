@@ -17,16 +17,21 @@ import PeopleIcon from "@mui/icons-material/People";
 import DescriptionIcon from "@mui/icons-material/Description";
 import { Link } from "react-router-dom";
 import UserProfile from "./UserProfile";
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import SidebarItem from "./SidebarItem";
+import AccountBoxIcon from '@mui/icons-material/AccountBox';
+
+// Sidebar items definition
 
 const pages = [
   { text: "Home", icon: <HomeIcon />, path: "/" },
+  { text: "TimeSheet", icon: <AccessTimeIcon />, path: "/timesheet" },
   { text: "Commesse", icon: <FolderIcon />, path: "/commesse" },
-  { text: "Progetti", icon: <FolderIcon />, path: "/progetti" },
   { text: "Dipendenti", icon: <PeopleIcon />, path: "/dipendenti" },
   { text: "Documenti", icon: <DescriptionIcon />, path: "/documenti" },
 ];
 
-// Funzione per generare iniziali da nome completo
+// Function to get initials from name
 function getInitials(name) {
   return name
     .split(" ")
@@ -35,13 +40,14 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-export default function Sidebar({ userName = "Mario Rossi", onLogout, collapsed }) {
+// Sidebar component
+export default function Sidebar({ userName = "Mario Rossi", onLogout, collapsed = false }) {
   return (
     <Box
       sx={{
-        width: collapsed ? 60 : 220,
+        width: collapsed ? 60 : 120,
         transition: "width 0.3s",
-        bgcolor: "background.paper",
+        bgcolor: "customBackground.main",
         height: "100vh",
         borderRight: 1,
         borderColor: "divider",
@@ -49,49 +55,32 @@ export default function Sidebar({ userName = "Mario Rossi", onLogout, collapsed 
         flexDirection: "column",
       }}
     >
+      {/* UserProfile */}
+      <Box sx={{ justifyContent: "center", marginY: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+        <SidebarItem
+          key={userName}
+          icon={<Avatar sx={{ width: 40,  height: 40, bgcolor: "customGreen.main", }}> <Typography variant="subtitle" sx={{ lineHeight: 2, fontWeight: 400}}> {getInitials(userName)} </Typography> </Avatar>}
+          text={userName}
+          path={"/timesheet"}
+          selected={false}
+        />
+      </Box>
+      <Divider />
       {/* Lista pagine */}
-      <List sx={{ flexGrow: 1 }}>
-
-        <Divider />
+      <List sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
         {pages.map((page) => (
-          <ListItem key={page.text} disablePadding>
-            <Tooltip title={collapsed ? page.text : ""} placement="right">
-              <ListItemButton
-                component={Link}
-                to={page.path}
-                selected={location.pathname === page.path}
-                sx={{
-                  justifyContent: collapsed ? "center" : "flex-start",
-                  px: 2,
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 0, justifyContent: "center" }}>
-                  {page.icon}
-                </ListItemIcon>
-                {!collapsed && (
-                  <ListItemText primary={page.text} sx={{ ml: 2 }} />
-                )}
-              </ListItemButton>
-            </Tooltip>
-          </ListItem>
+          <SidebarItem
+            key={page.text}
+            icon={page.icon}
+            text={page.text}
+            path={page.path}
+            selected={location.pathname === page.path}
+          />
         ))}
+      </List>
+
 
         <Divider />
-                {/* UserProfile */}
-        <Box sx={{
-            display: "flex",
-            justifyContent: "center",
-            py: 2,
-            height: 40,
-          }}>
-          <UserProfile
-            userName={userName}
-            onLogout={onLogout}
-            collapsed={collapsed}
-          />
-        </Box>
-
-      </List>
     </Box>
   );
 }
