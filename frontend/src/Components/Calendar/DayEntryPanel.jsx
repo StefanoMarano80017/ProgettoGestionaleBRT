@@ -10,6 +10,7 @@ import {
   IconButton,
   Paper,
   Alert,
+  Divider,
 } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
 
@@ -38,6 +39,12 @@ const DayEntryPanel = ({ selectedDay, data = {}, onAddRecord, commesse = [] }) =
   }, [selectedDay, data]);
 
   const totalHours = records.reduce((sum, rec) => sum + rec.ore, 0);
+
+    // Colore dinamico per il totale ore
+  let color = "text.primary";
+  if (totalHours === 8) color = "success.main";
+  else if (totalHours > 0 && totalHours < 8) color = "warning.main";
+  else if (totalHours === 0) color = "error.main";
 
   const handleAddOrUpdate = () => {
     if (!selectedCommessa || !ore) return;
@@ -109,7 +116,7 @@ const DayEntryPanel = ({ selectedDay, data = {}, onAddRecord, commesse = [] }) =
       )}
 
       {/* Form inserimento/modifica */}
-      <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", gap: 2, width: "100%", mb: 2 }}>
         <TextField
           select
           label="Commessa"
@@ -148,9 +155,9 @@ const DayEntryPanel = ({ selectedDay, data = {}, onAddRecord, commesse = [] }) =
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
+          <Divider />
       {/* Lista dei record */}
-      <Box sx={{ flexGrow: 1, overflowY: "auto" }}>
+      <Box sx={{ flexGrow:1 , overflowY: "auto", bgcolor: "background.default", minHeight: 0, }}>
         {records.length > 0 ? (
           <List>
             {records.map((rec, idx) => (
@@ -172,13 +179,13 @@ const DayEntryPanel = ({ selectedDay, data = {}, onAddRecord, commesse = [] }) =
             ))}
           </List>
         ) : (
-          <Typography variant="caption">Nessun record presente</Typography>
+          <Alert severity="info" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Nessun record presente</Alert>
         )}
       </Box>
-
-      <Typography variant="body2" sx={{ mt: 1 }}>
-        Totale ore inserite: {totalHours} / 8
-      </Typography>
+      <Divider />
+      <Typography variant="body2" sx={{ color }}>
+          Totale ore inserite: {totalHours} / 8
+        </Typography>
     </Box>
   );
 };
