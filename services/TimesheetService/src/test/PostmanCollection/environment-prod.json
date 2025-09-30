@@ -1,0 +1,24 @@
+{
+  "id": "c1c9f3b0-prod-1234-5678-9012-prod1234abcd",
+  "name": "TimesheetService-PROD",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.azienda.it/timesheet",
+      "enabled": true
+    },
+    {
+      "key": "adminToken",
+      "value": "PUT-YOUR-ADMIN-TOKEN-HERE",
+      "enabled": true
+    },
+    {
+      "key": "employeeToken",
+      "value": "PUT-YOUR-EMPLOYEE-TOKEN-HERE",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_at": "2025-09-30T14:55:00Z",
+  "_postman_exported_using": "Postman/10.20.0"
+}
