@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "timesheet_items")
+@Table(name = "timesheet_items", schema = "public")
 @Getter
 @Setter
 @NoArgsConstructor

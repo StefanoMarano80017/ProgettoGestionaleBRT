@@ -1,17 +1,18 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/timesheet
+    url: jdbc:postgresql://db:5432/timesheet?currentSchema=public
     username: timesheet_user
     password: secret
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: create-drop   # in dev ricrea schema ogni volta
+      ddl-auto: create-drop   # ricrea lo schema ad ogni avvio in dev
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+        default_schema: public  # schema di default per Hibernate
 
   sql:
     init:
