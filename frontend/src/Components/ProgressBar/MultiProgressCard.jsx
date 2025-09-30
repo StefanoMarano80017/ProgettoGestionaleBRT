@@ -1,27 +1,14 @@
 import React from "react";
-import {
-  Card,
-  CardContent,
-  LinearProgress,
-  Typography,
-  Box,
-} from "@mui/material";
-import InfoIcon from "@mui/icons-material/Info"; // icona di default
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-
-const defaultColors = ["#1976d2", "#d32f2f", "#388e3c"]; // blu, rosso, verde
+import {  Card,  CardContent,  LinearProgress,  Typography,  Box,} from "@mui/material";
 
 const MultiProgressCard = ({ progresses }) => {
   const total = progresses.reduce((sum, p) => sum + p.value, 0);
 
   return (
     <Box>
-      <Card variant="outlined" sx={{ p: 2 }}>
+      <Card sx={{ p: 2, boxShadow: "none", backgroundColor: 'customBackground.main' }}>
         {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-          <Box sx={{ mr: 1 }}>
-            <AccessTimeIcon />
-          </Box>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2, backgroundColor: 'customBackground.main',  }}>
           <Typography variant="subtitle1" fontWeight="bold">
             Totale: {total} h
           </Typography>
