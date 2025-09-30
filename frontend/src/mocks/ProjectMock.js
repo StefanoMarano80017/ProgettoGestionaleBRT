@@ -1,170 +1,119 @@
-export const projectsMock = [
-  {
-    id: 1,
-    title: "Progetto Alpha",
-    description: "Implementazione piattaforma",
-    tasks: [
-      // Gennaio
-      {
-        id: "1_1",
-        title: "UI principale",
-        description: "Header, Sidebar e Footer",
-        progress: 100,
-        hours: 10,
-        createdAt: new Date("2025-01-03"),
-        completed: new Date("2025-01-07"),
-        tag: "Completato",
-        items: [{ name: "Header", status: "completo" }, { name: "Sidebar", status: "completo" }],
-      },
-      {
-        id: "1_2",
-        title: "Test funzionale",
-        description: "Test delle funzionalità principali",
-        progress: 20,
-        hours: 5,
-        createdAt: new Date("2025-01-10"),
-        completed: new Date("2025-01-15"),
-        tag: "In corso",
-        items: [{ name: "Test login", status: "in corso" }, { name: "Test dashboard", status: "in corso" }],
-      },
-      // Aprile
-      {
-        id: "1_3",
-        title: "Bug fix modulo login",
-        description: "Correzione bug login",
-        progress: 70,
-        hours: 8,
-        createdAt: new Date("2025-04-12"),
-        completed: new Date("2025-04-18"),
-        tag: "Urgente",
-        items: [{ name: "Login button", status: "in corso" }, { name: "Form validation", status: "completo" }],
-      },
-      // Luglio
-      {
-        id: "1_4",
-        title: "Ottimizzazione performance",
-        description: "Riduzione tempi di caricamento",
-        progress: 40,
-        hours: 12,
-        createdAt: new Date("2025-07-05"),
-        completed: new Date("2025-07-12"),
-        tag: "In corso",
-        items: [{ name: "Analisi codice", status: "in corso" }, { name: "Refactor", status: "in corso" }],
-      },
-      // Ottobre
-      {
-        id: "1_5",
-        title: "Aggiornamento librerie",
-        description: "Upgrade React e librerie",
-        progress: 30,
-        hours: 6,
-        createdAt: new Date("2025-10-01"),
-        completed: new Date("2025-10-05"),
-        tag: "In corso",
-        items: [{ name: "React update", status: "in corso" }, { name: "Test regressione", status: "in corso" }],
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "Progetto Beta",
-    description: "Modulo API",
-    tasks: [
-      {
-        id: "2_1",
-        title: "Definizione specifiche",
-        description: "Specifica documentazione e API",
-        progress: 40,
-        hours: 5,
-        createdAt: new Date("2025-02-03"),
-        completed: new Date("2025-02-05"),
-        tag: "In corso",
-        items: [{ name: "Spec documento", status: "in corso" }, { name: "API endpoints", status: "in corso" }],
-      },
-      {
-        id: "2_2",
-        title: "Scrittura documentazione",
-        description: "Manuale utente e release notes",
-        progress: 10,
-        hours: 30,
-        createdAt: new Date("2025-03-15"),
-        completed: new Date("2025-03-20"),
-        tag: "In corso",
-        items: [{ name: "Manuale utente", status: "in corso" }, { name: "Release notes", status: "in corso" }],
-      },
-      {
-        id: "2_3",
-        title: "Test API",
-        description: "Verifica endpoint e response",
-        progress: 60,
-        hours: 15,
-        createdAt: new Date("2025-06-10"),
-        completed: new Date("2025-06-15"),
-        tag: "In corso",
-        items: [{ name: "GET endpoints", status: "in corso" }, { name: "POST endpoints", status: "in corso" }],
-      },
-      {
-        id: "2_4",
-        title: "Deployment",
-        description: "Deploy ambiente di test",
-        progress: 20,
-        hours: 20,
-        createdAt: new Date("2025-11-01"),
-        completed: new Date("2025-11-10"),
-        tag: "In corso",
-        items: [{ name: "Server setup", status: "in corso" }, { name: "Test deploy", status: "in corso" }],
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: "Progetto Gamma",
-    description: "Integrazione sistema",
-    tasks: [
-      {
-        id: "3_1",
-        title: "Analisi requisiti",
-        description: "Raccolta e validazione requisiti",
-        progress: 50,
-        hours: 10,
-        createdAt: new Date("2025-01-05"),
-        completed: new Date("2025-01-10"),
-        tag: "In corso",
-        items: [{ name: "Raccolta requisiti", status: "completo" }, { name: "Validazione", status: "in corso" }],
-      },
-      {
-        id: "3_2",
-        title: "Configurazione server",
-        description: "Server dev e prod",
-        progress: 40,
-        hours: 10,
-        createdAt: new Date("2025-05-07"),
-        completed: new Date("2025-05-12"),
-        tag: "In corso",
-        items: [{ name: "Server dev", status: "in corso" }, { name: "Server prod", status: "in corso" }],
-      },
-      {
-        id: "3_3",
-        title: "Integrazione sistema",
-        description: "Collegamento moduli",
-        progress: 30,
-        hours: 15,
-        createdAt: new Date("2025-08-15"),
-        completed: new Date("2025-08-20"),
-        tag: "In corso",
-        items: [{ name: "Modulo A", status: "in corso" }, { name: "Modulo B", status: "in corso" }],
-      },
-      {
-        id: "3_4",
-        title: "Testing finale",
-        description: "Verifica completa sistema",
-        progress: 10,
-        hours: 20,
-        createdAt: new Date("2025-12-01"),
-        completed: new Date("2025-12-10"),
-        tag: "In corso",
-        items: [{ name: "Test end-to-end", status: "in corso" }, { name: "Test carico", status: "in corso" }],
-      },
-    ],
-  },
+// Mock giornaliero: per ogni giorno dell'anno fino ad oggi, commesse VS-25-XX, ore, dipendente, descrizione
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+const dipendenti = ["Mario Rossi", "Luca Bianchi", "Giulia Verdi", "Anna Neri"];
+const descrizioni = [
+  "Sviluppo modulo login",
+  "Fix bug dashboard",
+  "Analisi requisiti cliente",
+  "Refactoring codice",
+  "Test funzionali",
+  "Aggiornamento documentazione",
+  "Meeting con il team",
+  "Gestione ticket",
+  "Ottimizzazione query",
+  "Supporto utente",
 ];
+const segnalazioni = [
+  "Ore inserite non conformi alle policy aziendali.",
+  "Richiesta giustificazione per assenza.",
+  "Verificare dettaglio attività inserite.",
+  "Contattare amministrazione per chiarimenti."
+];
+
+const today = new Date();
+const start = new Date(today.getFullYear(), 0, 1);
+const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+
+let commessaCounter = 0;
+
+export const projectsMock = {};
+
+let segnalato = false;
+
+for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+  const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  let dayCommesse = [];
+
+  // Salta sabato (6) e domenica (0)
+  if (d.getDay() === 0 || d.getDay() === 6) {
+    projectsMock[dateStr] = [];
+    continue;
+  }
+
+  let remainingHours = 8;
+  // 10% ferie, 5% permesso, 5% malattia, 15% incompleti (<8 ore), 1 giorno segnalato dall'amministrazione
+  const chance = Math.random();
+  if (!segnalato && chance < 0.01) {
+    // Primo giorno che capita viene segnalato
+    commessaCounter++;
+    dayCommesse.push({
+      commessa: `VS-25-${pad(commessaCounter)}`,
+      ore: getRandomInt(1, 7),
+      dipendente: dipendenti[getRandomInt(0, dipendenti.length - 1)],
+      descrizione: descrizioni[getRandomInt(0, descrizioni.length - 1)],
+    });
+    projectsMock[dateStr] = dayCommesse;
+    projectsMock[dateStr + "_segnalazione"] = {
+      descrizione: segnalazioni[getRandomInt(0, segnalazioni.length - 1)]
+    };
+    segnalato = true;
+    continue;
+  }
+  if (chance < 0.1) {
+    dayCommesse.push({
+      commessa: `FERIE`,
+      ore: 8,
+      dipendente: dipendenti[getRandomInt(0, dipendenti.length - 1)],
+      descrizione: "Giornata di ferie",
+    });
+    remainingHours = 0;
+  } else if (chance < 0.15) {
+    dayCommesse.push({
+      commessa: `PERMESSO`,
+      ore: 8,
+      dipendente: dipendenti[getRandomInt(0, dipendenti.length - 1)],
+      descrizione: "Permesso personale",
+    });
+    remainingHours = 0;
+  } else if (chance < 0.2) {
+    dayCommesse.push({
+      commessa: `MALATTIA`,
+      ore: 8,
+      dipendente: dipendenti[getRandomInt(0, dipendenti.length - 1)],
+      descrizione: "Assenza per malattia",
+    });
+    remainingHours = 0;
+  } else if (chance < 0.35) {
+    // Giorno incompleto: tra 1 e 7 ore
+    const oreIncomplete = getRandomInt(1, 7);
+    commessaCounter++;
+    dayCommesse.push({
+      commessa: `VS-25-${pad(commessaCounter)}`,
+      ore: oreIncomplete,
+      dipendente: dipendenti[getRandomInt(0, dipendenti.length - 1)],
+      descrizione: descrizioni[getRandomInt(0, descrizioni.length - 1)],
+    });
+    remainingHours = 0;
+  } else {
+    // 1-3 commesse normali, ore random ma max 8
+    const numCommesse = getRandomInt(1, 3);
+    for (let i = 0; i < numCommesse && remainingHours > 0; i++) {
+      commessaCounter++;
+      const commessaName = `VS-25-${pad(commessaCounter)}`;
+      let ore = i === numCommesse - 1 ? remainingHours : getRandomInt(1, remainingHours - (numCommesse - i - 1));
+      dayCommesse.push({
+        commessa: commessaName,
+        ore,
+        dipendente: dipendenti[getRandomInt(0, dipendenti.length - 1)],
+        descrizione: descrizioni[getRandomInt(0, descrizioni.length - 1)],
+      });
+      remainingHours -= ore;
+    }
+  }
+  projectsMock[dateStr] = dayCommesse;
+}

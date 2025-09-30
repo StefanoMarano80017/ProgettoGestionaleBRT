@@ -10,14 +10,7 @@ import {
 } from "@mui/material";
 
 
-function BadgeCard({
-  avatar,
-  title,
-  actionIcon,
-  companyId,
-  companyLogo,
-  holderName,
-}) {
+function BadgeCard({  avatar,  actionIcon,  companyId,  companyLogo,  holderName}) {
   return (
     <Card
       sx={{
@@ -33,8 +26,8 @@ function BadgeCard({
     >
       {/* Header section */}
       <CardHeader
-        avatar={<Avatar > {avatar}</Avatar>}
-        title={<Typography variant="subtitle1" color="black" >{title}</Typography>}
+        avatar={<Avatar >{avatar}</Avatar>}
+        title={<Typography variant="subtitle1" color="black" >Badge Dipendente</Typography>}
         action={actionIcon ? <IconButton>{actionIcon}</IconButton> : null}
       />
 
