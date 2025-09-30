@@ -12,6 +12,7 @@ export const lightTheme = createTheme({
     customBackground: { main: "#242424" },
     customWhite: { main: "#FAFAFA" },
     customGray: { main: "#DADADA" },
+    customBlack: { main: "#1E1E1E" },
   },
   typography: {
     fontFamily: `"Lato"`
@@ -30,6 +31,7 @@ export const darkTheme = createTheme({
     customBackground: { main: "#242424" },
     customWhite: { main: "#FAFAFA" },
     customGray: { main: "#DADADA" },
+    customBlack: { main: "#1E1E1E" },
   },
   typography: {
     fontFamily: `"Lato"`

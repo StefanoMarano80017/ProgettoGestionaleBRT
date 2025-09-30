@@ -20,6 +20,7 @@ import UserProfile from "./UserProfile";
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import SidebarItem from "./SidebarItem";
 import AccountBoxIcon from '@mui/icons-material/AccountBox';
+import LogoGestionale from "../../Assets/LogoGestionale.png"
 
 // Sidebar items definition
 
@@ -45,7 +46,7 @@ export default function Sidebar({ userName = "Mario Rossi", onLogout, collapsed 
   return (
     <Box
       sx={{
-        width: collapsed ? 60 : 120,
+        width: collapsed ? 60 : 100,
         transition: "width 0.3s",
         bgcolor: "customBackground.main",
         height: "100vh",
@@ -55,15 +56,10 @@ export default function Sidebar({ userName = "Mario Rossi", onLogout, collapsed 
         flexDirection: "column",
       }}
     >
-      {/* UserProfile */}
-      <Box sx={{ justifyContent: "center", marginY: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-        <SidebarItem
-          key={userName}
-          icon={<Avatar sx={{ width: 40,  height: 40, bgcolor: "customGreen.main", }}> <Typography variant="subtitle" sx={{ lineHeight: 2, fontWeight: 400}}> {getInitials(userName)} </Typography> </Avatar>}
-          text={userName}
-          path={"/timesheet"}
-          selected={false}
-        />
+      {/* Logo or App Name */}
+      <Box sx={{ p: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <img src={LogoGestionale} alt="Logo" style={{ maxWidth: '47%', height: 'auto' }} />
+        
       </Box>
       <Divider />
       {/* Lista pagine */}
@@ -78,7 +74,16 @@ export default function Sidebar({ userName = "Mario Rossi", onLogout, collapsed 
           />
         ))}
       </List>
-
+      {/* UserProfile */}
+      <Box sx={{ justifyContent: "center", marginY: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+        <SidebarItem
+          key={userName}
+          icon={<Avatar sx={{ width: 40,  height: 40, bgcolor: "customGreen.main", }}> <Typography variant="subtitle" sx={{ lineHeight: 2, fontWeight: 400}}> {getInitials(userName)} </Typography> </Avatar>}
+          text={userName}
+          path={"/timesheet"}
+          selected={false}
+        />
+      </Box>
 
         <Divider />
     </Box>

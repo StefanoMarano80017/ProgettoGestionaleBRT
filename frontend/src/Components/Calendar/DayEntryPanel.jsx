@@ -1,193 +1,388 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
+  Stack,
   Typography,
-  TextField,
   Button,
-  MenuItem,
-  List,
-  ListItem,
   IconButton,
-  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Chip,
+  Tooltip,
   Alert,
-  Divider,
+  Divider,                  // <-- aggiunto
 } from "@mui/material";
-import { Edit, Delete } from "@mui/icons-material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+// Icone per color coding (come WorkCalendar)
+import BeachAccessIcon from "@mui/icons-material/BeachAccess";     // FERIE
+import LocalHospitalIcon from "@mui/icons-material/LocalHospital"; // MALATTIA
+import EventAvailableIcon from "@mui/icons-material/EventAvailable"; // PERMESSO
 
-const DayEntryPanel = ({ selectedDay, data = {}, onAddRecord, commesse = [] }) => {
-  const [selectedCommessa, setSelectedCommessa] = useState("");
-  const [ore, setOre] = useState(1);
-  const [descrizione, setDescrizione] = useState("");
-  const [records, setRecords] = useState([]);
+export default function DayEntryPanel({
+  selectedDay,
+  data = {},
+  onAddRecord,
+  commesse = [],
+}) {
+  const records = data[selectedDay] || [];
+  const totalHours = useMemo(
+    () => records.reduce((sum, r) => sum + Number(r.ore || 0), 0),
+    [records]
+  );
+  // Format selectedDay as it-IT (dd/MM/yyyy)
+  const itDate = useMemo(() => {
+    if (!selectedDay) return "";
+    const [y, m, d] = selectedDay.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    return new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(dt);
+  }, [selectedDay]);
+  const canAddMore = totalHours < 8;
+
+  // Segnalazione amministrazione per il giorno selezionato
+  const segnalazione = data[`${selectedDay}_segnalazione`] || null;
+
+  // Mappa colore/icona per CHIP per commessa (coerente con WorkCalendar)
+  const getChipProps = (commessa) => {
+    if (commessa === "FERIE") {
+      return { color: "success", icon: <BeachAccessIcon fontSize="small" /> };
+    }
+    if (commessa === "MALATTIA") {
+      return { color: "secondary", icon: <LocalHospitalIcon fontSize="small" /> };
+    }
+    if (commessa === "PERMESSO") {
+      return { color: "info", icon: <EventAvailableIcon fontSize="small" /> };
+    }
+    return { color: "default", icon: undefined };
+  };
+
+  // Stato sintetico del giorno (per CHIP nel footer)
+  const getDayStatus = () => {
+    const hasFerie = records.some((r) => r.commessa === "FERIE");
+    const hasMalattia = records.some((r) => r.commessa === "MALATTIA");
+    const hasPermesso = records.some((r) => r.commessa === "PERMESSO");
+
+    if (segnalazione) {
+      return { label: "Segnalazione", color: "error" };
+    }
+    if (hasFerie) {
+      return { label: "Ferie", color: "success" };
+    }
+    if (hasMalattia) {
+      return { label: "Malattia", color: "secondary" };
+    }
+    if (hasPermesso) {
+      return { label: "Permesso parziale", color: "info" };
+    }
+    if (totalHours === 8) {
+      return { label: "Completo", color: "success" };
+    }
+    if (totalHours > 0 && totalHours < 8) {
+      return { label: "Parziale", color: "warning" };
+    }
+    return { label: "Vuoto", color: "default" };
+  };
+
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("add"); // 'add' | 'edit'
+  const [idx, setIdx] = useState(null);
+  const [form, setForm] = useState({
+    commessa: commesse[0] || "",
+    ore: 1,
+    descrizione: "",
+  });
   const [error, setError] = useState("");
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [segnalazione, setSegnalazione] = useState(null);
 
-  useEffect(() => {
-    if (selectedDay) {
-      setRecords(data[selectedDay] || []);
-      setSegnalazione(data[selectedDay + "_segnalazione"] || null);
-    } else {
-      setRecords([]);
-      setSegnalazione(null);
+  // Altezza fissa per riga e finestra scrollabile su 5 righe
+  const ROW_HEIGHT = 56;
+  const LIST_HEIGHT = ROW_HEIGHT * 5;
+
+  // Calcola il massimo consentito in base alla modalità (per non superare 8h)
+  const maxOre = useMemo(() => {
+    if (mode === "add") {
+      return Math.max(0, 8 - totalHours) || 0;
     }
+    if (mode === "edit" && idx != null) {
+      const current = records[idx];
+      const others = totalHours - Number(current?.ore || 0);
+      return Math.max(0, 8 - others);
+    }
+    return 8;
+  }, [mode, idx, records, totalHours]);
+
+  const openAdd = () => {
+    setMode("add");
+    setIdx(null);
+    setForm({
+      commessa: commesse[0] || "",
+      ore: Math.min(1, Math.max(1, 8 - totalHours)) || 1,
+      descrizione: "",
+    });
     setError("");
-    setOre(1);
-    setSelectedCommessa("");
-    setDescrizione("");
-    setEditingIndex(null);
-  }, [selectedDay, data]);
-
-  const totalHours = records.reduce((sum, rec) => sum + rec.ore, 0);
-
-    // Colore dinamico per il totale ore
-  let color = "text.primary";
-  if (totalHours === 8) color = "success.main";
-  else if (totalHours > 0 && totalHours < 8) color = "warning.main";
-  else if (totalHours === 0) color = "error.main";
-
-  const handleAddOrUpdate = () => {
-    if (!selectedCommessa || !ore) return;
-
-    const adjustedTotal = editingIndex !== null
-      ? totalHours - records[editingIndex].ore + Number(ore)
-      : totalHours + Number(ore);
-
-    if (adjustedTotal > 8) {
-      setError(`Non puoi superare 8 ore per il giorno. Totale attuale: ${totalHours}h`);
-      return;
-    }
-
-    const newRecord = {
-      commessa: selectedCommessa,
-      ore: Number(ore),
-      descrizione,
-    };
-
-    if (editingIndex !== null) {
-      const updatedRecords = [...records];
-      updatedRecords[editingIndex] = newRecord;
-      onAddRecord(selectedDay, updatedRecords, true);
-      setRecords(updatedRecords);
-    } else {
-      onAddRecord(selectedDay, newRecord);
-      setRecords((prev) => [...prev, newRecord]);
-    }
-
-    setSelectedCommessa("");
-    setOre(1);
-    setDescrizione("");
-    setEditingIndex(null);
-    setError("");
+    setOpen(true);
   };
 
-  const handleEdit = (index) => {
-    const rec = records[index];
-    setSelectedCommessa(rec.commessa);
-    setOre(rec.ore);
-    setDescrizione(rec.descrizione);
-    setEditingIndex(index);
+  const openEdit = (i) => {
+    const r = records[i];
+    setMode("edit");
+    setIdx(i);
+    setForm({
+      commessa: r.commessa,
+      ore: Number(r.ore || 1),
+      descrizione: r.descrizione || "",
+    });
+    setError("");
+    setOpen(true);
   };
 
-  const handleDelete = (index) => {
-    const updatedRecords = records.filter((_, i) => i !== index);
-    onAddRecord(selectedDay, updatedRecords, true);
-    setRecords(updatedRecords);
+  const handleDelete = (i) => {
+    const next = records.filter((_, k) => k !== i);
+    onAddRecord(selectedDay, next, true);
+  };
+
+  const handleSave = () => {
+    const oreNum = Number(form.ore || 0);
+    if (!form.commessa) return setError("Seleziona una commessa");
+    if (oreNum <= 0) return setError("Le ore devono essere maggiori di 0");
+    if (oreNum > maxOre) {
+      return setError(
+        mode === "add"
+          ? `Puoi aggiungere al massimo ${maxOre}h`
+          : `Puoi impostare al massimo ${maxOre}h per questa riga`
+      );
+    }
+
+    if (mode === "add") {
+      const newRecord = {
+        dipendente: records[0]?.dipendente || "Mario Rossi",
+        commessa: form.commessa,
+        ore: oreNum,
+        descrizione: form.descrizione,
+      };
+      onAddRecord(selectedDay, newRecord, false);
+    } else if (mode === "edit" && idx != null) {
+      const next = [...records];
+      next[idx] = {
+        ...next[idx],
+        commessa: form.commessa,
+        ore: oreNum,
+        descrizione: form.descrizione,
+      };
+      onAddRecord(selectedDay, next, true);
+    }
+
+    setOpen(false);
   };
 
   return (
-    <Box sx={{
-        flexGrow: 1,          // Occupare tutto lo spazio disponibile
-        p: 2,                 // Padding interno, opzionale
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "transparent", // Nessun background
-        minHeight: 0,         // Permette al flex container di restringersi correttamente
-      }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        {selectedDay ? `Giornata: ${selectedDay}` : "Seleziona un giorno"}
-      </Typography>
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
+      {/* Header */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="h6" sx={{ py: 2 }}>
+          Dettaglio {itDate} — Totale: {totalHours}h
+        </Typography>
+        <Tooltip
+          title={
+            canAddMore
+              ? ""
+              : "Hai già 8h inserite: puoi modificare le righe esistenti"
+          }
+        >
+          <span>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={openAdd}
+              disabled={!canAddMore}
+            >
+              Aggiungi voce
+            </Button>
+          </span>
+        </Tooltip>
+      </Stack>
+      <Divider />
+      {/* Lista record: altezza fissa (5 righe) + scroll */}
+      <Box
+        sx={{
+          height: LIST_HEIGHT,
+          overflowY: "auto",
+          pr: 1,
+          scrollbarGutter: "stable",
+        }}
+      >
+        {records.length === 0 ? (
+          <Box
+            sx={{
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Alert severity="info" sx={{ width: "100%", mx: 1 }}>
+              Nessun record per questa giornata.
+            </Alert>
+          </Box>
+        ) : (
+          <Stack spacing={0}>
+            {records.map((r, i) => {
+              const chipProps = getChipProps(r.commessa);
+              return (
+                <Stack
+                  key={i}
+                  direction="row"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{
+                    p: 1,
+                    bgcolor: "background.paper",
+                    boxShadow: 1,
+                    height: ROW_HEIGHT, // altezza riga stabile
+                  }}
+                >
+                  {/* Commessa */}
+                  <Chip
+                    label={r.commessa}
+                    size="small"
+                    color={chipProps.color}
+                    icon={chipProps.icon}
+                    variant={chipProps.color === "default" ? "outlined" : "filled"}
+                    sx={{ borderRadius: 1 }}
+                  />
+                  {/* Descrizione */}
+                  <Typography
+                    variant="body2"
+                    sx={{ flex: 1 }}
+                    noWrap
+                    title={r.descrizione}
+                  >
+                    {r.descrizione}
+                  </Typography>
+                  {/* Ore */}
+                  <Chip
+                    label={`${r.ore}h`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ borderRadius: 1 }}
+                  />
+                  {/* Azioni */}
+                  <IconButton size="small" onClick={() => openEdit(i)}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton size="small" color="error" onClick={() => handleDelete(i)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              );
+            })}
+          </Stack>
+        )}
+      </Box>
+      {/* Footer */}
+      <Divider />
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        spacing={1}
+        sx={{ mt: 2 }}
+      >
+        <Typography variant="subtitle2">Totale giornaliero: {totalHours}h</Typography>
+        {(() => {
+          const status = getDayStatus();
+          return (
+            <Chip
+              label={status.label}
+              color={status.color}
+              variant={status.color === "default" ? "outlined" : "filled"}
+              size="small"
+              sx={{ borderRadius: 1 }}
+            />
+          );
+        })()}
+      </Stack>
 
-      {/* Mostra segnalazione se presente */}
       {segnalazione && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {segnalazione.descrizione}
+        <Alert
+          severity={segnalazione.livello || "warning"}
+          sx={{ mt: 1 }}
+        >
+          {segnalazione.descrizione || "Segnalazione dall'amministrazione."}
         </Alert>
       )}
 
-      {/* Form inserimento/modifica */}
-      <Box sx={{ display: "flex", gap: 2, width: "100%", mb: 2 }}>
-        <TextField
-          select
-          label="Commessa"
-          value={selectedCommessa}
-          onChange={(e) => setSelectedCommessa(e.target.value)}
-          sx={{ minWidth: 150 }}
-        >
-          {commesse.map((c) => (
-            <MenuItem key={c} value={c}>{c}</MenuItem>
-          ))}
-        </TextField>
-
-        <TextField
-          label="Ore"
-          type="number"
-          value={ore}
-          onChange={(e) => setOre(e.target.value)}
-          sx={{ width: 80 }}
-          inputProps={{ min: 1, max: 8 }}
-        />
-
-        <TextField
-          label="Descrizione"
-          value={descrizione}
-          onChange={(e) => setDescrizione(e.target.value)}
-          sx={{ flex: 1 }}
-        />
-
-        <Button
-          variant="contained"
-          onClick={handleAddOrUpdate}
-          disabled={!selectedCommessa || totalHours >= 8}
-        >
-          {editingIndex !== null ? "Aggiorna" : "Aggiungi"}
-        </Button>
-      </Box>
-
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          <Divider />
-      {/* Lista dei record */}
-      <Box sx={{ flexGrow:1 , overflowY: "auto", bgcolor: "background.default", minHeight: 0, }}>
-        {records.length > 0 ? (
-          <List>
-            {records.map((rec, idx) => (
-              <ListItem
-                key={idx}
-                sx={{ flexDirection: "column", alignItems: "flex-start", mb: 1 }}
-                secondaryAction={
-                  <Box>
-                    <IconButton edge="end" onClick={() => handleEdit(idx)}><Edit /></IconButton>
-                    <IconButton edge="end" onClick={() => handleDelete(idx)}><Delete /></IconButton>
-                  </Box>
-                }
-              >
-                <Typography variant="body2">
-                  {rec.commessa} - {rec.ore}h
-                </Typography>
-                <Typography variant="caption">{rec.descrizione}</Typography>
-              </ListItem>
+      {/* Dialog add/edit */}
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          {mode === "add" ? "Aggiungi voce" : "Modifica voce"}
+        </DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
+          <TextField
+            select
+            label="Commessa"
+            value={form.commessa}
+            onChange={(e) => setForm((f) => ({ ...f, commessa: e.target.value }))}
+            size="small"
+          >
+            {commesse.map((c) => (
+              <MenuItem key={c} value={c}>
+                {c}
+              </MenuItem>
             ))}
-          </List>
-        ) : (
-          <Alert severity="info" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Nessun record presente</Alert>
-        )}
-      </Box>
-      <Divider />
-      <Typography variant="body2" sx={{ color }}>
-          Totale ore inserite: {totalHours} / 8
-        </Typography>
+            {/* Consenti anche voci speciali se presenti già nei dati */}
+            {["FERIE", "PERMESSO", "MALATTIA"]
+              .filter((c) => !commesse.includes(c))
+              .map((c) => (
+                <MenuItem key={c} value={c}>
+                  {c}
+                </MenuItem>
+              ))}
+          </TextField>
+
+          <TextField
+            type="number"
+            label={`Ore (max ${maxOre})`}
+            value={form.ore}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, ore: Math.max(0, Number(e.target.value)) }))
+            }
+            size="small"
+            inputProps={{ min: 0, max: maxOre, step: 1 }}
+            helperText={
+              maxOre === 0
+                ? "Il totale giornaliero è già 8h: riduci un'altra riga per liberare ore"
+                : ""
+            }
+          />
+
+          <TextField
+            label="Descrizione"
+            value={form.descrizione}
+            onChange={(e) => setForm((f) => ({ ...f, descrizione: e.target.value }))}
+            size="small"
+            multiline
+            minRows={2}
+          />
+
+          {error && <Alert severity="error">{error}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Annulla</Button>
+          <Button variant="contained" onClick={handleSave}>
+            Salva
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
-};
-
-export default DayEntryPanel;
+}

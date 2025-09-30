@@ -12,15 +12,14 @@ export default function MainLayout() {
   };
 
   return (
-    <Box sx={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column" }}>
-  <Header />
-    <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
+    <Box sx={{ display: "flex", height: "100vh", width: "100vw" }}>
       <Sidebar sx={{ height: "100%" }} />
-      <Box sx={{ flexGrow: 1, overflowY: "auto", overflowX: "hidden" }}>
-        <Outlet />
+      <Box sx={{ display: "flex", height: "100vh", width: "100vw", flexDirection: "column" }}>
+        <Header />
+          <Box sx={{ flexGrow: 1, overflowY: "auto", overflowX: "hidden" }}>
+            <Outlet />
+          </Box>
       </Box>
     </Box>
-  </Box>
-
   );
 }

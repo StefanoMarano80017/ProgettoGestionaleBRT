@@ -13,7 +13,7 @@ const SidebarItem = ({ icon, text, path, selected }) => {
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,          // 👈 prevent shrinking
-        minWidth: 120,           // 👈 keep a minimum width so text/icon don’t collapse
+        minWidth: 100,           // 👈 keep a minimum width so text/icon don’t collapse
         p: 1.5,
         textTransform: "none",
         borderRadius: 2,
