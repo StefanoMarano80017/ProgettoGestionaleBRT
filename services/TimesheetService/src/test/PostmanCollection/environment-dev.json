@@ -1,0 +1,24 @@
+{
+  "id": "c1c9f3b0-dev-1234-5678-9012-dev1234abcd",
+  "name": "TimesheetService-DEV",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "enabled": true
+    },
+    {
+      "key": "adminToken",
+      "value": "PUT-YOUR-ADMIN-TOKEN-HERE",
+      "enabled": true
+    },
+    {
+      "key": "employeeToken",
+      "value": "PUT-YOUR-EMPLOYEE-TOKEN-HERE",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_at": "2025-09-30T14:55:00Z",
+  "_postman_exported_using": "Postman/10.20.0"
+}

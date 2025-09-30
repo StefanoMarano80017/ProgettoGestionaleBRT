@@ -1,0 +1,80 @@
+# ==========================
+# Java / Maven
+# ==========================
+
+# Compiled class files
+*.class
+
+# Maven target directory
+/target/
+
+# Built JAR/WAR/EAR files
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+
+# Eclipse
+/.classpath
+/.project
+/.settings/
+
+# IntelliJ IDEA
+/.idea/
+/*.iml
+/out/
+
+# NetBeans
+/nbproject/private/
+/build/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ==========================
+# Node / React
+# ==========================
+
+# Node modules
+/node_modules/
+
+# Build output
+/build/
+/dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ==========================
+# Database (PostgreSQL)
+# ==========================
+
+# Ignore PostgreSQL temporary or metadata files
+*.lst
+*.backup
+*.dump
+pgdata/
+postgres-data/
+
+# Keep dev DB init scripts
+!data.sql
+
+# ==========================
+# Misc / OS-specific
+# ==========================
+# Mac
+.DS_Store
+# Windows
+Thumbs.db
