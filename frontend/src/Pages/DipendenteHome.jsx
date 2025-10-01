@@ -96,7 +96,7 @@ export default function DipendenteHome() {
     <Box sx={{ bgcolor: "background.default", height: "100vh", overflow: "auto" }}>
       <Container maxWidth="xl" sx={{ mt: 4 }}>
         {/* Header + Badge on the same row */}
-        <Box sx={{ mb: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+        <Box sx={{ mb: 4, display: "flex", alignItems: "center", justifyContent: "space-between", bgcolor: 'customBackground.main', p: 4, borderRadius: 2, boxShadow: 8 }}>
           <PageHeader
             title="Timesheet"
             description="Qui puoi visualizzare il riepilogo del timesheet:"

@@ -8,6 +8,9 @@ import {
   LocalHospital,
   EventAvailable,
 } from "@mui/icons-material";
+import CelebrationIcon from '@mui/icons-material/Celebration';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 const shortMonth = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
 const fullMonth = [
@@ -16,10 +19,61 @@ const fullMonth = [
 ];
 const weekDays = ["Lu","Ma","Me","Gi","Ve","Sa","Do"];
 
+// Calcolo Pasqua (algoritmo di Butcher) e Lunedì di Pasqua
+function computeEasterDate(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1; // 0-based
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month, day);
+}
+
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
+
+  // Set di festività italiane per l'anno corrente
+  const holidaySet = useMemo(() => {
+    const set = new Set();
+    const y = currentYear;
+    // Festività fisse
+    [
+      `${y}-01-01`, // Capodanno
+      `${y}-01-06`, // Epifania
+      `${y}-04-25`, // Liberazione
+      `${y}-05-01`, // Lavoro
+      `${y}-06-02`, // Repubblica
+      `${y}-08-15`, // Ferragosto
+      `${y}-11-01`, // Ognissanti
+      `${y}-12-08`, // Immacolata
+      `${y}-12-25`, // Natale
+      `${y}-12-26`, // Santo Stefano
+    ].forEach((d) => set.add(d));
+    // Pasqua (domenica) e Lunedì dell'Angelo (festivo)
+    const easter = computeEasterDate(y);
+    const easterMonday = new Date(easter);
+    easterMonday.setDate(easter.getDate() + 1);
+    set.add(formatDate(easterMonday));
+    return set;
+  }, [currentYear]);
 
   const shiftMonth = (delta) => {
     const d = new Date(currentYear, currentMonth + delta, 1);
@@ -44,7 +98,8 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
       const dayOfWeek = new Date(currentYear, currentMonth, d).getDay();
       const dayData = data[dateStr];
       const segnalazione = data[`${dateStr}_segnalazione`];
-      arr.push({ day: d, dateStr, dayData, dayOfWeek, segnalazione });
+      const isHoliday = holidaySet.has(dateStr);
+      arr.push({ day: d, dateStr, dayData, dayOfWeek, segnalazione, isHoliday });
     }
     while (arr.length % 7 !== 0) arr.push(null);
     if (arr.length < 42) {
@@ -52,7 +107,7 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
       for (let i = 0; i < fill; i++) arr.push(null);
     }
     return arr;
-  }, [data, currentMonth, currentYear, firstDay, lastDay]);
+  }, [data, currentMonth, currentYear, firstDay, lastDay, holidaySet]);
 
   // Monthly summary (Ferie, Malattia, Permesso)
   const monthlySummary = useMemo(() => {
@@ -75,28 +130,41 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
     };
   }, [data, currentMonth, currentYear, lastDay]);
 
-  const getDayInfo = (dayData, dayOfWeek, segnalazione, dateStr) => {
+  const getDayInfo = (dayData, dayOfWeek, segnalazione, dateStr, isHoliday) => {
     const totalHours = dayData?.reduce((sum, rec) => sum + (Number(rec.ore) || 0), 0) || 0;
-    const isWeekend = dayOfWeek >= 5;
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     const isFuture = new Date(dateStr) > today;
 
-    if (!dayData || dayData.length === 0) return { bgcolor: "transparent", icon: null, showHours: false, hasPermessoDot: false };
+    // Priorità massima: segnalazione amministrativa
+    if (segnalazione) return { bgcolor: "error.main", icon: <WarningAmber fontSize="small" />, showHours: false, hasPermessoDot: false, iconTopRight: false };
+
+    // Festività nazionali: colore dedicato e icona
+    if (isHoliday) return { bgcolor: "grey.400", icon: <CelebrationIcon fontSize="small" />, showHours: false, hasPermessoDot: false, iconTopRight: false };
+
+    // Weekend: evidenzia sempre con colore dedicato; mostra ore se presenti
+    if (isWeekend) return { bgcolor: "grey.400", icon: null, showHours: totalHours > 0, hasPermessoDot: false, iconTopRight: false };
+
+    if (!dayData || dayData.length === 0) return { bgcolor: "transparent", icon: null, showHours: false, hasPermessoDot: false, iconTopRight: false };
 
     if (dayData.some((rec) => rec.commessa === "FERIE"))
-      return { bgcolor: "success.main", icon: <BeachAccess fontSize="small" />, showHours: false, hasPermessoDot: false };
+      return { bgcolor: "orange", icon: <BeachAccess fontSize="small" />, showHours: false, hasPermessoDot: false, iconTopRight: false };
 
     if (dayData.some((rec) => rec.commessa === "MALATTIA"))
-      return { bgcolor: "secondary.main", icon: <LocalHospital fontSize="small" />, showHours: false, hasPermessoDot: false };
+      return { bgcolor: "secondary.main", icon: <LocalHospital fontSize="small" />, showHours: false, hasPermessoDot: false, iconTopRight: false };
 
     const hasPermesso = dayData.some((rec) => rec.commessa === "PERMESSO");
     if (hasPermesso)
-      return { bgcolor: "info.main", icon: null, showHours: true, hasPermessoDot: true };
+      return { bgcolor: "transparent", icon: <EventAvailable sx={{ fontSize: 16, color: 'info.main' }} />, showHours: true, hasPermessoDot: false, iconTopRight: true };
 
-    if (segnalazione) return { bgcolor: "error.main", icon: <WarningAmber fontSize="small" />, showHours: false, hasPermessoDot: false };
-    if (isFuture) return { bgcolor: "transparent", icon: null, showHours: false, hasPermessoDot: false };
-    if (totalHours === 8) return { bgcolor: "success.main", icon: null, showHours: true, hasPermessoDot: false };
-    if (totalHours > 0 || (!isWeekend && totalHours < 8)) return { bgcolor: "warning.main", icon: null, showHours: true, hasPermessoDot: false };
-    return { bgcolor: isWeekend ? "grey.400" : "transparent", icon: null, showHours: false, hasPermessoDot: false };
+    if (isFuture) return { bgcolor: "transparent", icon: null, showHours: false, hasPermessoDot: false, iconTopRight: false };
+
+    if (totalHours === 8)
+      return { bgcolor: "transparent", icon: <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />, showHours: true, hasPermessoDot: false, iconTopRight: true };
+
+    if (totalHours > 0 && totalHours < 8)
+      return { bgcolor: "transparent", icon: <AccessTimeIcon sx={{ fontSize: 16, color: 'warning.main' }} />, showHours: true, hasPermessoDot: false, iconTopRight: true };
+
+    return { bgcolor: "transparent", icon: null, showHours: false, hasPermessoDot: false, iconTopRight: false };
   };
 
   // Controls: small arrows + 5 month buttons (current centered)
@@ -111,7 +179,7 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
 
   const prev2Label = mkShort(prev2Date);
   const prev1Label = mkShort(prev1Date);
-  const currLabel  = `${fullMonth[currDate.getMonth()]}`;
+  const currLabel  = mkShort(currDate);
   const next1Label = mkShort(next1Date);
   const next2Label = mkShort(next2Date);
 
@@ -123,19 +191,19 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
           <ArrowBackIos fontSize="inherit" />
         </IconButton>
 
-        <Button variant="outlined" size="small" onClick={() => setMonthYear(prev2Date.getMonth(), prev2Date.getFullYear())}>
+        <Button variant="outlined" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(prev2Date.getMonth(), prev2Date.getFullYear())}>
           {prev2Label}
         </Button>
-        <Button variant="outlined" size="small" onClick={() => setMonthYear(prev1Date.getMonth(), prev1Date.getFullYear())}>
+        <Button variant="outlined" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(prev1Date.getMonth(), prev1Date.getFullYear())}>
           {prev1Label}
         </Button>
-        <Button variant="contained" size="small" onClick={() => setMonthYear(currDate.getMonth(), currDate.getFullYear())}>
+        <Button variant="contained" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(currDate.getMonth(), currDate.getFullYear())}>
           {currLabel}
         </Button>
-        <Button variant="outlined" size="small" onClick={() => setMonthYear(next1Date.getMonth(), next1Date.getFullYear())}>
+        <Button variant="outlined" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(next1Date.getMonth(), next1Date.getFullYear())}>
           {next1Label}
         </Button>
-        <Button variant="outlined" size="small" onClick={() => setMonthYear(next2Date.getMonth(), next2Date.getFullYear())}>
+        <Button variant="outlined" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(next2Date.getMonth(), next2Date.getFullYear())}>
           {next2Label}
         </Button>
 
@@ -168,10 +236,14 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
         {days.map((item, index) => {
           if (!item) return <Box key={`empty-${index}`} sx={{ borderRadius: 1 }} />;
 
-          const { day, dateStr, dayData, dayOfWeek, segnalazione } = item;
+          const { day, dateStr, dayData, dayOfWeek, segnalazione, isHoliday } = item;
           const isSelected = selectedDay === dateStr;
-          const { bgcolor, icon, showHours, hasPermessoDot } = getDayInfo(dayData, dayOfWeek, segnalazione, dateStr);
+          const { bgcolor, icon, showHours, hasPermessoDot, iconTopRight } = getDayInfo(dayData, dayOfWeek, segnalazione, dateStr, isHoliday);
           const totalHours = dayData?.reduce((sum, rec) => sum + (Number(rec.ore) || 0), 0) || 0;
+
+          const dateChipBg = (isSelected || bgcolor !== "transparent")
+            ? "rgba(255,255,255,0.25)"
+            : "rgba(0,0,0,0.06)";
 
           return (
             <Box
@@ -181,13 +253,30 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
                 position: "relative",
                 cursor: "pointer",
                 borderRadius: 1,
+                background: isSelected
+                    ? (theme) => theme.palette.primary.light
+                    : bgcolor,
                 bgcolor: isSelected ? "primary.light" : bgcolor,
                 color: bgcolor !== "transparent" ? "white" : "text.primary",
                 height: "100%",
                 px: 1,
+                boxShadow: isSelected
+                  ? "inset 0 0 0 2px #fff"
+                  : "inset 0 0 0 1px rgba(0,0,0,0.12)",
               }}
             >
-              <Typography variant="caption" sx={{ position: "absolute", top: 4, left: 6, lineHeight: 1 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  position: "absolute",
+                  top: 4,
+                  left: 6,
+                  lineHeight: 1,
+                  px: 0.5,
+                  borderRadius: 1,
+                  backgroundColor: dateChipBg,
+                }}
+              >
                 {day}
               </Typography>
 
@@ -199,7 +288,16 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
               </Typography>
 
               {icon && (
-                <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", lineHeight: 0 }}>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: iconTopRight ? 4 : "50%",
+                    right: iconTopRight ? 6 : undefined,
+                    left: iconTopRight ? undefined : "50%",
+                    transform: iconTopRight ? "none" : "translate(-50%, -50%)",
+                    lineHeight: 0,
+                  }}
+                >
                   {icon}
                 </Box>
               )}
@@ -227,24 +325,24 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
           <Chip
             size="small"
-            color="success"
-            icon={<BeachAccess fontSize="small" />}
+            color="transparent"
+            icon={<BeachAccess fontSize="small"/>}
             label={`Ferie: ${monthlySummary.ferie.days}g • ${monthlySummary.ferie.hours}h`}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 1, "& .MuiChip-icon": { color: "customPink.main" } }}
           />
           <Chip
             size="small"
-            color="secondary"
+            color="transparent"
             icon={<LocalHospital fontSize="small" />}
             label={`Malattia: ${monthlySummary.malattia.days}g • ${monthlySummary.malattia.hours}h`}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 1, "& .MuiChip-icon": { color: "customPink.main" } }}
           />
           <Chip
             size="small"
-            color="info"
+            color="transparent"
             icon={<EventAvailable fontSize="small" />}
             label={`Permesso: ${monthlySummary.permesso.days}g • ${monthlySummary.permesso.hours}h`}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 1, "& .MuiChip-icon": { color: "customBlue1.main" } }}
           />
         </Stack>
       </Box>

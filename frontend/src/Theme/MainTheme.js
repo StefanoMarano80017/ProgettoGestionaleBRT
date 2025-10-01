@@ -12,7 +12,11 @@ export const lightTheme = createTheme({
     customBackground: { main: "#242424" },
     customWhite: { main: "#FAFAFA" },
     customGray: { main: "#DADADA" },
-    customBlack: { main: "#1E1E1E" },
+    customBlack: { main: "#1E1E1E" },    
+    customBlue1: { main: "#00A6FB" },
+    customBlue2: { main: "#006494" },
+    customBlue3: { main: "#003554" },
+    customPink: { main: "#D8315B" },
   },
   typography: {
     fontFamily: `"Lato"`
@@ -32,6 +36,10 @@ export const darkTheme = createTheme({
     customWhite: { main: "#FAFAFA" },
     customGray: { main: "#DADADA" },
     customBlack: { main: "#1E1E1E" },
+    customBlue1: { main: "#00A6FB" },
+    customBlue2: { main: "#006494" },
+    customBlue3: { main: "#003554" },
+    customPink: { main: "#D8315B" },
   },
   typography: {
     fontFamily: `"Lato"`

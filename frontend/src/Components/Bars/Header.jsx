@@ -10,6 +10,7 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 
 export default function PageHeader({ onToggleSidebar }) {
   const location = useLocation();
@@ -66,7 +67,7 @@ export default function PageHeader({ onToggleSidebar }) {
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         
 
-        <Breadcrumbs separator="›" aria-label="Percorso">
+        <Breadcrumbs separator={<KeyboardArrowRightIcon />} aria-label="Percorso">
           {crumbs.map((c, idx) => {
             const isLast = idx === crumbs.length - 1;
             const iconBox = (

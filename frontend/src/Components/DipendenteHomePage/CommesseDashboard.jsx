@@ -161,7 +161,7 @@ export default function CommesseDashboard({ employeeId, assignedCommesse = [], d
   return (
     <Paper sx={{ p: 2, borderRadius: 2 }}>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth" sx={{ mb: 2 }}>
-        <Tab label="Lista" />
+        <Tab label="Commesse Attive" />
         <Tab label="Istogramma" />
       </Tabs>
 

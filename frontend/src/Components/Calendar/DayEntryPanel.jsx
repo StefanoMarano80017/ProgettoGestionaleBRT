@@ -103,8 +103,8 @@ export default function DayEntryPanel({
   const [error, setError] = useState("");
 
   // Altezza fissa per riga e finestra scrollabile su 5 righe
-  const ROW_HEIGHT = 56;
-  const LIST_HEIGHT = ROW_HEIGHT * 5;
+  const ROW_HEIGHT = 53;
+  const LIST_HEIGHT = 320;
 
   // Calcola il massimo consentito in base alla modalità (per non superare 8h)
   const maxOre = useMemo(() => {
@@ -215,8 +215,7 @@ export default function DayEntryPanel({
       <Box
         sx={{
           height: LIST_HEIGHT,
-          overflowY: "auto",
-          pr: 1,
+          overflowY: "auto",          
           scrollbarGutter: "stable",
         }}
       >
