@@ -27,8 +27,9 @@ public class CommessaService {
         return commessaRepository.findByProgetto(progetto);
     }
 
-    public Optional<Commessa> findById(Long id) {
-        return commessaRepository.findById(id);
+    public Commessa findById(Long id) {
+        return commessaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Commessa non trovata con id: " + id));
     }
 
     public Optional<Commessa> findByCode(String code) {
@@ -46,16 +47,15 @@ public class CommessaService {
     }
 
     /**
-     * Recupera una commessa per codice, se non esiste la crea.
+     * Recupera una commessa per codice
      */
     @Transactional
-    public Commessa getOrCreateCommessa(String code) {
-        return commessaRepository.findByCode(code)
-                .orElseGet(() -> {
-                    Commessa newCommessa = Commessa.builder()
-                            .code(code)
-                            .build();
-                    return commessaRepository.save(newCommessa);
-                });
+    public Commessa getCommessa(String code) {
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("Il codice della commessa non può essere nullo o vuoto");
+        }
+        return commessaRepository.findByCode(code).orElseThrow(() ->
+            new IllegalArgumentException("Commessa non trovata con codice: " + code)
+        );
     }
 }

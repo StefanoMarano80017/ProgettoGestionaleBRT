@@ -25,8 +25,8 @@ public class EmployeeService {
         return employeeRepository.findById(id);
     }
 
-    public Optional<Employee> findByUsername(String username) {
-        return employeeRepository.findByUsername(username);
+    public  List<Employee> findByName(String username) {
+        return employeeRepository.findByNameContainingIgnoreCase(username);
     }
 
     public Employee save(Employee employee) {

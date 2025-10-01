@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.brt.TimesheetService.model.TimesheetDay;
@@ -32,9 +33,9 @@ public interface TimesheetItemRepository extends JpaRepository<TimesheetItem, Lo
     // =====================================
 
     // Ore totali per commessa (tutte le commesse)
-    @Query("SELECT ti.commessa.id, ti.commessa.code, ti.commessa.name, SUM(ti.hours) " +
+    @Query("SELECT ti.commessa.id, ti.commessa.code, SUM(ti.hours) " +
            "FROM TimesheetItem ti " +
-           "GROUP BY ti.commessa.id, ti.commessa.code, ti.commessa.name")
+           "GROUP BY ti.commessa.id, ti.commessa.code")
     List<Object[]> aggregateHoursByCommessa();
 
     // Ore totali per dipendente
@@ -45,27 +46,28 @@ public interface TimesheetItemRepository extends JpaRepository<TimesheetItem, Lo
     List<Object[]> aggregateHoursByEmployee();
 
     // Ore totali per tutte le commesse di un progetto specifico
-    @Query("SELECT ti.commessa.id, ti.commessa.code, ti.commessa.name, SUM(ti.hours) " +
+    @Query("SELECT ti.commessa.id, ti.commessa.code, SUM(ti.hours) " +
            "FROM TimesheetItem ti " +
            "WHERE ti.commessa.progetto.id = :projectId " +
-           "GROUP BY ti.commessa.id, ti.commessa.code, ti.commessa.name")
+           "GROUP BY ti.commessa.id, ti.commessa.code")
     List<Object[]> aggregateHoursByProject(Long projectId);
 
     // Ore per ogni dipendente per una commessa giorno per giorno
-    @Query("SELECT td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code, ti.commessa.name, SUM(ti.hours) " +
-        "FROM TimesheetItem ti " +
-        "JOIN ti.timesheetDay td " +
-        "WHERE ti.commessa.id = :commessaId " +
-        "GROUP BY td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code, ti.commessa.name " +
-        "ORDER BY td.date, td.employee.id")
-    List<Object[]> aggregateDailyHoursByCommessa(Long commessaId);
+    @Query("SELECT td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code, SUM(ti.hours) " +
+           "FROM TimesheetItem ti " +
+           "JOIN ti.timesheetDay td " +
+           "WHERE ti.commessa.id = :commessaId " +
+           "GROUP BY td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code " +
+           "ORDER BY td.date, td.employee.id ")
+    List<Object[]> aggregateDailyHoursByCommessa(@Param("commessaId") Long commessaId);
+
 
     // Ore per ogni commessa per un dipendente giorno per giorno
-    @Query("SELECT td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code, ti.commessa.name, SUM(ti.hours) " +
+    @Query("SELECT td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code, SUM(ti.hours) " +
         "FROM TimesheetItem ti " +
         "JOIN ti.timesheetDay td " +
         "WHERE td.employee.id = :employeeId " +
-        "GROUP BY td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code, ti.commessa.name " +
+        "GROUP BY td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code " +
         "ORDER BY td.date, ti.commessa.id")
     List<Object[]> aggregateDailyHoursByEmployee(Long employeeId);
 

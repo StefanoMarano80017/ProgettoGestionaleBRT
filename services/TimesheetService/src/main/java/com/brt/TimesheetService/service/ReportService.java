@@ -27,13 +27,13 @@ public class ReportService {
         List<Object[]> results = timesheetItemRepository.aggregateHoursByCommessa();
 
         return results.stream()
-                .map(row -> ReportHoursDTO.forCommessa(
-                        ((Number) row[0]).longValue(),      // commessaId
-                        (String) row[1],                     // commessaCode
-                        (String) row[2],                     // commessaName
-                        ((BigDecimal) row[3])                // totalHours
-                ))
-                .collect(Collectors.toList());
+                        .map(row -> ReportHoursDTO.forCommessa(
+                                ((Number) row[0]).longValue(),        // commessaId
+                                row[1] != null ? row[1].toString() : null, // commessaCode
+                                row[2] != null ? row[2].toString() : null, // commessaName
+                                ((BigDecimal) row[3])                 // totalHours
+                        ))
+                        .collect(Collectors.toList());
     }
 
     /**
@@ -57,14 +57,14 @@ public class ReportService {
     public List<ReportHoursDTO> getTotalHoursByProject(Long projectId) {
         List<Object[]> results = timesheetItemRepository.aggregateHoursByProject(projectId);
 
-        return results.stream()
-                .map(row -> ReportHoursDTO.forCommessa(
-                        ((Number) row[0]).longValue(),      // commessaId
-                        (String) row[1],                     // commessaCode
-                        (String) row[2],                     // commessaName
-                        ((BigDecimal) row[3])                // totalHours
-                ))
-                .collect(Collectors.toList());
+       return results.stream()
+                        .map(row -> ReportHoursDTO.forCommessa(
+                                ((Number) row[0]).longValue(),        // commessaId
+                                row[1] != null ? row[1].toString() : null, // commessaCode
+                                row[2] != null ? row[2].toString() : null, // commessaName
+                                ((BigDecimal) row[3])                 // totalHours
+                        ))
+                        .collect(Collectors.toList());
     }
 
     /**

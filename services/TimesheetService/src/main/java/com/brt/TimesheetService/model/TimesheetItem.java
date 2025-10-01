@@ -38,7 +38,7 @@ public class TimesheetItem {
     @JoinColumn(name = "commessa_id")
     private Commessa commessa;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String description;
 
     @Column(nullable = false, precision = 5, scale = 2)

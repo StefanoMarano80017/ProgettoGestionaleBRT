@@ -1,12 +1,13 @@
 package com.brt.TimesheetService.service;
 
-import com.brt.TimesheetService.model.Progetto;
-import com.brt.TimesheetService.repository.ProgettoRepository;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import com.brt.TimesheetService.model.Progetto;
+import com.brt.TimesheetService.repository.ProgettoRepository;
 
 @Service
 public class ProgettoService {
@@ -39,7 +40,7 @@ public class ProgettoService {
      * Cerca un progetto per codice, se non trovato lancia eccezione.
      */
     public Progetto findByCodeOrThrow(String code) {
-        return progettoRepository.findByCode(code)
+        return progettoRepository.findByCodice(code)
                 .orElseThrow(() -> new RuntimeException("Progetto non trovato: " + code));
     }
 }

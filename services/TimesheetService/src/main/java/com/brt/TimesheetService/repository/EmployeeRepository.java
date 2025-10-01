@@ -1,11 +1,19 @@
 package com.brt.TimesheetService.repository;
 
-import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import com.brt.TimesheetService.model.Employee;
 
+@Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
-    Optional<Employee> findByUsername(String username);
+
+    // Trova tutti i dipendenti con un nome specifico
+    List<Employee> findByName(String name);
+
+    // Trova tutti i dipendenti il cui nome contiene una certa stringa (case-insensitive)
+    List<Employee> findByNameContainingIgnoreCase(String namePart);
+
 }

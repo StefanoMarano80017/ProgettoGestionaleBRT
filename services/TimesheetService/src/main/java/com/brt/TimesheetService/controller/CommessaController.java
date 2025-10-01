@@ -55,8 +55,7 @@ public class CommessaController {
     /** Recupera una commessa per ID */
     @GetMapping("/{id}")
     public ResponseEntity<CommessaDTO> getCommessa(@PathVariable Long id) {
-        Commessa commessa = commessaService.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commessa non trovata: " + id));
+        Commessa commessa = commessaService.findById(id);
         return ResponseEntity.ok(mapToDTO(commessa));
     }
 
@@ -81,9 +80,7 @@ public class CommessaController {
     /** Aggiorna una commessa esistente */
     @PutMapping("/{id}")
     public ResponseEntity<CommessaDTO> updateCommessa(@PathVariable Long id, @RequestBody CommessaDTO dto) {
-        Commessa existing = commessaService.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commessa non trovata: " + id));
-
+        Commessa existing = commessaService.findById(id);
         existing.setCode(dto.getCode());
 
         if (dto.getProgettoId() != null) {
@@ -101,8 +98,7 @@ public class CommessaController {
     /** Cancella una commessa */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCommessa(@PathVariable Long id) {
-        commessaService.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commessa non trovata: " + id));
+        commessaService.findById(id);
         commessaService.deleteById(id);
         return ResponseEntity.noContent().build();
     }

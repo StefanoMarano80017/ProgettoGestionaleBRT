@@ -46,7 +46,7 @@ public class AdminController {
         dayDTO.setStatus(null); // mutualmente esclusivo
 
         // Salva aggiornamento come admin
-        timesheetDayService.saveTimesheet(employeeId, date, dayDTO, true, employee);
+        //timesheetDayService.saveTimesheet(employeeId, date, dayDTO, true, employee);
 
         return ResponseEntity.noContent().build();
     }
@@ -63,7 +63,7 @@ public class AdminController {
                 .orElseThrow(() -> new RuntimeException("Dipendente non trovato"));
 
         // Forza l’aggiornamento usando saveTimesheet come admin
-        timesheetDayService.saveTimesheet(employeeId, date, dto, true, employee);
+        //timesheetDayService.saveTimesheet(employeeId, date, dto, true, employee);
 
         return ResponseEntity.noContent().build();
     }

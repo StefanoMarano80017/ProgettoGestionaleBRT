@@ -48,7 +48,7 @@ public class TimesheetController {
                                                          @PathVariable String date,
                                                          @RequestBody TimesheetDayDTO dto) {
 
-        TimesheetDayDTO saved = timesheetDayService.saveTimesheet(employeeId, date, dto, false, null);
+        TimesheetDayDTO saved = timesheetDayService.createTimesheetEmployee(employeeId, date, dto);
         return ResponseEntity.status(201).body(saved);
     }
 

@@ -1,0 +1,205 @@
+{
+  "info": {
+    "name": "Company API",
+    "_postman_id": "00000000-0000-0000-0000-000000000000",
+    "description": "Collezione API per gestione dipendenti, timesheet, progetti e report",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "EmployeeController",
+      "item": [
+        {
+          "name": "Get all employees",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/employees"
+          }
+        },
+        {
+          "name": "Get employee by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/employees/:id"
+          }
+        },
+        {
+          "name": "Create employee",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/employees"
+          }
+        },
+        {
+          "name": "Update employee",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/employees/:id"
+          }
+        },
+        {
+          "name": "Delete employee",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/employees/:id"
+          }
+        }
+      ]
+    },
+    {
+      "name": "TimesheetController",
+      "item": [
+        {
+          "name": "Get timesheets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/employees/:employeeId/timesheets"
+          }
+        },
+        {
+          "name": "Get timesheet by date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/employees/:employeeId/timesheets/:date"
+          }
+        },
+        {
+          "name": "Create/Update timesheet",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw","raw":"{}"},
+            "url": "{{baseUrl}}/employees/:employeeId/timesheets/:date"
+          }
+        },
+        {
+          "name": "Delete timesheet",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/employees/:employeeId/timesheets/:date"
+          }
+        },
+        {
+          "name": "Add item",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw","raw":"{}"},
+            "url": "{{baseUrl}}/employees/:employeeId/timesheets/:date/items"
+          }
+        },
+        {
+          "name": "Update item",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw","raw":"{}"},
+            "url": "{{baseUrl}}/employees/:employeeId/timesheets/:date/items/:itemId"
+          }
+        },
+        {
+          "name": "Delete item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/employees/:employeeId/timesheets/:date/items/:itemId"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ProjectController",
+      "item": [
+        {
+          "name": "Get all projects",
+          "request": {"method": "GET","header":[],"url":"{{baseUrl}}/projects"}
+        },
+        {
+          "name": "Get project by ID",
+          "request": {"method": "GET","header":[],"url":"{{baseUrl}}/projects/:projectId"}
+        },
+        {
+          "name": "Create project",
+          "request": {
+            "method": "POST",
+            "header":[{"key":"Content-Type","value":"application/json"}],
+            "body":{"mode":"raw","raw":"{}"},
+            "url":"{{baseUrl}}/projects"
+          }
+        },
+        {
+          "name": "Update project",
+          "request": {
+            "method": "PUT",
+            "header":[{"key":"Content-Type","value":"application/json"}],
+            "body":{"mode":"raw","raw":"{}"},
+            "url":"{{baseUrl}}/projects/:projectId"
+          }
+        },
+        {
+          "name": "Delete project",
+          "request": {"method":"DELETE","header":[],"url":"{{baseUrl}}/projects/:projectId"}
+        },
+        {
+          "name": "Get project commesse",
+          "request":{"method":"GET","header":[],"url":"{{baseUrl}}/projects/:projectId/commesse"}
+        },
+        {
+          "name": "Add commessa",
+          "request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{}"},"url":"{{baseUrl}}/projects/:projectId/commesse"}
+        },
+        {
+          "name": "Update commessa",
+          "request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{}"},"url":"{{baseUrl}}/projects/:projectId/commesse/:commessaId"}
+        },
+        {
+          "name": "Delete commessa",
+          "request":{"method":"DELETE","header":[],"url":"{{baseUrl}}/projects/:projectId/commesse/:commessaId"}
+        }
+      ]
+    },
+    {
+      "name": "ReportController",
+      "item": [
+        {"name":"Hours by project","request":{"method":"GET","header":[],"url":"{{baseUrl}}/reports/hours-by-project"}},
+        {"name":"Hours by employee","request":{"method":"GET","header":[],"url":"{{baseUrl}}/reports/hours-by-employee"}},
+        {"name":"Hours by project ID","request":{"method":"GET","header":[],"url":"{{baseUrl}}/reports/hours-by-project/:projectId"}},
+        {"name":"Daily hours by commessa","request":{"method":"GET","header":[],"url":"{{baseUrl}}/daily-hours/commessa/:commessaId"}},
+        {"name":"Daily hours by employee","request":{"method":"GET","header":[],"url":"{{baseUrl}}/daily-hours/employee/:employeeId"}}
+      ]
+    },
+    {
+      "name": "AdminController",
+      "item": [
+        {
+          "name": "Set absence",
+          "request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{}"},"url":"{{baseUrl}}/admin/timesheets/:employeeId/:date/absence"}
+        },
+        {
+          "name": "Override timesheet",
+          "request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{}"},"url":"{{baseUrl}}/admin/timesheets/:employeeId/:date/override"}
+        },
+        {
+          "name": "Update employee role",
+          "request":{"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{}"},"url":"{{baseUrl}}/admin/employees/:id/role"}
+        }
+      ]
+    }
+  ]
+}

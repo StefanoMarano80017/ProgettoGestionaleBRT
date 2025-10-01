@@ -10,6 +10,6 @@ import com.brt.TimesheetService.model.Progetto;
 @Repository
 public interface ProgettoRepository extends JpaRepository<Progetto, Long> {
 
-    Optional<Progetto> findByCode(String code);
+    Optional<Progetto> findByCodice(String codice);
 
 }

@@ -12,10 +12,7 @@ import com.brt.TimesheetService.model.Progetto;
 @Repository
 public interface CommessaRepository extends JpaRepository<Commessa, Long> {
 
+    Optional<Commessa> findById(Long id);
     Optional<Commessa> findByCode(String code);
-
     List<Commessa> findByProgetto(Progetto progetto);
-
-    List<Commessa> findByNameContainingIgnoreCase(String name);
-
 }
