@@ -22,8 +22,8 @@ public class ReportController {
         this.reportService = reportService;
     }
 
-    @GetMapping("/hours-by-project")
-    public ResponseEntity<List<ReportHoursDTO>> hoursByProject() {
+    @GetMapping("/hours-by-commessa")
+    public ResponseEntity<List<ReportHoursDTO>> hoursByCommessa() {
         return ResponseEntity.ok(reportService.getTotalHoursByCommessa());
     }
 
@@ -31,12 +31,6 @@ public class ReportController {
     public ResponseEntity<List<ReportHoursDTO>> hoursByEmployee() {
         return ResponseEntity.ok(reportService.getTotalHoursByEmployee());
     }
-
-    @GetMapping("/hours-by-project/{projectId}")
-    public ResponseEntity<List<ReportHoursDTO>> hoursByProject(@PathVariable Long projectId) {
-        return ResponseEntity.ok(reportService.getTotalHoursByProject(projectId));
-    }
-
     
     // ================================================
     // Report giornaliero per commessa (dipendenti)

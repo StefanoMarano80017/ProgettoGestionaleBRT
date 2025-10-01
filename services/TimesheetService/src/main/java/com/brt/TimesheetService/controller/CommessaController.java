@@ -11,44 +11,28 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.brt.TimesheetService.dto.CommessaDTO;
-import com.brt.TimesheetService.exception.ResourceNotFoundException;
 import com.brt.TimesheetService.model.Commessa;
-import com.brt.TimesheetService.model.Progetto;
 import com.brt.TimesheetService.service.CommessaService;
-import com.brt.TimesheetService.service.ProgettoService;
 
 @RestController
 @RequestMapping("/commesse")
 public class CommessaController {
 
     private final CommessaService commessaService;
-    private final ProgettoService progettoService;
-
-    public CommessaController(CommessaService commessaService, ProgettoService progettoService) {
+    public CommessaController(CommessaService commessaService) {
         this.commessaService = commessaService;
-        this.progettoService = progettoService;
     }
 
     /** Lista tutte le commesse (opzionalmente filtrate per progetto) */
     @GetMapping
-    public ResponseEntity<List<CommessaDTO>> getAllCommesse(@RequestParam(required = false) Long progettoId) {
-        List<Commessa> commesse;
-        if (progettoId != null) {
-            Progetto progetto = progettoService.findById(progettoId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Progetto non trovato: " + progettoId));
-            commesse = commessaService.findByProgetto(progetto);
-        } else {
-            commesse = commessaService.findAll();
-        }
-
+    public ResponseEntity<List<CommessaDTO>> getAllCommesse() {
+        List<Commessa> commesse = commessaService.findAll();
         List<CommessaDTO> dtos = commesse.stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
-
         return ResponseEntity.ok(dtos);
     }
 
@@ -62,15 +46,8 @@ public class CommessaController {
     /** Crea una nuova commessa */
     @PostMapping
     public ResponseEntity<CommessaDTO> createCommessa(@RequestBody CommessaDTO dto) {
-        Progetto progetto = null;
-        if (dto.getProgettoId() != null) {
-            progetto = progettoService.findById(dto.getProgettoId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Progetto non trovato: " + dto.getProgettoId()));
-        }
-
         Commessa commessa = Commessa.builder()
                 .code(dto.getCode())
-                .progetto(progetto)
                 .build();
 
         Commessa saved = commessaService.save(commessa);
@@ -82,15 +59,6 @@ public class CommessaController {
     public ResponseEntity<CommessaDTO> updateCommessa(@PathVariable Long id, @RequestBody CommessaDTO dto) {
         Commessa existing = commessaService.findById(id);
         existing.setCode(dto.getCode());
-
-        if (dto.getProgettoId() != null) {
-            Progetto progetto = progettoService.findById(dto.getProgettoId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Progetto non trovato: " + dto.getProgettoId()));
-            existing.setProgetto(progetto);
-        } else {
-            existing.setProgetto(null);
-        }
-
         Commessa updated = commessaService.save(existing);
         return ResponseEntity.ok(mapToDTO(updated));
     }
@@ -108,7 +76,6 @@ public class CommessaController {
         return CommessaDTO.builder()
                 .id(commessa.getId())
                 .code(commessa.getCode())
-                .progettoId(commessa.getProgetto() != null ? commessa.getProgetto().getId() : null)
                 .build();
     }
 }

@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.brt.TimesheetService.model.Commessa;
-import com.brt.TimesheetService.model.Progetto;
 import com.brt.TimesheetService.repository.CommessaRepository;
 
 @Service
@@ -21,10 +20,6 @@ public class CommessaService {
 
     public List<Commessa> findAll() {
         return commessaRepository.findAll();
-    }
-
-    public List<Commessa> findByProgetto(Progetto progetto) {
-        return commessaRepository.findByProgetto(progetto);
     }
 
     public Commessa findById(Long id) {

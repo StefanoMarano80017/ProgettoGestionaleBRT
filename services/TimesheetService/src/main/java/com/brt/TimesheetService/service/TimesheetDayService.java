@@ -5,39 +5,29 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.brt.TimesheetService.dto.TimesheetDayDTO;
 import com.brt.TimesheetService.dto.TimesheetItemDTO;
 import com.brt.TimesheetService.exception.ResourceNotFoundException;
-import com.brt.TimesheetService.model.Commessa;
 import com.brt.TimesheetService.model.Employee;
 import com.brt.TimesheetService.model.TimesheetDay;
-import com.brt.TimesheetService.model.TimesheetItem;
 import com.brt.TimesheetService.repository.TimesheetDayRepository;
-import com.brt.TimesheetService.repository.TimesheetItemRepository;
 
 @Service
 public class TimesheetDayService {
 
-    private static final Logger logger = LoggerFactory.getLogger(TimesheetDayService.class);
-
     private final TimesheetDayRepository timesheetDayRepository;
-    private final TimesheetItemRepository timesheetItemRepository;
     private final EmployeeService employeeService;
-    private final CommessaService commessaService;
+    private final TimesheetItemService timesheetItemService;
 
     public TimesheetDayService(TimesheetDayRepository timesheetDayRepository,
-                               TimesheetItemRepository timesheetItemRepository,
                                EmployeeService employeeService,
-                               CommessaService commessaService) {
+                               TimesheetItemService timesheetItemService) {
         this.timesheetDayRepository = timesheetDayRepository;
-        this.timesheetItemRepository = timesheetItemRepository;
         this.employeeService = employeeService;
-        this.commessaService = commessaService;
+        this.timesheetItemService = timesheetItemService;
     }
 
     // ===========================
@@ -45,11 +35,10 @@ public class TimesheetDayService {
     // ===========================
 
     public List<TimesheetDayDTO> getTimesheets(Long employeeId, YearMonth month) {
-        logger.info("Richiesta timesheet per employeeId={} e mese={}", employeeId, month);
         Employee employee = getEmployeeOrThrow(employeeId);
 
         LocalDate start = month != null ? month.atDay(1) : LocalDate.of(2000, 1, 1);
-        LocalDate end   = month != null ? month.atEndOfMonth() : LocalDate.now();
+        LocalDate end = month != null ? month.atEndOfMonth() : LocalDate.now();
 
         return timesheetDayRepository.findByEmployeeAndDateBetween(employee, start, end)
                                      .stream()
@@ -61,9 +50,10 @@ public class TimesheetDayService {
         Employee employee = getEmployeeOrThrow(employeeId);
         LocalDate date = parseDate(dateStr);
 
-        return timesheetDayRepository.findByEmployeeAndDate(employee, date)
-                .map(this::mapToDTO)
+        TimesheetDay day = timesheetDayRepository.findByEmployeeAndDate(employee, date)
                 .orElseThrow(() -> new ResourceNotFoundException("Timesheet non trovato per il giorno: " + date));
+
+        return mapToDTO(day);
     }
 
     // ===========================
@@ -84,12 +74,13 @@ public class TimesheetDayService {
         return createOrMergeTimesheet(employeeId, dateStr, dto, isAdmin, currentUser, true);
     }
 
-    private TimesheetDayDTO createOrMergeTimesheet(Long employeeId, String dateStr, TimesheetDayDTO dto,
-                                                   boolean isAdmin, Employee currentUser, boolean merge) {
+    @Transactional
+    public TimesheetDayDTO createOrMergeTimesheet(Long employeeId, String dateStr, TimesheetDayDTO dto,
+                                                boolean isAdmin, Employee currentUser, boolean merge) {
         Employee employee = getEmployeeOrThrow(employeeId);
         LocalDate date = parseDate(dateStr);
 
-        TimesheetDay day = merge 
+        TimesheetDay day = merge
                 ? timesheetDayRepository.findByEmployeeAndDate(employee, date)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Timesheet non esistente per employee=" + employeeId + " e data=" + date))
@@ -100,14 +91,19 @@ public class TimesheetDayService {
             throw new IllegalStateException("Timesheet già esistente per employee=" + employeeId + " e data=" + date);
         }
 
-        day.setStatus(dto.getStatus());
+        // Imposta absence dal DTO
         day.setAbsenceType(dto.getAbsenceType());
-        validateRules(day, isAdmin, currentUser);
-        addOrReplaceItems(day, dto.getItems());
+
+        // Gestisce gli item tramite il service
+        timesheetItemService.replaceItems(day, dto.getItems());
+
+        // Aggiorna lo stato automaticamente in base agli item e assenza
+        updateStatusAndAbsence(day);
 
         TimesheetDay saved = timesheetDayRepository.save(day);
         return mapToDTO(saved);
     }
+
 
     // ===========================
     // ITEM MANAGEMENT
@@ -116,31 +112,31 @@ public class TimesheetDayService {
     @Transactional
     public TimesheetItemDTO addItem(Long employeeId, String dateStr, TimesheetItemDTO itemDTO) {
         TimesheetDay day = getOrCreateTimesheet(employeeId, dateStr);
-        TimesheetItem item = mapItemDTOToEntity(itemDTO, day);
-
-        day.addItem(item);
+        timesheetItemService.addItem(day, itemDTO);
+        updateStatusAndAbsence(day);
         timesheetDayRepository.save(day);
-
-        return mapItemToDTO(item);
+        return timesheetItemService.mapEntityToDTO(day.getItems().get(day.getItems().size() - 1));
     }
 
     @Transactional
     public TimesheetItemDTO updateItem(Long employeeId, String dateStr, Long itemId, TimesheetItemDTO itemDTO) {
         verifyEmployeeAndTimesheet(employeeId, dateStr);
-
-        int updated = timesheetItemRepository.updateItem(itemId, itemDTO.getDescription(), itemDTO.getHours());
-        if (updated == 0) throw new ResourceNotFoundException("Item non trovato: " + itemId);
-
-        return itemDTO;
+        timesheetItemService.updateItem(itemId, itemDTO);
+        TimesheetDay day = getOrCreateTimesheet(employeeId, dateStr);
+        updateStatusAndAbsence(day);
+        timesheetDayRepository.save(day);
+        return timesheetItemService.mapEntityToDTO(timesheetItemService.findById(itemId));
     }
 
     @Transactional
     public void deleteItem(Long employeeId, String dateStr, Long itemId) {
         verifyEmployeeAndTimesheet(employeeId, dateStr);
-
-        int deleted = timesheetItemRepository.deleteItemById(itemId);
-        if (deleted == 0) throw new ResourceNotFoundException("Item non trovato: " + itemId);
+        TimesheetDay day = getOrCreateTimesheet(employeeId, dateStr);
+        timesheetItemService.deleteItem(itemId);
+        updateStatusAndAbsence(day);
+        timesheetDayRepository.save(day);
     }
+
 
     // ===========================
     // DELETE TIMESHEET
@@ -178,54 +174,19 @@ public class TimesheetDayService {
     private TimesheetDay getOrCreateTimesheet(Long employeeId, String dateStr) {
         Employee employee = getEmployeeOrThrow(employeeId);
         LocalDate date = parseDate(dateStr);
-
-        return timesheetDayRepository.findByEmployeeAndDate(employee, date)
-                .orElse(TimesheetDay.builder().employee(employee).date(date).build());
+        return timesheetDayRepository.findByEmployeeAndDate(employee, date).orElse(TimesheetDay.builder().employee(employee).date(date).build());
     }
 
     private void verifyEmployeeAndTimesheet(Long employeeId, String dateStr) {
         Employee employee = getEmployeeOrThrow(employeeId);
         LocalDate date = parseDate(dateStr);
-
         if (timesheetDayRepository.findByEmployeeAndDate(employee, date).isEmpty()) {
             throw new ResourceNotFoundException("Timesheet non trovato per il giorno: " + date);
         }
     }
 
-    private void addOrReplaceItems(TimesheetDay day, List<TimesheetItemDTO> items) {
-        day.getItems().clear();
-        if (items != null) {
-            for (TimesheetItemDTO dto : items) {
-                day.addItem(mapItemDTOToEntity(dto, day));
-            }
-        }
-    }
-
-    private TimesheetItem mapItemDTOToEntity(TimesheetItemDTO dto, TimesheetDay day) {
-        Commessa commessa = commessaService.getCommessa(dto.getCommessaCode());
-        return TimesheetItem.builder()
-                .id(dto.getId())
-                .description(dto.getDescription())
-                .hours(dto.getHours())
-                .timesheetDay(day)
-                .commessa(commessa)
-                .build();
-    }
-
-    private TimesheetItemDTO mapItemToDTO(TimesheetItem item) {
-        return TimesheetItemDTO.builder()
-                .id(item.getId())
-                .description(item.getDescription())
-                .hours(item.getHours())
-                .CommessaCode(item.getCommessa() != null ? item.getCommessa().getCode() : null)
-                .build();
-    }
-
     private TimesheetDayDTO mapToDTO(TimesheetDay day) {
-        List<TimesheetItemDTO> items = day.getItems().stream()
-                .map(this::mapItemToDTO)
-                .collect(Collectors.toList());
-
+        List<TimesheetItemDTO> items = timesheetItemService.mapEntitiesToDTOs(day.getItems());
         return TimesheetDayDTO.builder()
                 .id(day.getId())
                 .date(day.getDate())
@@ -263,4 +224,25 @@ public class TimesheetDayService {
             }
         }
     }
+
+    private void updateStatusAndAbsence(TimesheetDay day) {
+        if (day.getAbsenceType() != null && day.getAbsenceType() != com.brt.TimesheetService.model.AbsenceType.NONE) {
+            // C'è assenza → status nullo
+            day.setStatus(null);
+        } else {
+            // Calcola lo stato basato sulle ore totali
+            double totalHours = day.getItems().stream()
+                                   .mapToDouble(i -> i.getHours() != null ? i.getHours().doubleValue() : 0.0)
+                                   .sum();
+
+            if (totalHours == 0) {
+                day.setStatus(com.brt.TimesheetService.model.TimesheetStatus.EMPTY);
+            } else if (totalHours < 8) {
+                day.setStatus(com.brt.TimesheetService.model.TimesheetStatus.INCOMPLETE);
+            } else {
+                day.setStatus(com.brt.TimesheetService.model.TimesheetStatus.COMPLETE);
+            }
+        }
+    }
+
 }

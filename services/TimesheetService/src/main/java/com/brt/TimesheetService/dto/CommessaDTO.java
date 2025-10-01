@@ -12,5 +12,5 @@ import lombok.NoArgsConstructor;
 public class CommessaDTO {
     private Long id;
     private String code;
-    private Long progettoId; // riferimento al progetto padre se necessario
+    // private Long progettoId; // riferimento al progetto padre se necessario
 }

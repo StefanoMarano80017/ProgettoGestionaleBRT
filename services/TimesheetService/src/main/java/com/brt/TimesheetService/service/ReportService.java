@@ -52,22 +52,6 @@ public class ReportService {
     }
 
     /**
-     * Ore totali per commesse di un progetto specifico
-     */
-    public List<ReportHoursDTO> getTotalHoursByProject(Long projectId) {
-        List<Object[]> results = timesheetItemRepository.aggregateHoursByProject(projectId);
-
-       return results.stream()
-                        .map(row -> ReportHoursDTO.forCommessa(
-                                ((Number) row[0]).longValue(),        // commessaId
-                                row[1] != null ? row[1].toString() : null, // commessaCode
-                                row[2] != null ? row[2].toString() : null, // commessaName
-                                ((BigDecimal) row[3])                 // totalHours
-                        ))
-                        .collect(Collectors.toList());
-    }
-
-    /**
      *  per ogni commessa, la lista di ogni dipendente quante ora vi ha dedicato giorno per giorno
      */
     public List<DailyHoursReportDTO> getDailyHoursByCommessa(Long commessaId) {

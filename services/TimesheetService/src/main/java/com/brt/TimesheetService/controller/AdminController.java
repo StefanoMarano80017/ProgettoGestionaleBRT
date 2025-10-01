@@ -37,9 +37,7 @@ public class AdminController {
                                            @RequestBody AbsenceType absenceType) {
 
         // Recupera il dipendente
-        Employee employee = employeeService.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Dipendente non trovato"));
-
+       employeeService.findById(employeeId).orElseThrow(() -> new RuntimeException("Dipendente non trovato"));
         // Recupera o crea il timesheet del giorno
         TimesheetDayDTO dayDTO = timesheetDayService.getTimesheet(employeeId, date);
         dayDTO.setAbsenceType(absenceType);

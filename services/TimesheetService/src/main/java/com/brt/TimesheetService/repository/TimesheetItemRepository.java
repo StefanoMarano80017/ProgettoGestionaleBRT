@@ -45,13 +45,6 @@ public interface TimesheetItemRepository extends JpaRepository<TimesheetItem, Lo
            "GROUP BY td.employee.id, td.employee.name")
     List<Object[]> aggregateHoursByEmployee();
 
-    // Ore totali per tutte le commesse di un progetto specifico
-    @Query("SELECT ti.commessa.id, ti.commessa.code, SUM(ti.hours) " +
-           "FROM TimesheetItem ti " +
-           "WHERE ti.commessa.progetto.id = :projectId " +
-           "GROUP BY ti.commessa.id, ti.commessa.code")
-    List<Object[]> aggregateHoursByProject(Long projectId);
-
     // Ore per ogni dipendente per una commessa giorno per giorno
     @Query("SELECT td.date, td.employee.id, td.employee.name, ti.commessa.id, ti.commessa.code, SUM(ti.hours) " +
            "FROM TimesheetItem ti " +
