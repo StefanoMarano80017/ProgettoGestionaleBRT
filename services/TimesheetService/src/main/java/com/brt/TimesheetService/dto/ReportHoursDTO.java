@@ -1,47 +1,35 @@
 package com.brt.TimesheetService.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
 import java.math.BigDecimal;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class ReportHoursDTO {
 
-    private Long employeeId;      // opzionale, se report per dipendente
-    private String employeeName;  // opzionale
-    private Long commessaId;      // opzionale, se report per commessa
-    private String commessaCode;  // opzionale
-    private String commessaName;  // opzionale
+    private Long employeeId;      
+    private String employeeName;  
     private BigDecimal totalHours;
 
-    /**
-     * Crea un DTO per ore di un dipendente
-     */
-    public static ReportHoursDTO forEmployee(Long employeeId, String employeeName, BigDecimal totalHours) {
-        return ReportHoursDTO.builder()
-                .employeeId(employeeId)
-                .employeeName(employeeName)
-                .totalHours(totalHours)
-                .build();
+    // Unico costruttore con tutti i campi opzionali
+    public ReportHoursDTO(Long employeeId, String employeeName, Long commessaId, String commessaCode, BigDecimal totalHours) {
+        this.employeeId = employeeId;
+        this.employeeName = employeeName;
+        this.totalHours = totalHours;
     }
 
-    /**
-     * Crea un DTO per ore di una commessa
-     */
-    public static ReportHoursDTO forCommessa(Long commessaId, String commessaCode, String commessaName, BigDecimal totalHours) {
-        return ReportHoursDTO.builder()
-                .commessaId(commessaId)
-                .commessaCode(commessaCode)
-                .commessaName(commessaName)
-                .totalHours(totalHours)
-                .build();
+    // Factory method per report commessa
+    public static ReportHoursDTO forCommessa(Long commessaId, String commessaCode, BigDecimal totalHours) {
+        return new ReportHoursDTO(null, null, commessaId, commessaCode, totalHours);
     }
+
+    // Factory method per report dipendente
+    public static ReportHoursDTO forEmployee(Long employeeId, String employeeName, BigDecimal totalHours) {
+        return new ReportHoursDTO(employeeId, employeeName, null, null, totalHours);
+    }
+
+    public Long getEmployeeId()       { return employeeId; }
+    public String getEmployeeName()   { return employeeName; }
+    public BigDecimal getTotalHours() { return totalHours; }
+
+    public void setEmployeeId(Long employeeId)       { this.employeeId = employeeId; }
+    public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }
+    public void setTotalHours(BigDecimal totalHours) { this.totalHours = totalHours; }
 }

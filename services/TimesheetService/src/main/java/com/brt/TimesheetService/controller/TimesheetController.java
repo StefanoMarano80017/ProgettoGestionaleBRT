@@ -2,6 +2,9 @@ package com.brt.TimesheetService.controller;
 
 import java.time.YearMonth;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,11 +32,17 @@ public class TimesheetController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TimesheetDayDTO>> getTimesheets(@PathVariable Long employeeId,
-                                                              @RequestParam(required = false) Integer year,
-                                                              @RequestParam(required = false) Integer month) {
+    public ResponseEntity<Page<TimesheetDayDTO>> getTimesheets(
+            @PathVariable Long employeeId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         YearMonth ym = (year != null && month != null) ? YearMonth.of(year, month) : null;
-        List<TimesheetDayDTO> dtos = timesheetDayService.getTimesheets(employeeId, ym);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TimesheetDayDTO> dtos = timesheetDayService.getTimesheets(employeeId, ym, startDate, endDate, pageable);
         return ResponseEntity.ok(dtos);
     }
 

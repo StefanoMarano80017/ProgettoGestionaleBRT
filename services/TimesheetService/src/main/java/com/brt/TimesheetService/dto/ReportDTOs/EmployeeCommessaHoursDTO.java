@@ -1,19 +1,18 @@
-package com.brt.TimesheetService.dto;
+package com.brt.TimesheetService.dto.ReportDTOs;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
-public class DailyHoursReportDTO {
-    private final LocalDate date;
+
+// Ore di un dipendente su una commessa o su tutte le commesse
+public class EmployeeCommessaHoursDTO {
     private final Long employeeId;
     private final String employeeName;
-    private final Long commessaId;
-    private final String commessaCode;
+    private final Long commessaId;      // può essere null se è aggregato su tutte le commesse
+    private final String commessaCode;  // può essere null se è aggregato su tutte le commesse
     private final BigDecimal hours;
 
-    public DailyHoursReportDTO(LocalDate date, Long employeeId, String employeeName,
-                               Long commessaId, String commessaCode, BigDecimal hours) {
-        this.date = date;
+    public EmployeeCommessaHoursDTO(Long employeeId, String employeeName,
+                                    Long commessaId, String commessaCode, BigDecimal hours) {
         this.employeeId = employeeId;
         this.employeeName = employeeName;
         this.commessaId = commessaId;
@@ -21,8 +20,6 @@ public class DailyHoursReportDTO {
         this.hours = hours;
     }
 
-    // getter
-    public LocalDate getDate() { return date; }
     public Long getEmployeeId() { return employeeId; }
     public String getEmployeeName() { return employeeName; }
     public Long getCommessaId() { return commessaId; }

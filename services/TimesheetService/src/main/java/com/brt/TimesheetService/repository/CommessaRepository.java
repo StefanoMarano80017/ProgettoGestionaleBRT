@@ -9,6 +9,5 @@ import com.brt.TimesheetService.model.Commessa;
 
 @Repository
 public interface CommessaRepository extends JpaRepository<Commessa, Long> {
-    Optional<Commessa> findById(Long id);
     Optional<Commessa> findByCode(String code);
 }
