@@ -22,7 +22,7 @@ import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import TimelapseIcon from "@mui/icons-material/Timelapse";
-import { getActiveCommesseForEmployee } from "../mocks/EmployeeCommesseMock";
+import { getActiveCommesseForEmployee, getTimesheetForEmployee } from "../mocks/ProjectMock";
 
 export default function DipendenteHome() {
   const [selectedDay, setSelectedDay] = useState(null);
@@ -96,17 +96,14 @@ export default function DipendenteHome() {
     <Box sx={{ bgcolor: "background.default", height: "100vh", overflow: "auto" }}>
       <Container maxWidth="xl" sx={{ mt: 4 }}>
         {/* Header + Badge on the same row */}
-        <Box sx={{ mb: 4, display: "flex", alignItems: "center", justifyContent: "space-between", bgcolor: 'customBackground.main', p: 4, borderRadius: 2, boxShadow: 8 }}>
+        <Box sx={{ mb: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
           <PageHeader
             title="Timesheet"
-            description="Qui puoi visualizzare il riepilogo del timesheet:"
+            description="Riepilogo e inserimento ore"
             icon={<AccessTimeIcon />}
           />
           <BadgeCard
-            actionIcon={<InfoIcon />}
-            companyId="BRT-12345"
-            companyLogo="https://static.wixstatic.com/media/618259_08e4c20264204196a4839f310152b7e8~mv2.png/v1/fill/w_222,h_56,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/brt_logo_engineering_white.png"
-            holderName="Mario Rossi"
+            // niente holderName/companyId: li prende da AuthContext
             isBadgiato={isBadgiatoToday}
           />
         </Box>
