@@ -7,10 +7,11 @@ import ListItem from "@mui/material/ListItem";
 import ListItemAvatar from "@mui/material/ListItemAvatar";
 import Avatar from "@mui/material/Avatar";
 import Chip from "@mui/material/Chip";
+import LinearProgress from "@mui/material/LinearProgress";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import ProgressChip from "../ProgressBar/ProgressChip";
+// ProgressChip removed — using simple Chip + LinearProgress
 
 export default function TaskDetailCard({ task }) {
   if (!task) {
@@ -51,21 +52,20 @@ export default function TaskDetailCard({ task }) {
             gap: 1,
           }}
         >
-          <ProgressChip
-            progress={task.progress || 0}
-            status={task.tag || "prova"}
-          />
+          <Chip label={`${task.progress || 0}%`} size="small" />
           <IconButton size="small" onClick={handleNavigate}>
             <OpenInNewIcon />
           </IconButton>
         </Box>
       </Box>
+      {typeof task.progress === "number" && (
+        <LinearProgress variant="determinate" value={Math.max(0, Math.min(100, task.progress))} />
+      )}
 
       <CardContent sx={{ p: 0, m: 0 }}>
         {/* Descrizione del task */}
         <Typography
           variant="body2"
-          color="text.secondary"
           sx={{ py: 2, px: 1, borderBottom: "1px solid #eee" }}
         >
           {task.description || "Nessuna descrizione disponibile."}

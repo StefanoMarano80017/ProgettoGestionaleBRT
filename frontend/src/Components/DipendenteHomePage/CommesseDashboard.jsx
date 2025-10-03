@@ -181,13 +181,13 @@ export default function CommesseDashboard({ employeeId, assignedCommesse = [], d
                     primary={
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Chip label={s.commessa} size="small" variant="outlined" sx={{ borderRadius: 1 }} />
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2">
                           {s.days} giorni
                         </Typography>
                       </Stack>
                     }
                     secondary={
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption">
                         Ultimo aggiornamento: {s.lastDate ? formatIt(s.lastDate) : "—"}
                       </Typography>
                     }
@@ -197,8 +197,8 @@ export default function CommesseDashboard({ employeeId, assignedCommesse = [], d
               </React.Fragment>
             ))}
             {listStats.length === 0 && (
-              <Box sx={{ py: 3, textAlign: "center" }}>
-                <Typography variant="body2" color="text.secondary">Nessuna commessa assegnata.</Typography>
+                <Box sx={{ py: 3, textAlign: "center" }}>
+                <Typography variant="body2">Nessuna commessa assegnata.</Typography>
               </Box>
             )}
           </List>
@@ -244,8 +244,8 @@ export default function CommesseDashboard({ employeeId, assignedCommesse = [], d
                 margin={{ top: 10, right: 10, bottom: 30, left: 40 }}
               />
             ) : (
-              <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Typography variant="body2" color="text.secondary">Nessun dato nel periodo selezionato.</Typography>
+                <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography variant="body2">Nessun dato nel periodo selezionato.</Typography>
               </Box>
             )}
           </Box>

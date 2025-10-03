@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
-import TimesheetDayCell from "./TimesheetDayCell";
+import DayEntryTile from "./DayEntryTile";
 
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 const GAP = 4; // px, come WorkCalendarGrid (gap: 0.5)
@@ -173,16 +173,50 @@ export default function EmployeeMonthGrid({
               const ts = tsMap[row.id] || {};
               const recs = ts[dateKey] || [];
               const seg = ts[`${dateKey}_segnalazione`] || null;
+              const total = (recs || []).reduce((s, r) => s + Number(r?.ore || 0), 0);
+              const ferie = (recs || []).some((r) => r?.commessa === "FERIE");
+              const mal = (recs || []).some((r) => r?.commessa === "MALATTIA");
+              const perm = (recs || []).some((r) => r?.commessa === "PERMESSO");
+
+              let bg = "transparent";
+              if (seg) bg = "rgba(244, 67, 54, 0.15)";
+              else if (ferie) bg = "rgba(76, 175, 80, 0.18)";
+              else if (mal) bg = "rgba(156, 39, 176, 0.15)";
+              else if (perm) bg = "rgba(2, 136, 209, 0.15)";
+              else if (total === 8) bg = "rgba(76, 175, 80, 0.12)";
+              else if (total > 0 && total < 8) bg = "rgba(255, 193, 7, 0.15)";
+
+              const tooltipLines = [
+                recs?.length ? `Ore totali: ${total}h` : "Nessun inserimento",
+                ...(recs || []).map((r) => `${r.commessa}: ${r.ore}h${r.descrizione ? ` — ${r.descrizione}` : ""}`),
+                seg ? `Segnalazione: ${seg.descrizione}` : null,
+              ].filter(Boolean);
+              const tooltipContent = (
+                <span style={{ whiteSpace: "pre-line" }}>{tooltipLines.join("\n")}</span>
+              );
+
+              let icon = null;
+              if (seg) icon = null; // border already indicates segnalazione in original
+              else if (ferie) icon = null;
+              else if (mal) icon = null;
+              else if (perm) icon = null;
 
               return (
-                <TimesheetDayCell
-                  key={`c-${row.id}-${dateKey}`}
-                  records={recs}
-                  segnalazione={seg}
-                  width="100%"           // riusa esattamente il look del componente
-                  height={dayHeight}
-                  onClick={onDayClick ? () => onDayClick(row, dateKey) : undefined}
-                />
+                <Box key={`c-${row.id}-${dateKey}`} sx={{ height: dayHeight }}>
+                  <DayEntryTile
+                    dateStr={dateKey}
+                    day={d}
+                    isSelected={false}
+                    bgcolor={bg}
+                    icon={icon}
+                    iconTopRight={false}
+                    showHours={total > 0}
+                    totalHours={total}
+                    onClick={onDayClick ? () => onDayClick(row, dateKey) : undefined}
+                    tooltipContent={tooltipContent}
+                    showDayNumber={false}
+                  />
+                </Box>
               );
             })}
           </Box>

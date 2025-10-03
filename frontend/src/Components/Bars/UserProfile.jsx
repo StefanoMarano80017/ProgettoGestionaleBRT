@@ -47,7 +47,7 @@ export default function UserProfile({
             <Typography variant="subtitle1" noWrap>
               {userName}
             </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
+            <Typography variant="caption" noWrap>
               {role}
             </Typography>
           </Box>

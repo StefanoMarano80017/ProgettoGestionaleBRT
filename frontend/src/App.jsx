@@ -4,9 +4,9 @@ import { Routes, Route } from "react-router-dom";
 import MainLayout from "./Layouts/MainLayout";
 import Login from "./Pages/Login";
 import RequireAuth from "./Routes/RequireAuth";
-import TimesheetRouter from "./Pages/TimesheetRouter";
-import DipendenteHome from "./Pages/DipendenteHome";
-import DashboardAmministrazioneTimesheet from "./Pages/DashboardAmministrazioneTimesheet";
+import TimesheetRouter from "./Pages/Timesheet/TimesheetRouter";
+import DipendenteTimesheet from "./Pages/Timesheet/DipendenteTimesheet";
+// import DashboardAmministrazioneTimesheet from "./Pages/DashboardAmministrazioneTimesheet";
 import Home from "./Pages/Home"; // <-- aggiunto
 import DashboardCoordinatore from "./Pages/DashboardCoordinatore";
 
@@ -45,18 +45,11 @@ export default function App() {
             path="dipendente"
             element={
               <RequireAuth>
-                <DipendenteHome />
+                <DipendenteTimesheet />
               </RequireAuth>
             }
           />
-          <Route
-            path="amministrazione"
-            element={
-              <RequireAuth>
-                <DashboardAmministrazioneTimesheet />
-              </RequireAuth>
-            }
-          />
+          { /* Rimosso collegamento diretto a /amministrazione (si usa TimesheetRouter per ruolo) */ }
 
           {/* Default -> Home */}
           <Route

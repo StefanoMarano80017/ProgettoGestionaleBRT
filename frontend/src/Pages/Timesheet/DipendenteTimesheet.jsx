@@ -8,23 +8,24 @@ import {
   Alert,
 } from "@mui/material";
 // import CommesseList from "../Components/DipendenteHomePage/CommesseList";
-import CommesseDashboard from "../Components/DipendenteHomePage/CommesseDashboard";
-import PageHeader from "../Components/PageHeader";
+import CommesseDashboard from "../../Components/DipendenteHomePage/CommesseDashboard";
+import PageHeader from "../../Components/PageHeader";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import InfoIcon from "@mui/icons-material/Info";
-import BadgeCard from "../Components/BadgeCard/Badge";
-import WorkCalendar from "../Components/Calendar/WorkCalendar";
-import DayEntryPanel from "../Components/Calendar/DayEntryPanel";
-import { projectsMock } from "../mocks/ProjectMock";
+import BadgeCard from "../../Components/BadgeCard/Badge";
+import WorkCalendar from "../../Components/Calendar/WorkCalendar";
+import DayEntryPanel from "../../Components/Calendar/DayEntryPanel";
+import { projectsMock } from "../../mocks/ProjectMock";
 import BeachAccessIcon from "@mui/icons-material/BeachAccess";
 import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import TimelapseIcon from "@mui/icons-material/Timelapse";
-import { getActiveCommesseForEmployee, getTimesheetForEmployee } from "../mocks/ProjectMock";
+import LegendItem from "../../Components/Timesheet/LegendItem";
+import { getActiveCommesseForEmployee, getTimesheetForEmployee } from "../../mocks/ProjectMock";
 
-export default function DipendenteHome() {
+export default function DipendenteTimesheet() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [data, setData] = useState(projectsMock);
 
@@ -66,26 +67,14 @@ export default function DipendenteHome() {
       <Stack direction="row" spacing={2} alignItems="center">
         {icon}
         <Stack>
-          <Typography variant="caption">
-            {legend}
-          </Typography>
+          <Typography variant="caption">{legend}</Typography>
           <Typography variant="body1">{text}</Typography>
         </Stack>
       </Stack>
     );
   }
 
-  function LegendItem({ icon, label, text, color }) {
-    return (
-      <Stack direction="row" spacing={1.2} alignItems="center">
-        <Box sx={{ color }}>{icon}</Box>
-        <Stack>
-          <Typography variant="caption">{label}</Typography>
-          <Typography variant="body2">{text}</Typography>
-        </Stack>
-      </Stack>
-    );
-  }
+  // LegendItem estratto in componente riusabile
 
   const todayKey = new Date().toISOString().slice(0, 10);
   const isBadgiatoToday = Boolean(data?.[todayKey] && data[todayKey].length > 0);
@@ -196,6 +185,7 @@ export default function DipendenteHome() {
               data={data}
               selectedDay={selectedDay}
               onDaySelect={setSelectedDay}
+              variant="wide"
             />
           </Box>
         </Box>
