@@ -35,8 +35,10 @@ export default function DayEntryPanel({
   onAddRecord,
   commesse = [],
   readOnly = false,
+  mode: modeProp, // optional: 'readonly' shorthand to force readOnly
   maxHoursPerDay = 8,
 }) {
+  if (modeProp === 'readonly') readOnly = true; // backward compatibility convenience
   const records = data[selectedDay] || [];
   const totalHours = useMemo(
     () => records.reduce((sum, r) => sum + Number(r.ore || 0), 0),
@@ -111,7 +113,7 @@ export default function DayEntryPanel({
 
   // Altezza fissa per riga e finestra scrollabile su 5 righe
   const ROW_HEIGHT = 53;
-  const LIST_HEIGHT = 320;
+  const LIST_HEIGHT = 350;
 
   // Calcola il massimo consentito in base alla modalità (per non superare 8h)
   const maxOre = useMemo(() => {
@@ -214,7 +216,7 @@ export default function DayEntryPanel({
         <Typography variant="h6" sx={{ py: 2 }}>
           Dettaglio {itDate} — Totale: {totalHours}h
         </Typography>
-        {!readOnly && (
+  {!readOnly && (
           <Tooltip
             title={
               canAddMore
@@ -304,7 +306,7 @@ export default function DayEntryPanel({
       />
 
       {/* Dialog add/edit (shared) */}
-      {!readOnly && (
+  {!readOnly && (
         <EditEntryDialog
           open={open}
           mode={mode}

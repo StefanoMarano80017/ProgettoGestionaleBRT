@@ -167,11 +167,12 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
       <Box sx={{ overflowX: fixedDayWidth && !distributeGaps ? "auto" : "hidden", width: "100%" }}>
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: fixedDayWidth ? `repeat(7, ${variant === 'wide' ? 52 : 44}px)` : "repeat(7, 1fr)",
-            gridAutoRows: "44px",
-            gap: distributeGaps ? 0 : gap,
-            maxHeight: 320,
+              display: "grid",
+              gridTemplateColumns: fixedDayWidth ? `repeat(7, ${variant === 'wide' ? 52 : 44}px)` : "repeat(7, 1fr)",
+              // slightly larger rows for the 'wide' variant to accommodate more info
+              gridAutoRows: variant === 'wide' ? "56px" : "44px",
+              gap: distributeGaps ? 0 : gap,
+              maxHeight: variant === 'wide' ? 380 : 320,
             overflowY: "auto",
             scrollbarGutter: "stable",
             width: distributeGaps ? "100%" : fixedDayWidth ? "max-content" : "100%",

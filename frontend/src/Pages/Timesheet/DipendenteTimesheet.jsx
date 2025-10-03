@@ -23,44 +23,28 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import TimelapseIcon from "@mui/icons-material/Timelapse";
 import LegendItem from "../../Components/Timesheet/LegendItem";
-import { getActiveCommesseForEmployee, getTimesheetForEmployee } from "../../mocks/ProjectMock";
+import { getTimesheetForEmployee } from "../../mocks/ProjectMock";
+import { useCommessaLookup } from "../../Hooks/Timesheet/useCommessaLookup";
+import { useMonthNavigation } from "../../Hooks/Timesheet/useMonthNavigation";
+import { useSelection } from "../../Hooks/Timesheet/useSelection";
+import { useDipendenteTimesheetData } from "../../Hooks/Timesheet/DipendenteTimesheet/useDipendenteTimesheetData";
 
 export default function DipendenteTimesheet() {
   const [selectedDay, setSelectedDay] = useState(null);
-  const [data, setData] = useState(projectsMock);
+  const { data, handleAddRecord, todayKey, isBadgiatoToday } = useDipendenteTimesheetData(projectsMock);
 
   // ID dipendente corrente (sostituisci con il tuo ID reale da auth/store)
   const currentEmployeeId = "emp-001";
 
-  const [commesseList, setCommesseList] = useState([]);
-  const [commesseLoading, setCommesseLoading] = useState(true);
+  const { commesse: commesseList, loading: commesseLoading } = useCommessaLookup(currentEmployeeId);
+  // Se servisse month/year per filtri futuri
+  const { year, month, monthLabel } = useMonthNavigation();
+  const { selDate, setSelDate } = useSelection();
 
   // Gestione inserimento/modifica/eliminazione record giornalieri
-  const handleAddRecord = (day, recordOrRecords, replace = false) => {
-    setData((prev) => {
-      const prevDayRecords = prev[day] || [];
-      const toArray = (x) => (Array.isArray(x) ? x : [x]);
+  // Gestione inserimento record ora nel hook handleAddRecord
 
-      const newRecords = replace
-        ? toArray(recordOrRecords)
-        : [...prevDayRecords, ...toArray(recordOrRecords)];
-
-      // Rimuovi la chiave del giorno se vuoto (es. dopo delete)
-      if (!newRecords || newRecords.length === 0) {
-        const { [day]: _omit, ...rest } = prev;
-        return rest;
-        }
-      return { ...prev, [day]: newRecords };
-    });
-  };
-
-  React.useEffect(() => {
-    let mounted = true;
-    getActiveCommesseForEmployee(currentEmployeeId)
-      .then((list) => mounted && setCommesseList(list))
-      .finally(() => mounted && setCommesseLoading(false));
-    return () => { mounted = false; };
-  }, [currentEmployeeId]);
+  // (Caricamento commesse già gestito da hook useCommessaLookup)
 
   function IconTextCard({ icon = <InfoIcon />, legend, text }) {
     return (
@@ -76,8 +60,7 @@ export default function DipendenteTimesheet() {
 
   // LegendItem estratto in componente riusabile
 
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const isBadgiatoToday = Boolean(data?.[todayKey] && data[todayKey].length > 0);
+  // todayKey e isBadgiatoToday derivati dal hook
 
   return (
     <Box sx={{ bgcolor: "background.default", height: "100vh", overflow: "auto" }}>
@@ -184,7 +167,7 @@ export default function DipendenteTimesheet() {
             <WorkCalendar
               data={data}
               selectedDay={selectedDay}
-              onDaySelect={setSelectedDay}
+              onDaySelect={(d) => { setSelectedDay(d); }}
               showMonthlySummary
               variant="wide"
             />

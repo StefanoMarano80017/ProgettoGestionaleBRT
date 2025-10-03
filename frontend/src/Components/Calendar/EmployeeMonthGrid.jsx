@@ -12,6 +12,9 @@ export default function EmployeeMonthGrid({
   tsMap = {}, // { [empId]: { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': {...} } }
   onDayClick, // (row, dateKey) => void
   onEmployeeClick, // (row) => void
+  // selection (optional) to support persistent highlighting
+  selectedEmpId = null,
+  selectedDate = null,
   height = 520,
   dayWidth = 52,
   dayHeight = 28,
@@ -219,12 +222,14 @@ export default function EmployeeMonthGrid({
               const variant = dayHeight < 44 ? 'compact' : 'default';
               const effectiveDayHeight = variant === 'compact' ? 44 : dayHeight;
 
+              const isSelected = selectedDate === dateKey && selectedEmpId && String(selectedEmpId) === String(row.id);
+
               return (
                 <Box key={`c-${row.id}-${dateKey}`} sx={{ height: effectiveDayHeight }}>
                   <DayEntryTile
                     dateStr={dateKey}
                     day={d}
-                    isSelected={false}
+                    isSelected={isSelected}
                     status={status}
                     variant={variant}
                     iconTopRight={false}
