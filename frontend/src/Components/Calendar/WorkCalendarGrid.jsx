@@ -260,21 +260,14 @@ export default function WorkCalendarGrid({
             <span style={{ whiteSpace: "pre-line" }}>{tooltipLines.join("\n")}</span>
           );
 
-          let icon = null;
-          if (seg) icon = <WarningAmberIcon sx={{ fontSize: 16, color: 'error.main' }} />;
-          else if (ferie) icon = <BeachAccessIcon sx={{ fontSize: 16 }} />;
-          else if (mal) icon = <LocalHospitalIcon sx={{ fontSize: 16 }} />;
-          else if (perm) icon = <EventAvailableIcon sx={{ fontSize: 16 }} />;
-
           return (
             <Box key={dateKey} sx={{ height }}>
               <DayEntryTile
                 dateStr={dateKey}
                 day={d}
                 isSelected={false}
-                bgcolor={bg}
-                icon={icon}
-                iconTopRight={!!icon}
+                /* bgcolor and icon removed so DayEntryTile decides visuals based on status */
+                iconTopRight={false}
                 showHours={total > 0}
                 totalHours={total}
                 onClick={onDayClick ? (ds) => onDayClick(ds) : undefined}

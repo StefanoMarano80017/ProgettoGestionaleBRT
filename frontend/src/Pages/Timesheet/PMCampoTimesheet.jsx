@@ -604,6 +604,10 @@ export default function PMCampoTimesheet() {
             selectorLabels="full"
           />
 
+          <Box sx={{ mt: 1.5 }}>
+            <TileLegend />
+          </Box>
+
           {/* Due pannelli: layout fluido a tutta larghezza con wrap */}
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 2, alignItems: "stretch", width: "100%" }}>
             <Box sx={{ flex: 1, minWidth: 0, p: 2, bgcolor: "background.default", borderRadius: 1, boxShadow: 1, display: "flex", flexDirection: "column" }}>

@@ -185,6 +185,7 @@ export default function DipendenteTimesheet() {
               data={data}
               selectedDay={selectedDay}
               onDaySelect={setSelectedDay}
+              showMonthlySummary
               variant="wide"
             />
           </Box>

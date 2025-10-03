@@ -1,18 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { Box, Typography, IconButton, Button, Chip, Stack } from "@mui/material";
-import {
-  ArrowBackIos,
-  ArrowForwardIos,
-  WarningAmber,
-  BeachAccess,
-  LocalHospital,
-  EventAvailable,
-} from "@mui/icons-material";
-import CelebrationIcon from '@mui/icons-material/Celebration';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import { Box, Typography, Chip } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import DayEntryTile from "./DayEntryTile";
+import { computeDayStatus } from "./dayStatus";
 import MonthSelector from "./MonthSelector";
+import TileLegend from "./TileLegend";
+import { DayStatus, getStatusIcon } from "./statusIcons.jsx";
 
 const shortMonth = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
 const fullMonth = [
@@ -47,10 +40,11 @@ function formatDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, renderDayTooltip, fixedDayWidth = false, gap = 1, distributeGaps = false, variant = "default", selectorVariant = "windowed", selectorLabels = "short" }) {
+export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, renderDayTooltip, fixedDayWidth = false, gap = 1, distributeGaps = false, variant = "default", selectorVariant = "windowed", selectorLabels = "short", showMonthlySummary = false }) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const theme = useTheme();
 
   // Set di festività italiane per l'anno corrente
   const holidaySet = useMemo(() => {
@@ -134,39 +128,9 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
 
   const getDayInfo = (dayData, dayOfWeek, segnalazione, dateStr, isHoliday) => {
     const totalHours = dayData?.reduce((sum, rec) => sum + (Number(rec.ore) || 0), 0) || 0;
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const isFuture = new Date(dateStr) > today;
-
-    // Priorità massima: segnalazione amministrativa
-    if (segnalazione) return { bgcolor: "error.main", icon: <WarningAmber fontSize="small" />, showHours: false, hasPermessoDot: false, iconTopRight: false };
-
-    // Festività nazionali: colore dedicato e icona
-    if (isHoliday) return { bgcolor: "grey.400", icon: <CelebrationIcon fontSize="small" />, showHours: false, hasPermessoDot: false, iconTopRight: false };
-
-    // Weekend: evidenzia sempre con colore dedicato; mostra ore se presenti
-    if (isWeekend) return { bgcolor: "grey.400", icon: null, showHours: totalHours > 0, hasPermessoDot: false, iconTopRight: false };
-
-    if (!dayData || dayData.length === 0) return { bgcolor: "transparent", icon: null, showHours: false, hasPermessoDot: false, iconTopRight: false };
-
-    if (dayData.some((rec) => rec.commessa === "FERIE"))
-      return { bgcolor: "orange", icon: <BeachAccess fontSize="small" />, showHours: false, hasPermessoDot: false, iconTopRight: false };
-
-    if (dayData.some((rec) => rec.commessa === "MALATTIA"))
-      return { bgcolor: "secondary.main", icon: <LocalHospital fontSize="small" />, showHours: false, hasPermessoDot: false, iconTopRight: false };
-
-    const hasPermesso = dayData.some((rec) => rec.commessa === "PERMESSO");
-    if (hasPermesso)
-      return { bgcolor: "transparent", icon: <EventAvailable sx={{ fontSize: 16, color: 'info.main' }} />, showHours: true, hasPermessoDot: false, iconTopRight: true };
-
-    if (isFuture) return { bgcolor: "transparent", icon: null, showHours: false, hasPermessoDot: false, iconTopRight: false };
-
-    if (totalHours === 8)
-      return { bgcolor: "transparent", icon: <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />, showHours: true, hasPermessoDot: false, iconTopRight: true };
-
-    if (totalHours > 0 && totalHours < 8)
-      return { bgcolor: "transparent", icon: <AccessTimeIcon sx={{ fontSize: 16, color: 'warning.main' }} />, showHours: true, hasPermessoDot: false, iconTopRight: true };
-
-    return { bgcolor: "transparent", icon: null, showHours: false, hasPermessoDot: false, iconTopRight: false };
+    const { status, showHours, hasPermessoDot, iconTopRight } = computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, isHoliday, today });
+    // Let DayEntryTile infer icon and background from status to avoid parent-side overrides.
+    return { status, showHours, hasPermessoDot, iconTopRight };
   };
 
   // Controls: small arrows + 5 month buttons (current centered)
@@ -219,8 +183,9 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
 
           const { day, dateStr, dayData, dayOfWeek, segnalazione, isHoliday } = item;
           const isSelected = selectedDay === dateStr;
-          const { bgcolor, icon, showHours, hasPermessoDot, iconTopRight } = getDayInfo(dayData, dayOfWeek, segnalazione, dateStr, isHoliday);
+          const { showHours, hasPermessoDot, iconTopRight, status } = getDayInfo(dayData, dayOfWeek, segnalazione, dateStr, isHoliday);
           const totalHours = dayData?.reduce((sum, rec) => sum + (Number(rec.ore) || 0), 0) || 0;
+          const isOutOfMonth = false; // currently not rendering other-month days; keep API ready
 
           const tooltipContent = renderDayTooltip?.(dateStr, { dayData, dayOfWeek, isHoliday, segnalazione, totalHours });
 
@@ -230,8 +195,7 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
               dateStr={dateStr}
               day={day}
               isSelected={isSelected}
-              bgcolor={bgcolor}
-              icon={icon}
+              status={status}
               showHours={showHours}
               hasPermessoDot={hasPermessoDot}
               iconTopRight={iconTopRight}
@@ -239,37 +203,28 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
               onClick={onDaySelect}
               tooltipContent={tooltipContent}
               variant={variant}
+              isHoliday={isHoliday}
+              /* isOutOfMonth intentionally omitted to allow DayEntryTile to use its default */
             />
           );
         })}
         </Box>
       </Box>
 
-      {/* Monthly summary under the calendar */}
+      {/* Monthly summary or legend under the calendar */}
       <Box sx={{ mt: 1.5 }}>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-          <Chip
-            size="small"
-            color="transparent"
-            icon={<BeachAccess fontSize="small"/>}
-            label={`Ferie: ${monthlySummary.ferie.days}g • ${monthlySummary.ferie.hours}h`}
-            sx={{ borderRadius: 1, "& .MuiChip-icon": { color: "customPink.main" } }}
-          />
-          <Chip
-            size="small"
-            color="transparent"
-            icon={<LocalHospital fontSize="small" />}
-            label={`Malattia: ${monthlySummary.malattia.days}g • ${monthlySummary.malattia.hours}h`}
-            sx={{ borderRadius: 1, "& .MuiChip-icon": { color: "customPink.main" } }}
-          />
-          <Chip
-            size="small"
-            color="transparent"
-            icon={<EventAvailable fontSize="small" />}
-            label={`Permesso: ${monthlySummary.permesso.days}g • ${monthlySummary.permesso.hours}h`}
-            sx={{ borderRadius: 1, "& .MuiChip-icon": { color: "customBlue1.main" } }}
-          />
-        </Stack>
+        {showMonthlySummary ? (
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="body2">Mese: {fullMonth[currentMonth]} {currentYear}</Typography>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Chip size="small" label={`Ferie: ${monthlySummary.ferie.days} gg (${monthlySummary.ferie.hours}h)`} sx={{ borderRadius: 1 }} />
+              <Chip size="small" label={`Malattia: ${monthlySummary.malattia.days} gg (${monthlySummary.malattia.hours}h)`} sx={{ borderRadius: 1 }} />
+              <Chip size="small" label={`Permessi: ${monthlySummary.permesso.days} gg (${monthlySummary.permesso.hours}h)`} sx={{ borderRadius: 1 }} />
+            </Box>
+          </Box>
+        ) : (
+          <TileLegend />
+        )}
       </Box>
     </Box>
   );

@@ -307,6 +307,10 @@ export default function DashboardAmministrazioneTimesheet() {
         />
       </Paper>
 
+      <Box sx={{ mt: 1.5 }}>
+        <TileLegend />
+      </Box>
+
       {/* Sezione dettagli sotto il calendario */}
       <Paper sx={{ mt: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: "customBackground.main" }}>
         <Stack

@@ -196,6 +196,7 @@ export default function DipendenteHome() {
               data={data}
               selectedDay={selectedDay}
               onDaySelect={setSelectedDay}
+              showMonthlySummary
             />
           </Box>
         </Box>

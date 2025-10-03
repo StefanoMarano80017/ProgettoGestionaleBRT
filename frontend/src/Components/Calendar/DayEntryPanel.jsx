@@ -23,6 +23,7 @@ import AddIcon from "@mui/icons-material/Add";
 import BeachAccessIcon from "@mui/icons-material/BeachAccess";     // FERIE
 import LocalHospitalIcon from "@mui/icons-material/LocalHospital"; // MALATTIA
 import EventAvailableIcon from "@mui/icons-material/EventAvailable"; // PERMESSO
+import TileLegend from './TileLegend.jsx';
 
 export default function DayEntryPanel({
   selectedDay,
@@ -305,18 +306,7 @@ export default function DayEntryPanel({
         sx={{ mt: 2 }}
       >
         <Typography variant="subtitle2">Totale giornaliero: {totalHours}h</Typography>
-        {(() => {
-          const status = getDayStatus();
-          return (
-            <Chip
-              label={status.label}
-              color={status.color}
-              variant={status.color === "default" ? "outlined" : "filled"}
-              size="small"
-              sx={{ borderRadius: 1 }}
-            />
-          );
-        })()}
+        <TileLegend />
       </Stack>
 
       {segnalazione && (

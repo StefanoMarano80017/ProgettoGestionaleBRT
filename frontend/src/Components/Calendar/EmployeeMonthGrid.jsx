@@ -195,20 +195,13 @@ export default function EmployeeMonthGrid({
                 <span style={{ whiteSpace: "pre-line" }}>{tooltipLines.join("\n")}</span>
               );
 
-              let icon = null;
-              if (seg) icon = null; // border already indicates segnalazione in original
-              else if (ferie) icon = null;
-              else if (mal) icon = null;
-              else if (perm) icon = null;
-
               return (
                 <Box key={`c-${row.id}-${dateKey}`} sx={{ height: dayHeight }}>
                   <DayEntryTile
                     dateStr={dateKey}
                     day={d}
                     isSelected={false}
-                    bgcolor={bg}
-                    icon={icon}
+                    /* bgcolor and icon removed so DayEntryTile decides visuals based on status */
                     iconTopRight={false}
                     showHours={total > 0}
                     totalHours={total}

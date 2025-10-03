@@ -12,14 +12,17 @@ import { useThemeContext } from "../../Layouts/ThemeContext";
 import { PAGES } from "../../Routes/pagesConfig"; // <-- usa la stessa config della Sidebar
 
 // Helper per render icone sia come componente che come elemento JSX
-const renderIcon = (IconOrElement, sx) => {
+// Icons default to color: 'inherit' so they pick up the parent Box color
+const renderIcon = (IconOrElement, sx = {}) => {
+  const forcedColor = sx?.color ?? "inherit";
+  const merged = { ...(IconOrElement.props?.sx || {}), ...sx, color: forcedColor };
   if (React.isValidElement(IconOrElement)) {
     return React.cloneElement(IconOrElement, {
-      sx: { ...(IconOrElement.props?.sx || {}), ...sx },
+      sx: merged,
     });
   }
   const IconComp = IconOrElement;
-  return IconComp ? <IconComp sx={sx} /> : null;
+  return IconComp ? <IconComp sx={merged} /> : null;
 };
 
 export default function PageHeader({ onToggleSidebar }) {
@@ -92,15 +95,19 @@ export default function PageHeader({ onToggleSidebar }) {
         <Breadcrumbs separator={<KeyboardArrowRightIcon />} aria-label="Percorso">
           {crumbs.map((c, idx) => {
             const isLast = idx === crumbs.length - 1;
+            // compute a theme-aware active color: timesheet uses blue3 in light, blue1 in dark
+            const iconColor = isLast
+              ? (location.pathname.toLowerCase().startsWith("/timesheet")
+                  ? (mode === "light" ? "customBlue3.main" : "customBlue1.main")
+                  : "primary.main")
+              : "text.secondary";
+
             const iconBox = (
               <Box
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",
-                  // Use current path to decide Timesheet coloring for the last crumb
-                  color: isLast
-                    ? (location.pathname.toLowerCase().startsWith('/timesheet') ? 'customBlue3.main' : 'primary.main')
-                    : 'text.secondary',
+                  color: iconColor,
                   "&:hover": { color: "text.primary" },
                 }}
               >
