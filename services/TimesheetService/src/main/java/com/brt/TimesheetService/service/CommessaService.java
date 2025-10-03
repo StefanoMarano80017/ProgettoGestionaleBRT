@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.brt.TimesheetService.dto.CommessaDTO;
 import com.brt.TimesheetService.model.Commessa;
 import com.brt.TimesheetService.repository.CommessaRepository;
 
@@ -52,5 +53,25 @@ public class CommessaService {
         return commessaRepository.findByCode(code).orElseThrow(() ->
             new IllegalArgumentException("Commessa non trovata con codice: " + code)
         );
+    }
+
+    public Commessa CreateCommessa(String code) {
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("Il codice della commessa non può essere nullo o vuoto");
+        }
+        Commessa existing = commessaRepository.findByCode(code).orElse(null);
+        if (existing != null) {
+            throw new IllegalArgumentException("Commessa già esistente con codice: " + code);
+        }
+        Commessa newCommessa = Commessa.builder().code(code).build();
+        return commessaRepository.save(newCommessa);
+    }
+
+    /** Mappa entity → DTO */
+    public CommessaDTO mapToDTO(Commessa commessa) {
+        return CommessaDTO.builder()
+                .id(commessa.getId())
+                .code(commessa.getCode())
+                .build();
     }
 }

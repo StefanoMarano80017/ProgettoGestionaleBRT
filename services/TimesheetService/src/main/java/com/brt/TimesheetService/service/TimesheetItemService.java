@@ -55,34 +55,38 @@ public class TimesheetItemService {
                 existing.setHours((java.math.BigDecimal) convertToNumberType(existing.getHours(), newHours));
                 logger.info("Merge item esistente commessa={}, ore: {} -> {}", code, existingHours, newHours);
                 return timesheetItemRepository.save(existing);
+            }else{
+                TimesheetItem item = mapDTOToEntity(dto, day);
+                day.addItem(item);
+                TimesheetItem saved = timesheetItemRepository.save(item);
+                logger.info("Aggiunto nuovo item id={}, commessa={}, ore={}", saved.getId(),
+                            saved.getCommessa() != null ? saved.getCommessa().getCode() : null,
+                            saved.getHours());
+                return saved;
             }
-        }
-
-        TimesheetItem item = mapDTOToEntity(dto, day);
-        day.addItem(item);
-        TimesheetItem saved = timesheetItemRepository.save(item);
-        logger.info("Aggiunto nuovo item id={}, commessa={}, ore={}", saved.getId(),
-                    saved.getCommessa() != null ? saved.getCommessa().getCode() : null,
-                    saved.getHours());
-        return saved;
+        } 
+        throw new IllegalArgumentException("Commessa non trovata in item: " + dto);
     }
 
     @Transactional
     public TimesheetItem updateItem(Long itemId, TimesheetItemDTO dto) {
         TimesheetItem item = findById(itemId);
-        item.setDescription(dto.getDescription());
-        item.setHours(dto.getHours());
+        if (item == null) {
+            throw new ResourceNotFoundException("Item non trovato: " + itemId);
+        }
 
         if (dto.getCommessaCode() != null) {
             Commessa commessa = commessaService.getCommessa(dto.getCommessaCode());
             item.setCommessa(commessa);
+            item.setDescription(dto.getDescription());
+            item.setHours(dto.getHours());
+            TimesheetItem saved = timesheetItemRepository.save(item);
+            logger.info("Aggiornato item id={}, commessa={}, ore={}", saved.getId(),
+                        saved.getCommessa() != null ? saved.getCommessa().getCode() : null,
+                        saved.getHours());
+                            return saved;
         }
-
-        TimesheetItem saved = timesheetItemRepository.save(item);
-        logger.info("Aggiornato item id={}, commessa={}, ore={}", saved.getId(),
-                    saved.getCommessa() != null ? saved.getCommessa().getCode() : null,
-                    saved.getHours());
-        return saved;
+        throw new IllegalArgumentException("Commessa code non trovata in item: " + dto);
     }
 
     @Transactional

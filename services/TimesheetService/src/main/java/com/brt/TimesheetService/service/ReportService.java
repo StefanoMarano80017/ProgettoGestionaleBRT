@@ -64,9 +64,9 @@ public class ReportService {
     }
 
     /**
-     * Restituisce il totale ore per ogni commessa a cui ha partecipato un dipendente in un periodo.
+     *  Totale ore per commessa per un dipendente in un intervallo di date
      */
-    public Page<EmployeeTotalHoursDTO> getTotalHoursByCommessaForEmployee(Long employeeId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
-        return timesheetItemRepository.getTotalHoursByCommessaForEmployee(employeeId, startDate, endDate, pageable);
+    public Page<EmployeeCommessaHoursDTO> getTotalHoursByCommessaForEmployee(String commessaCode, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        return timesheetItemRepository.getTotalHoursByCommessaForEmployee(commessaCode, startDate, endDate, pageable);
     }
 }

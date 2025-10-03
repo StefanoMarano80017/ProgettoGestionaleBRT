@@ -13,28 +13,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.brt.TimesheetService.dto.CommessaHoursDTO;
 import com.brt.TimesheetService.dto.DailyHoursReportDTO;
-import com.brt.TimesheetService.dto.EmployeeTotalHoursDTO;
 import com.brt.TimesheetService.dto.ReportDTOs.EmployeeCommessaHoursDTO;
 import com.brt.TimesheetService.service.ReportService;
-import com.brt.TimesheetService.service.TimesheetItemService;
 
 @RestController
 @RequestMapping("/reports")
 public class ReportController {
 
     private final ReportService reportService;
-    private final TimesheetItemService timesheetItemService;
 
-    public ReportController(ReportService reportService, TimesheetItemService timesheetItemService) {
+    public ReportController(ReportService reportService) {
         this.reportService = reportService;
-        this.timesheetItemService = timesheetItemService;
     }
 
-    /**
-    *   Endpoint per ore dipendente, configurabile per commessa e periodo
-    */
+    // ================================================
+    // Report ore del dipendenti per commessa configurabile per commessa e periodo
+    // ================================================
     @GetMapping("/employee/{employeeId}/hours")
     public ResponseEntity<Page<EmployeeCommessaHoursDTO>> getEmployeeHours(
             @PathVariable Long employeeId,
@@ -56,21 +51,8 @@ public class ReportController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/hours-by-commessa")
-    public ResponseEntity<Page<CommessaHoursDTO>> hoursByCommessa(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        if (startDate == null) startDate = LocalDate.of(2000, 1, 1);
-        if (endDate == null) endDate = LocalDate.now();
-        Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(reportService.getTotalHoursByCommessa(startDate, endDate, pageable));
-    }
-
-
     // ================================================
-    // Report giornaliero per commessa (dipendenti) configurabile per commessa e periodo
+    // Report giornaliero per commessa (tutti i dipendenti) configurabile per commessa e periodo
     // ================================================
     @GetMapping("/daily-hours/commesse")
     public ResponseEntity<Page<DailyHoursReportDTO>> getDailyHoursCommesse(
@@ -91,15 +73,20 @@ public class ReportController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/hours-by-employee")
-    public ResponseEntity<Page<EmployeeTotalHoursDTO>> getHoursByEmployee(
-            @RequestParam Long employeeId,
+    // ================================================
+    // Report per dipendente (commessa) configurabile per commessa e periodo
+    // ================================================
+    @GetMapping("/commessa/{CommessaCode}/hours")
+    public ResponseEntity<Page<EmployeeCommessaHoursDTO>> getTotalHoursByCommessaForEmployee(
+            @PathVariable String commessaCode,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        if (startDate == null) startDate = LocalDate.of(2000, 1, 1);
+        if (endDate == null) endDate = LocalDate.now();
         Pageable pageable = PageRequest.of(page, size);
-        Page<EmployeeTotalHoursDTO> result = reportService.getTotalHoursByCommessaForEmployee(employeeId, startDate, endDate, pageable);
+        Page<EmployeeCommessaHoursDTO> result = reportService.getTotalHoursByCommessaForEmployee(commessaCode, startDate, endDate, pageable);
         return ResponseEntity.ok(result);
     }
 
