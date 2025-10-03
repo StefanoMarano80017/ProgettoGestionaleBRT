@@ -15,7 +15,6 @@ public class EmployeeDTO {
 
     private Long id;
     private String name;
-    private String email;
 
     // Metodo statico per convertire da entity a DTO
     public static EmployeeDTO fromEntity(Employee employee) {
