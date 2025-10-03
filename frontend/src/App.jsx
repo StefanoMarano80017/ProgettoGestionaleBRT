@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./Layouts/MainLayout";
 import Login from "./Pages/Login";
 import RequireAuth from "./Routes/RequireAuth";
@@ -8,15 +8,17 @@ import TimesheetRouter from "./Pages/Timesheet/TimesheetRouter";
 import DipendenteTimesheet from "./Pages/Timesheet/DipendenteTimesheet";
 // import DashboardAmministrazioneTimesheet from "./Pages/DashboardAmministrazioneTimesheet";
 import Home from "./Pages/Home"; // <-- aggiunto
-import DashboardCoordinatore from "./Pages/DashboardCoordinatore";
 
 export default function App() {
   return (
     <>
       {/* Router definito in main.jsx */}
       <Routes>
-        {/* Login fuori dal layout principale */}
-        <Route path="/login" element={<Login />} />
+  {/* Public login route (first page) */}
+  <Route path="/login" element={<Login />} />
+
+  {/* Root index: show Login as the first page */}
+  <Route index element={<Login />} />
 
         {/* App protetta */}
         <Route path="/" element={<MainLayout />}>
@@ -51,9 +53,9 @@ export default function App() {
           />
           { /* Rimosso collegamento diretto a /amministrazione (si usa TimesheetRouter per ruolo) */ }
 
-          {/* Default -> Home */}
+          {/* Default protected index moved to /app (optional) - keep explicit /Home route */}
           <Route
-            index
+            path="app"
             element={
               <RequireAuth>
                 <Home />

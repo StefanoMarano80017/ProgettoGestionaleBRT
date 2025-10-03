@@ -4,12 +4,14 @@ import DayEntryTile from "./DayEntryTile";
 
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 const GAP = 4; // px, come WorkCalendarGrid (gap: 0.5)
+
 export default function EmployeeMonthGrid({
   year,
-  month,            // 0-based
-  rows = [],        // [{ id, dipendente, azienda }]
-  tsMap = {},       // { [empId]: { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': {...} } }
-  onDayClick,       // (row, dateKey) => void
+  month, // 0-based
+  rows = [], // [{ id, dipendente, azienda }]
+  tsMap = {}, // { [empId]: { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': {...} } }
+  onDayClick, // (row, dateKey) => void
+  onEmployeeClick, // (row) => void
   height = 520,
   dayWidth = 52,
   dayHeight = 28,
@@ -20,7 +22,9 @@ export default function EmployeeMonthGrid({
   const daysInMonth = React.useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
 
   const gridTemplateColumns = React.useMemo(
-    () => `${dipWidth}px ${azWidth}px ${Array.from({ length: daysInMonth }).map(() => `${dayWidth}px`).join(" ")}`,
+    () => `${dipWidth}px ${azWidth}px ${Array.from({ length: daysInMonth })
+      .map(() => `${dayWidth}px`)
+      .join(" ")}`,
     [dipWidth, azWidth, dayWidth, daysInMonth]
   );
 
@@ -32,7 +36,7 @@ export default function EmployeeMonthGrid({
         borderRadius: 2,
         border: "1px solid",
         borderColor: "divider",
-        bgcolor: "customBackground.main",
+        bgcolor: "transparent",
         ...sx,
       }}
     >
@@ -106,8 +110,8 @@ export default function EmployeeMonthGrid({
         })}
       </Box>
 
-      {/* Body righe */}
-      <Box sx={{ px: 1, py: 1 }}>
+  {/* Body righe */}
+  <Box sx={{ px: 1, py: 1, bgcolor: "background.paper", borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
         {rows.map((row) => (
           <Box
             key={row.id}
@@ -140,8 +144,11 @@ export default function EmployeeMonthGrid({
                 textOverflow: "ellipsis",
                 fontSize: 14,
                 fontWeight: 500,
+                cursor: onEmployeeClick ? "pointer" : "default",
+                '&:hover': onEmployeeClick ? { backgroundColor: 'action.hover' } : {},
               }}
               title={row.dipendente}
+              onClick={onEmployeeClick ? () => onEmployeeClick(row) : undefined}
             >
               {row.dipendente}
             </Box>
@@ -195,19 +202,37 @@ export default function EmployeeMonthGrid({
                 <span style={{ whiteSpace: "pre-line" }}>{tooltipLines.join("\n")}</span>
               );
 
+              // Deriva uno status coerente con WorkCalendar/WorkCalendarGrid
+              let status;
+              if (seg) status = 'admin-warning';
+              else if (ferie) status = 'ferie';
+              else if (mal) status = 'malattia';
+              else if (perm) status = 'permesso';
+              else if (total === 8) status = 'complete';
+              else if (total > 0 && total < 8) status = 'partial';
+              else {
+                const jsd = new Date(dateKey);
+                status = jsd > new Date() ? 'future' : undefined;
+              }
+
+              // Decide variant: 'compact' when requested dayHeight is smaller than 44.
+              const variant = dayHeight < 44 ? 'compact' : 'default';
+              const effectiveDayHeight = variant === 'compact' ? 44 : dayHeight;
+
               return (
-                <Box key={`c-${row.id}-${dateKey}`} sx={{ height: dayHeight }}>
+                <Box key={`c-${row.id}-${dateKey}`} sx={{ height: effectiveDayHeight }}>
                   <DayEntryTile
                     dateStr={dateKey}
                     day={d}
                     isSelected={false}
-                    /* bgcolor and icon removed so DayEntryTile decides visuals based on status */
+                    status={status}
+                    variant={variant}
                     iconTopRight={false}
                     showHours={total > 0}
                     totalHours={total}
                     onClick={onDayClick ? () => onDayClick(row, dateKey) : undefined}
                     tooltipContent={tooltipContent}
-                    showDayNumber={false}
+                    showDayNumber={true}
                   />
                 </Box>
               );

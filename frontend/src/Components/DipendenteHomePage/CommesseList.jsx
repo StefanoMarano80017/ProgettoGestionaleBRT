@@ -1,7 +1,9 @@
 import * as React from "react";
-import { Box, Card,CardHeader, CardContent, CardActions, Typography, Paper, IconButton, List, ListItem, ListItemText, Divider, Pagination } from "@mui/material";
+import { Box, Card, CardHeader, CardContent, CardActions, Typography, Paper, IconButton, Divider, Pagination, Stack } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import EntryListItem from "../../components/Entries/EntryListItem";
 
 export default function CommesseList({ selectedDate }) {
   const [commesse, setCommesse] = React.useState([]);
@@ -9,9 +11,21 @@ export default function CommesseList({ selectedDate }) {
   const pageSize = 5; // numero di commesse per pagina
 
   const handleRemoveCommessa = (index) => {
+    // open confirm dialog
+    setDeleteIndex(index);
+    setConfirmOpen(true);
+  };
+
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [deleteIndex, setDeleteIndex] = React.useState(null);
+
+  const doRemoveConfirmed = () => {
+    if (deleteIndex == null) return;
     const updated = [...commesse];
-    updated.splice(index, 1);
+    updated.splice(deleteIndex, 1);
     setCommesse(updated);
+    setDeleteIndex(null);
+    setConfirmOpen(false);
   };
 
   const handlePageChange = (event, value) => {
@@ -73,36 +87,31 @@ export default function CommesseList({ selectedDate }) {
             </Paper>
           </Box>
         ) : (
-          <List dense>
+          <Stack spacing={1}>
             {pagedCommesse.map((c, idx) => (
               <React.Fragment key={startIndex + idx}>
-                <ListItem
-                  secondaryAction={
-                    <IconButton
-                      edge="end"
-                      aria-label="delete"
-                      onClick={() => handleRemoveCommessa(startIndex + idx)}
-                    >
-                      <CloseIcon />
-                    </IconButton>
-                  }
-                >
-                  <ListItemText
-                    primary={`${c.commessa} - Ore: ${c.ore}`}
-                    secondary={c.descrizione}
-                    primaryTypographyProps={{
-                      style: { wordBreak: "break-word", whiteSpace: "normal" },
-                    }}
-                    secondaryTypographyProps={{
-                      style: { wordBreak: "break-word", whiteSpace: "normal" },
-                    }}
+                <Paper variant="outlined" sx={{ p: 1 }}>
+                  <EntryListItem
+                    item={{ commessa: c.commessa, descrizione: c.descrizione, ore: c.ore }}
+                    actions={(
+                      <IconButton edge="end" aria-label="delete" onClick={() => handleRemoveCommessa(startIndex + idx)}>
+                        <CloseIcon />
+                      </IconButton>
+                    )}
                   />
-                </ListItem>
-                {idx < pagedCommesse.length - 1 && <Divider component="li" />}
+                </Paper>
+                {idx < pagedCommesse.length - 1 && <Divider />}
               </React.Fragment>
             ))}
-          </List>
+          </Stack>
         )}
+        <ConfirmDialog
+          open={confirmOpen}
+          title="Rimuovi commessa"
+          message="Sei sicuro di voler rimuovere questa commessa?"
+          onClose={() => { setConfirmOpen(false); setDeleteIndex(null); }}
+          onConfirm={doRemoveConfirmed}
+        />
       </CardContent>
 
       {/* Footer: Pagination */}

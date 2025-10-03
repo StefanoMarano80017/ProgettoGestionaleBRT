@@ -9,19 +9,13 @@ import {
   FormControl,
   InputLabel,
   Chip,
-  IconButton,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
   TextField,
   Alert,
   Paper,
   Divider,
   InputAdornment,
-  Container, // <-- aggiunto
+  Container,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SendIcon from "@mui/icons-material/Send";
@@ -30,6 +24,12 @@ import SearchIcon from "@mui/icons-material/Search";
 import { getEmployees, getAllEmployeeTimesheets, sendSegnalazione } from "../../mocks/ProjectMock";
 import { getEmployeeMonthSummary, getGlobalMonthByCommessa } from "../../mocks/TimesheetAggregatesMock";
 import EmployeeMonthGrid from "../../Components/Calendar/EmployeeMonthGrid";
+import TileLegend from "../../Components/Calendar/TileLegend";
+import FiltersBar from "../../components/Timesheet/FiltersBar";
+import DetailsPanel from "../../components/Timesheet/DetailsPanel";
+import SegnalazioneDialog from "../../components/Timesheet/SegnalazioneDialog";
+import EditEntryDialog from "../../components/Timesheet/EditEntryDialog";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
@@ -64,8 +64,13 @@ export default function DashboardAmministrazioneTimesheet() {
 
   // Dialog segnalazione
   const [sigOpen, setSigOpen] = React.useState(false);
-  const [sigMsg, setSigMsg] = React.useState("");
   const [sigOk, setSigOk] = React.useState("");
+  // Edit entry dialog for admins
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [editDialogItem, setEditDialogItem] = React.useState(null);
+  // Confirm delete
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [deleteCandidate, setDeleteCandidate] = React.useState(null);
 
   React.useEffect(() => {
     let mounted = true;
@@ -188,77 +193,81 @@ export default function DashboardAmministrazioneTimesheet() {
     setDetailsReady(true);
   }, [selEmp, selDate, tsMap, year, month]);
 
+  // Open admin edit dialog for an entry
+  const handleEditEntry = React.useCallback((entry) => {
+    if (!selEmp || !selDate || !entry) return;
+    setEditDialogItem(entry);
+    setEditDialogOpen(true);
+  }, [selEmp, selDate]);
+
+  // Save handler from dialog: update tsMap
+  const handleSaveEditedEntry = React.useCallback((updated) => {
+    if (!selEmp || !selDate || !updated) return;
+    const empTs = tsMap[selEmp.id] || {};
+    const list = (empTs[selDate] || []).slice();
+    const idx = list.findIndex((r) => r === editDialogItem || (r.commessa === editDialogItem?.commessa && r.ore === editDialogItem?.ore && r.descrizione === editDialogItem?.descrizione));
+    if (idx === -1) return;
+    list[idx] = { ...list[idx], ore: updated.ore, descrizione: updated.descrizione, commessa: updated.commessa };
+    const next = { ...tsMap };
+    next[selEmp.id] = { ...(next[selEmp.id] || {}) };
+    next[selEmp.id][selDate] = list;
+    setTsMap(next);
+    setEditDialogOpen(false);
+    setEditDialogItem(null);
+    refreshDetails();
+  }, [selEmp, selDate, tsMap, editDialogItem, refreshDetails]);
+
+  // Delete an entry from the selected cell
+  const handleDeleteEntry = React.useCallback(
+    async (entry) => {
+      if (!selEmp || !selDate || !entry) return;
+      setDeleteCandidate(entry);
+      setConfirmOpen(true);
+    },
+    [selEmp, selDate, tsMap, refreshDetails]
+  );
+
   return (
     <Container maxWidth="xl" sx={{ py: 2 }}>
-      {/* Barra filtri estesa (Azienda, Dipendente, Commessa) */}
+      {/* Filters + month/year + legend */}
       <Paper sx={{ mb: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: "customBackground.main" }}>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={2}
-          alignItems="center"
-          sx={{ flexWrap: "wrap" }}
-        >
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Azienda</InputLabel>
-            <Select
-              label="Azienda"
-              value={filterCompany}
-              onChange={(e) => setFilterCompany(e.target.value)}
-            >
-              <MenuItem value="ALL">Tutte</MenuItem>
-              {companies.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {c}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <FiltersBar
+          filterCompany={filterCompany}
+          setFilterCompany={setFilterCompany}
+          companies={companies}
+          searchEmployee={searchEmployee}
+          setSearchEmployee={setSearchEmployee}
+          searchCommessa={searchCommessa}
+          setSearchCommessa={setSearchCommessa}
+        />
 
-          <TextField
-            size="small"
-            label="Cerca dipendente"
-            value={searchEmployee}
-            onChange={(e) => setSearchEmployee(e.target.value)}
-            sx={{ minWidth: 220 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          <TextField
-            size="small"
-            label="Cerca commessa (mese)"
-            value={searchCommessa}
-            onChange={(e) => setSearchCommessa(e.target.value)}
-            sx={{ minWidth: 240 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Stack>
-
-        {/* Filtro mese/anno + info */}
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center" justifyContent="space-between" sx={{ mt: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center" justifyContent="space-between" sx={{ mt: 2, mx: 1 }}>
           <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: "wrap" }}>
-            <FormControl size="small">
+            <FormControl size="small" sx={{ minWidth: 160 }}>
               <InputLabel>Mese</InputLabel>
-              <Select label="Mese" value={month} onChange={(e) => setMonth(Number(e.target.value))} sx={{ minWidth: 160 }}>
+              <Select
+                label="Mese"
+                value={month}
+                onChange={(e) => setMonth(Number(e.target.value))}
+                sx={{
+                  '& .MuiSelect-select': { bgcolor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : theme.palette.customGray.main, borderRadius: 1, pl: 1 },
+                }}
+              >
                 {MONTHS.map((m, idx) => (
                   <MenuItem key={m} value={idx}>{m}</MenuItem>
                 ))}
               </Select>
             </FormControl>
-            <FormControl size="small">
+            <FormControl size="small" sx={{ minWidth: 120 }}>
               <InputLabel>Anno</InputLabel>
-              <Select label="Anno" value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 120 }}>
+              <Select
+                label="Anno"
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                sx={{
+                  '& .MuiSelect-select': { bgcolor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : theme.palette.customGray.main, borderRadius: 1, pl: 1 },
+                }}
+              >
                 {Array.from({ length: 4 }, (_, i) => today.getFullYear() - 1 + i).map((y) => (
                   <MenuItem key={y} value={y}>{y}</MenuItem>
                 ))}
@@ -266,12 +275,9 @@ export default function DashboardAmministrazioneTimesheet() {
             </FormControl>
           </Stack>
 
-          <Stack direction="row" spacing={1} alignItems="center">
-            <InfoOutlinedIcon color="action" />
-            <Typography variant="body2">
-              Calendario timesheet: righe per dipendente, colonne per giorno.
-            </Typography>
-          </Stack>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TileLegend />
+          </Box>
         </Stack>
       </Paper>
 
@@ -299,6 +305,18 @@ export default function DashboardAmministrazioneTimesheet() {
             const summary = await getEmployeeMonthSummary(empRow.id, year, month);
             setMonthSummary(summary);
           }}
+          onEmployeeClick={async (empRow) => {
+            if (!empRow) return;
+            setSelEmp(empRow);
+            setSelDate(null);
+            // clear day-specific data
+            setDayRecords([]);
+            setDaySegnalazione(null);
+            setDetailsReady(true);
+            setSigOk("");
+            const summary = await getEmployeeMonthSummary(empRow.id, year, month);
+            setMonthSummary(summary);
+          }}
           height={520}
           dayWidth={52}
           dayHeight={28}
@@ -306,178 +324,77 @@ export default function DashboardAmministrazioneTimesheet() {
           azWidth={130}
         />
       </Paper>
+      <DetailsPanel
+        selEmp={selEmp}
+        selDate={selDate}
+        detailsReady={detailsReady}
+        dayRecords={dayRecords}
+        daySegnalazione={daySegnalazione}
+        monthSummary={monthSummary}
+        globalMonthAgg={globalMonthAgg}
+        aggLoading={aggLoading}
+        onRefresh={async () => {
+          if (!selEmp || !selDate) return;
+          const ts = tsMap[selEmp.id] || {};
+          setDayRecords(ts[selDate] || []);
+          setDaySegnalazione(ts[`${selDate}_segnalazione`] || null);
+          const summary = await getEmployeeMonthSummary(selEmp.id, year, month);
+          setMonthSummary(summary);
+          setDetailsReady(true);
+        }}
+        onOpenSegnalazione={() => {
+          setSigOk("");
+          setSigOpen(true);
+        }}
+        onEditEntry={handleEditEntry}
+        onDeleteEntry={handleDeleteEntry}
+      />
 
-      <Box sx={{ mt: 1.5 }}>
-        <TileLegend />
-      </Box>
-
-      {/* Sezione dettagli sotto il calendario */}
-      <Paper sx={{ mt: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: "customBackground.main" }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <Typography variant="subtitle1">
-            {selEmp && selDate
-              ? `Dettagli ${selEmp.dipendente} — ${selDate}`
-              : "Seleziona una cella (giorno) per visualizzare i dettagli"}
-          </Typography>
-          <Stack direction="row" spacing={1}>
-            {/* Rimane un tasto di refresh manuale, ma i dettagli si aggiornano già al click */}
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<AccessTimeIcon />}
-              disabled={!selEmp || !selDate}
-              onClick={async () => {
-                if (!selEmp || !selDate) return;
-                const ts = tsMap[selEmp.id] || {};
-                setDayRecords(ts[selDate] || []);
-                setDaySegnalazione(ts[`${selDate}_segnalazione`] || null);
-                const summary = await getEmployeeMonthSummary(selEmp.id, year, month);
-                setMonthSummary(summary);
-                setDetailsReady(true);
-              }}
-            >
-              Aggiorna dettagli
-            </Button>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<SendIcon />}
-              disabled={!selEmp || !selDate}
-              onClick={() => {
-                setSigMsg("");
-                setSigOk("");
-                setSigOpen(true);
-              }}
-            >
-              Invia segnalazione
-            </Button>
-          </Stack>
-        </Stack>
-
-        {detailsReady && (
-          <Box sx={{ mt: 2 }}>
-            {daySegnalazione && (
-              <Alert severity={daySegnalazione.livello || "warning"} sx={{ mb: 2 }}>
-                Segnalazione esistente: {daySegnalazione.descrizione}
-              </Alert>
-            )}
-
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="stretch">
-              {/* Dettagli del giorno */}
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" gutterBottom>Commesse del giorno</Typography>
-                {!dayRecords.length ? (
-                  <Typography variant="body2">Nessun inserimento per il giorno selezionato.</Typography>
-                ) : (
-                  <Stack spacing={1}>
-                    {dayRecords.map((r, idx) => (
-                      <Paper key={idx} variant="outlined" sx={{ p: 1, borderRadius: 1 }}>
-                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Chip
-                              size="small"
-                              label={r.commessa}
-                              color={
-                                r.commessa === "FERIE" ? "success" :
-                                r.commessa === "MALATTIA" ? "secondary" :
-                                r.commessa === "PERMESSO" ? "info" : "default"
-                              }
-                              variant={["FERIE","MALATTIA","PERMESSO"].includes(r.commessa) ? "filled" : "outlined"}
-                              sx={{ borderRadius: 1 }}
-                            />
-                            <Typography variant="body2">{r.descrizione || "—"}</Typography>
-                          </Stack>
-                          <Chip size="small" variant="outlined" label={`${r.ore}h`} />
-                        </Stack>
-                      </Paper>
-                    ))}
-                  </Stack>
-                )}
-              </Box>
-
-              <Divider flexItem orientation="vertical" />
-
-              {/* Aggregati mensili per DIPENDENTE + GLOBALI per COMMESSA */}
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" gutterBottom>Aggregati mensili (dipendente)</Typography>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Chip size="small" color="primary" variant="outlined" label={`Totale mese: ${monthSummary.total}h`} />
-                </Stack>
-                {!monthSummary.commesse.length ? (
-                  <Typography variant="body2">Nessuna commessa lavorativa nel mese.</Typography>
-                ) : (
-                  <Stack spacing={1} sx={{ mb: 2 }}>
-                    {monthSummary.commesse.map((c) => (
-                      <Stack key={`${c.commessa}-emp`} direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                        <Chip size="small" variant="outlined" sx={{ borderRadius: 1 }} label={c.commessa} />
-                        <Chip size="small" variant="outlined" label={`${c.ore}h`} />
-                      </Stack>
-                    ))}
-                  </Stack>
-                )}
-
-                {/* NUOVO: Aggregati mensili globali per commessa (tutti i dipendenti filtrati) */}
-                <Typography variant="subtitle2" gutterBottom>Aggregati mensili per commessa (tutti i dipendenti filtrati)</Typography>
-                {aggLoading ? (
-                  <Typography variant="body2">Caricamento aggregati...</Typography>
-                ) : !globalMonthAgg.length ? (
-                  <Typography variant="body2">Nessuna commessa lavorativa nel mese.</Typography>
-                ) : (
-                  <Stack spacing={1}>
-                    {globalMonthAgg.map((c) => (
-                      <Stack key={`${c.commessa}-all`} direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                        <Chip size="small" variant="outlined" sx={{ borderRadius: 1 }} label={c.commessa} />
-                        <Chip size="small" variant="outlined" label={`${c.ore}h`} />
-                      </Stack>
-                    ))}
-                  </Stack>
-                )}
-              </Box>
-            </Stack>
-          </Box>
-        )}
-      </Paper>
-
-      {/* Dialog segnalazione */}
-      <Dialog open={sigOpen} onClose={() => setSigOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {selEmp && selDate ? `Invia segnalazione a ${selEmp.dipendente} — ${selDate}` : "Invia segnalazione"}
-        </DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2}>
-            <TextField label="Data (YYYY-MM-DD)" value={selDate || ""} size="small" InputProps={{ readOnly: true }} />
-            <TextField
-              label="Messaggio"
-              value={sigMsg}
-              onChange={(e) => setSigMsg(e.target.value)}
-              multiline
-              minRows={3}
-              placeholder="Descrivi l'irregolarità negli inserimenti..."
-            />
-            {sigOk && <Alert severity="success">{sigOk}</Alert>}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSigOpen(false)}>Annulla</Button>
-          <Button
-            variant="contained"
-            startIcon={<SendIcon />}
-            disabled={!selEmp || !selDate || !sigMsg.trim()}
-            onClick={async () => {
-              await sendSegnalazione(selEmp.id, selDate, sigMsg.trim());
-              setSigOk("Segnalazione inviata.");
-              setTimeout(() => setSigOpen(false), 800);
-            }}
-          >
-            Invia
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <SegnalazioneDialog
+        open={sigOpen}
+        onClose={() => setSigOpen(false)}
+        selEmp={selEmp}
+        selDate={selDate}
+        onSend={async (message) => {
+          if (!selEmp || !selDate) return;
+          await sendSegnalazione(selEmp.id, selDate, message);
+          setSigOk("Segnalazione inviata.");
+          // keep the dialog open briefly to show success
+          setTimeout(() => setSigOpen(false), 800);
+        }}
+        sendingOk={sigOk}
+      />
+      <EditEntryDialog
+        open={editDialogOpen}
+        mode="edit"
+        item={editDialogItem}
+        commesse={[]}
+        maxOre={8}
+        onClose={() => { setEditDialogOpen(false); setEditDialogItem(null); }}
+        onSave={handleSaveEditedEntry}
+      />
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Elimina voce"
+        message="Eliminare questa voce?"
+        onClose={() => { setConfirmOpen(false); setDeleteCandidate(null); }}
+        onConfirm={() => {
+          if (!selEmp || !selDate || !deleteCandidate) return;
+          const empTs = tsMap[selEmp.id] || {};
+          const list = (empTs[selDate] || []).slice();
+          const idx = list.findIndex((r) => r === deleteCandidate || (r.commessa === deleteCandidate.commessa && r.ore === deleteCandidate.ore && r.descrizione === deleteCandidate.descrizione));
+          if (idx === -1) return;
+          list.splice(idx, 1);
+          const next = { ...tsMap };
+          next[selEmp.id] = { ...(next[selEmp.id] || {}) };
+          if (list.length === 0) delete next[selEmp.id][selDate];
+          else next[selEmp.id][selDate] = list;
+          setTsMap(next);
+          setConfirmOpen(false);
+          setDeleteCandidate(null);
+          refreshDetails();
+        }}
+      />
     </Container>
   );
 }

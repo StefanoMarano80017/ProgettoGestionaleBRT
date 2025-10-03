@@ -25,7 +25,7 @@ export const lightTheme = createTheme({
       secondary: "#2A2B2A",
     },
   },
-  shape: { borderRadius: 8 },
+  shape: { borderRadius: 4 },
   typography: {
     fontFamily: `"Lato"`,
     fontWeightRegular: 400,
@@ -82,6 +82,8 @@ lightTheme.components = {
       root: {
         backgroundImage: "none",
         borderRadius: lightTheme.shape.borderRadius,
+  // make Papers use the page background (darker) so nested elements blend
+  backgroundColor: lightTheme.palette.background.default,
       },
     },
   },
@@ -97,7 +99,7 @@ lightTheme.components = {
   MuiDrawer: {
     styleOverrides: {
       paper: {
-        backgroundColor: lightTheme.palette.customBackground.main,
+  backgroundColor: lightTheme.palette.background.default,
         borderRight: `1px solid ${alpha(lightTheme.palette.customBlack.main, 0.08)}`,
       },
     },
@@ -105,7 +107,7 @@ lightTheme.components = {
   MuiListItemButton: {
     styleOverrides: {
       root: {
-        borderRadius: 8,
+        borderRadius: 4,
         '&.Mui-selected': {
           backgroundColor: alpha(lightTheme.palette.primary.main, 0.10),
           color: lightTheme.palette.primary.main,
@@ -119,7 +121,7 @@ lightTheme.components = {
   MuiIconButton: {
     styleOverrides: {
       root: {
-        borderRadius: 8,
+        borderRadius: 4,
         '&:hover': {
           backgroundColor: alpha(lightTheme.palette.primary.main, 0.10),
         },
@@ -130,7 +132,7 @@ lightTheme.components = {
     styleOverrides: {
       root: {
         color: lightTheme.palette.text.secondary,
-        borderRadius: 8,
+        borderRadius: 4,
         backgroundColor: alpha(lightTheme.palette.primary.main, 0.06),
       },
     },
@@ -139,22 +141,24 @@ lightTheme.components = {
     styleOverrides: {
       root: {
         color: lightTheme.palette.primary.main,
-        borderRadius: 8,
+        borderRadius: 4,
       },
       contained: {
-        color: lightTheme.palette.text.secondary,
+        // Use a high-contrast light text color on filled buttons in light mode
+        color: '#ffffff',
         boxShadow: "none",
         '&:hover': { boxShadow: "none" },
       },
       containedPrimary: {
-        color: lightTheme.palette.text.secondary,
+        color: '#ffffff',
       },
     },
   },
   MuiOutlinedInput: {
     styleOverrides: {
       root: {
-        borderRadius: 8,
+        borderRadius: 4,
+        backgroundColor: lightTheme.palette.customBackground.main,
         '& .MuiOutlinedInput-notchedOutline': {
           borderColor: alpha(lightTheme.palette.customBlack.main, 0.12),
         },
@@ -165,6 +169,13 @@ lightTheme.components = {
           borderColor: lightTheme.palette.primary.main,
           borderWidth: 2,
         },
+      },
+    },
+  },
+  MuiInputBase: {
+    styleOverrides: {
+      root: {
+        backgroundColor: lightTheme.palette.customBackground.main,
       },
     },
   },
@@ -214,7 +225,7 @@ export const darkTheme = createTheme({
       secondary: "rgba(255, 255, 255, 0.7)",
     },
   },
-  shape: { borderRadius: 8 },
+  shape: { borderRadius: 4 },
   typography: {
     fontFamily: `"Lato"`,
     fontWeightRegular: 400,
@@ -271,7 +282,8 @@ darkTheme.components = {
       root: {
         backgroundImage: "none",
         borderRadius: darkTheme.shape.borderRadius,
-        backgroundColor: darkTheme.palette.background.paper,
+        // use the page background (darker) for internal surfaces in dark mode as well
+        backgroundColor: darkTheme.palette.background.default,
       },
     },
   },
@@ -287,7 +299,7 @@ darkTheme.components = {
   MuiDrawer: {
     styleOverrides: {
       paper: {
-        backgroundColor: darkTheme.palette.customBackground.main,
+  backgroundColor: darkTheme.palette.background.default,
         borderRight: `1px solid ${alpha(darkTheme.palette.customWhite.main, 0.06)}`,
       },
     },
@@ -295,7 +307,7 @@ darkTheme.components = {
   MuiListItemButton: {
     styleOverrides: {
       root: {
-        borderRadius: 8,
+        borderRadius: 4,
         '&.Mui-selected': {
           backgroundColor: alpha(darkTheme.palette.primary.main, 0.18),
           color: darkTheme.palette.primary.main,
@@ -309,7 +321,7 @@ darkTheme.components = {
   MuiIconButton: {
     styleOverrides: {
       root: {
-        borderRadius: 8,
+        borderRadius: 4,
         '&:hover': {
           backgroundColor: alpha(darkTheme.palette.primary.main, 0.18),
         },
@@ -320,7 +332,7 @@ darkTheme.components = {
     styleOverrides: {
       root: {
         color: darkTheme.palette.text.secondary,
-        borderRadius: 8,
+        borderRadius: 4,
         backgroundColor: alpha(darkTheme.palette.primary.main, 0.10),
       },
     },
@@ -329,7 +341,7 @@ darkTheme.components = {
     styleOverrides: {
       root: {
         color: darkTheme.palette.primary.main,
-        borderRadius: 8,
+        borderRadius: 4,
       },
       contained: {
         color: darkTheme.palette.text.primary,
@@ -341,7 +353,8 @@ darkTheme.components = {
   MuiOutlinedInput: {
     styleOverrides: {
       root: {
-        borderRadius: 8,
+        borderRadius: 4,
+        backgroundColor: darkTheme.palette.customBackground.main,
         '& .MuiOutlinedInput-notchedOutline': {
           borderColor: alpha(darkTheme.palette.customWhite.main, 0.12),
         },
@@ -352,6 +365,13 @@ darkTheme.components = {
           borderColor: darkTheme.palette.primary.main,
           borderWidth: 2,
         },
+      },
+    },
+  },
+  MuiInputBase: {
+    styleOverrides: {
+      root: {
+        backgroundColor: darkTheme.palette.customBackground.main,
       },
     },
   },

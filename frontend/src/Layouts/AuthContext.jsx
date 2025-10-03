@@ -5,10 +5,8 @@ const AuthContext = React.createContext(null);
 export const useAuth = () => React.useContext(AuthContext);
 
 export function AuthProvider({ children }) {
-  const [state, setState] = React.useState(() => {
-    const raw = localStorage.getItem("auth");
-    return raw ? JSON.parse(raw) : { user: null, token: null };
-  });
+  // Start with no logged-in user by default (do not auto-read localStorage)
+  const [state, setState] = React.useState({ user: null, token: null });
 
   const login = async (username, password) => {
     const res = await authenticate(username, password);

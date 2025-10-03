@@ -186,7 +186,7 @@ export default function WorkCalendarGrid({
   };
 
   const width = compact ? 44 : 60;
-  const height = compact ? 28 : 36;
+  const height = compact ? 44 : 36; // ensure compact cells have at least 44px height for consistency
 
   const daysInMonth = React.useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
   const firstDow = React.useMemo(() => new Date(year, month, 1).getDay(), [year, month]); // 0=Dom
@@ -261,20 +261,22 @@ export default function WorkCalendarGrid({
           );
 
           return (
-            <Box key={dateKey} sx={{ height }}>
+              <Box key={dateKey} sx={{ height }}>
               <DayEntryTile
-                dateStr={dateKey}
-                day={d}
-                isSelected={false}
-                /* bgcolor and icon removed so DayEntryTile decides visuals based on status */
+                  dateStr={dateKey}
+                  day={d}
+                  isSelected={false}
+                /* let DayEntryTile decide visuals based on status */
+                status={status?.label ? (status.label.toLowerCase().includes('ferie') ? 'ferie' : status.label.toLowerCase().includes('malattia') ? 'malattia' : status.label.toLowerCase().includes('segnalazione') ? 'admin-warning' : status.label.toLowerCase().includes('permesso') ? 'permesso' : status.label.toLowerCase().includes('completo') ? 'complete' : status.label.toLowerCase().includes('parziale') ? 'partial' : undefined) : undefined}
+                variant={height < 44 ? 'compact' : 'default'}
                 iconTopRight={false}
-                showHours={total > 0}
-                totalHours={total}
-                onClick={onDayClick ? (ds) => onDayClick(ds) : undefined}
-                tooltipContent={tooltipContent}
-                showDayNumber={false}
-              />
-            </Box>
+                  showHours={total > 0}
+                  totalHours={total}
+                  onClick={onDayClick ? (ds) => onDayClick(ds) : undefined}
+                  tooltipContent={tooltipContent}
+                  showDayNumber={false}
+                />
+              </Box>
           );
         })}
       </Box>

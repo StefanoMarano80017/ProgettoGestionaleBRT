@@ -19,11 +19,15 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import EntryListItem from "../../components/Entries/EntryListItem";
+import EditEntryDialog from "../../components/Timesheet/EditEntryDialog";
+import ConfirmDialog from "../../components/ConfirmDialog";
 // Icone per color coding (come WorkCalendar)
 import BeachAccessIcon from "@mui/icons-material/BeachAccess";     // FERIE
 import LocalHospitalIcon from "@mui/icons-material/LocalHospital"; // MALATTIA
 import EventAvailableIcon from "@mui/icons-material/EventAvailable"; // PERMESSO
 import TileLegend from './TileLegend.jsx';
+import Paper from '@mui/material/Paper';
 
 export default function DayEntryPanel({
   selectedDay,
@@ -152,6 +156,23 @@ export default function DayEntryPanel({
     onAddRecord(selectedDay, next, true);
   };
 
+  // Confirm dialog state for delete
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [toDeleteIdx, setToDeleteIdx] = useState(null);
+
+  const requestDelete = (i) => {
+    setToDeleteIdx(i);
+    setConfirmOpen(true);
+  };
+
+  const doConfirmDelete = () => {
+    if (toDeleteIdx != null) {
+      handleDelete(toDeleteIdx);
+    }
+    setConfirmOpen(false);
+    setToDeleteIdx(null);
+  };
+
   const handleSave = () => {
     const oreNum = Number(form.ore || 0);
     if (!form.commessa) return setError("Seleziona una commessa");
@@ -239,60 +260,15 @@ export default function DayEntryPanel({
           </Box>
         ) : (
           <Stack spacing={0}>
-            {records.map((r, i) => {
-              const chipProps = getChipProps(r.commessa);
-              return (
-                <Stack
-                  key={i}
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
-                  sx={{
-                    p: 1,
-                    bgcolor: "background.paper",
-                    boxShadow: 1,
-                    height: ROW_HEIGHT, // altezza riga stabile
-                  }}
-                >
-                  {/* Commessa */}
-                  <Chip
-                    label={r.commessa}
-                    size="small"
-                    color={chipProps.color}
-                    icon={chipProps.icon}
-                    variant={chipProps.color === "default" ? "outlined" : "filled"}
-                    sx={{ borderRadius: 1 }}
-                  />
-                  {/* Descrizione */}
-                  <Typography
-                    variant="body2"
-                    sx={{ flex: 1 }}
-                    noWrap
-                    title={r.descrizione}
-                  >
-                    {r.descrizione}
-                  </Typography>
-                  {/* Ore */}
-                  <Chip
-                    label={`${r.ore}h`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ borderRadius: 1 }}
-                  />
-                  {/* Azioni */}
-                  {!readOnly && (
-                    <>
-                      <IconButton size="small" onClick={() => openEdit(i)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(i)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </>
-                  )}
-                </Stack>
-              );
-            })}
+            {records.map((r, i) => (
+              <Paper key={i} sx={{ p: 1, boxShadow: 1, borderRadius: 1, height: ROW_HEIGHT, display: 'flex', alignItems: 'center' }}>
+                <EntryListItem
+                  item={r}
+                  onEdit={() => openEdit(i)}
+                  onDelete={() => requestDelete(i)}
+                />
+              </Paper>
+            ))}
           </Stack>
         )}
       </Box>
@@ -318,69 +294,48 @@ export default function DayEntryPanel({
         </Alert>
       )}
 
-      {/* Dialog add/edit */}
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Conferma eliminazione"
+        message="Sei sicuro di voler eliminare questa voce?"
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doConfirmDelete}
+      />
+
+      {/* Dialog add/edit (shared) */}
       {!readOnly && (
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>
-          {mode === "add" ? "Aggiungi voce" : "Modifica voce"}
-        </DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
-          <TextField
-            select
-            label="Commessa"
-            value={form.commessa}
-            onChange={(e) => setForm((f) => ({ ...f, commessa: e.target.value }))}
-            size="small"
-          >
-            {commesse.map((c) => (
-              <MenuItem key={c} value={c}>
-                {c}
-              </MenuItem>
-            ))}
-            {/* Consenti anche voci speciali se presenti già nei dati */}
-            {["FERIE", "PERMESSO", "MALATTIA"]
-              .filter((c) => !commesse.includes(c))
-              .map((c) => (
-                <MenuItem key={c} value={c}>
-                  {c}
-                </MenuItem>
-              ))}
-          </TextField>
-
-          <TextField
-            type="number"
-            label={`Ore (max ${maxOre})`}
-            value={form.ore}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, ore: Math.max(0, Number(e.target.value)) }))
+        <EditEntryDialog
+          open={open}
+          mode={mode}
+          item={mode === "edit" && idx != null ? records[idx] : null}
+          commesse={commesse}
+          maxOre={maxOre}
+          onClose={() => setOpen(false)}
+          onSave={(entry) => {
+            if (mode === "add") {
+              const newRecord = {
+                dipendente: records[0]?.dipendente || "Mario Rossi",
+                commessa: entry.commessa,
+                ore: entry.ore,
+                descrizione: entry.descrizione,
+              };
+              onAddRecord(selectedDay, newRecord, false);
+            } else if (mode === "edit" && idx != null) {
+              const next = [...records];
+              next[idx] = { ...next[idx], commessa: entry.commessa, ore: entry.ore, descrizione: entry.descrizione };
+              onAddRecord(selectedDay, next, true);
             }
-            size="small"
-            inputProps={{ min: 0, max: maxOre, step: 1 }}
-            helperText={
-              maxOre === 0
-                ? "Il totale giornaliero è già 8h: riduci un'altra riga per liberare ore"
-                : ""
+            setOpen(false);
+          }}
+          onDelete={(entry) => {
+            if (mode === "edit" && idx != null) {
+              const next = records.filter((_, k) => k !== idx);
+              onAddRecord(selectedDay, next, true);
+              setOpen(false);
             }
-          />
-
-          <TextField
-            label="Descrizione"
-            value={form.descrizione}
-            onChange={(e) => setForm((f) => ({ ...f, descrizione: e.target.value }))}
-            size="small"
-            multiline
-            minRows={2}
-          />
-
-          {error && <Alert severity="error">{error}</Alert>}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Annulla</Button>
-          <Button variant="contained" onClick={handleSave}>
-            Salva
-          </Button>
-        </DialogActions>
-      </Dialog>
+          }}
+        />
       )}
     </Box>
   );

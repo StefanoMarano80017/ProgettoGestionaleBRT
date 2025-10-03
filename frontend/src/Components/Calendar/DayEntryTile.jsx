@@ -22,7 +22,6 @@ export default function DayEntryTile({
   // Decorations
   icon = null,
   iconTopRight = false,
-  hasPermessoDot = false,
   status = undefined, // 'admin-warning' | 'holiday' | 'ferie' | 'malattia' | 'permesso' | 'complete' | 'partial' | 'future'
   // UI
   showHours = false,
@@ -32,6 +31,7 @@ export default function DayEntryTile({
   onClick,
 }) {
   const isWide = variant === "wide";
+  const isCompact = variant === "compact";
   const theme = useTheme();
   // determine weekend from dateStr (expects ISO yyyy-mm-dd or valid Date string)
   const isWeekend = React.useMemo(() => {
@@ -82,15 +82,16 @@ export default function DayEntryTile({
         {showHours ? (totalHours > 0 ? `${totalHours}h` : "-") : ""}
       </Typography>
 
-      {/* Main icon (centered or top-right). If not provided, infer from status */}
+      {/* Main icon (centered for default, top-right for compact). If not provided, infer from status */}
       {(icon || status) && (
         <Box
           sx={{
             position: "absolute",
-            top: iconTopRight ? (isWide ? 5 : 4) : "50%",
-            right: iconTopRight ? (isWide ? 7 : 6) : undefined,
-            left: iconTopRight ? undefined : "50%",
-            transform: iconTopRight ? "none" : "translate(-50%, -50%)",
+            // decide icon placement by variant (compact -> top-right, default -> centered)
+            top: isCompact ? (isWide ? 5 : 6) : "50%",
+            right: isCompact ? (isWide ? 7 : 6) : undefined,
+            left: isCompact ? undefined : "50%",
+            transform: isCompact ? "none" : "translate(-50%, -50%)",
             lineHeight: 0,
           }}
         >
@@ -116,34 +117,32 @@ export default function DayEntryTile({
               }
 
               if (statusColor) {
-                // merge existing sx if any
+                // merge existing sx if any and apply compact font size
                 const existingSx = icon.props?.sx || {};
-                const mergedSx = { ...existingSx, color: statusColor };
+                const mergedSx = { ...existingSx, color: statusColor, ...(isCompact ? { fontSize: 14 } : {}) };
                 return React.cloneElement(icon, { sx: mergedSx });
+              }
+              // If no explicit statusColor, still apply compact sizing when requested
+              if (isCompact) {
+                const existingSx = icon.props?.sx || {};
+                return React.cloneElement(icon, { sx: { ...existingSx, fontSize: 14 } });
               }
               return icon;
             }
 
             // Fallback to shared status icon (already themed)
-            return getStatusIcon(theme, status);
+            const si = getStatusIcon(theme, status);
+            if (!si) return null;
+            // enforce compact sizing for compact variant
+            if (isCompact && React.isValidElement(si)) {
+              const existingSx = si.props?.sx || {};
+              return React.cloneElement(si, { sx: { ...existingSx, fontSize: 14 } });
+            }
+            return si;
           })()}
         </Box>
       )}
-
-      {/* Optional small dot for permissions */}
-      {hasPermessoDot && (
-        <Box
-          sx={{
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            bgcolor: "currentColor",
-            position: "absolute",
-            top: isWide ? 7 : 6,
-            right: isWide ? 7 : 6,
-          }}
-        />
-      )}
+      {/* (dot indicator removed) */}
     </Box>
   );
 

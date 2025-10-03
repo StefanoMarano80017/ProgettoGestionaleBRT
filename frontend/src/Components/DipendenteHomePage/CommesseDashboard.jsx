@@ -16,6 +16,7 @@ import {
   Button,
   Tooltip,
 } from "@mui/material";
+import EntryListItem from "../../components/Entries/EntryListItem";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import TodayIcon from "@mui/icons-material/Today";
@@ -167,41 +168,23 @@ export default function CommesseDashboard({ employeeId, assignedCommesse = [], d
 
       {tab === 0 && (
         <Box>
-          <List dense disablePadding>
+          <Stack spacing={1}>
             {listStats.map((s) => (
               <React.Fragment key={s.commessa}>
-                <ListItem
-                  secondaryAction={
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Chip size="small" variant="outlined" sx={{ borderRadius: 1 }} label={`${s.total}h`} />
-                    </Stack>
-                  }
-                >
-                  <ListItemText
-                    primary={
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Chip label={s.commessa} size="small" variant="outlined" sx={{ borderRadius: 1 }} />
-                        <Typography variant="body2">
-                          {s.days} giorni
-                        </Typography>
-                      </Stack>
-                    }
-                    secondary={
-                      <Typography variant="caption">
-                        Ultimo aggiornamento: {s.lastDate ? formatIt(s.lastDate) : "—"}
-                      </Typography>
-                    }
+                <Paper variant="outlined" sx={{ p: 1 }}>
+                  <EntryListItem
+                    item={{ commessa: s.commessa, descrizione: `${s.days} giorni`, ore: s.total, lastDate: s.lastDate }}
                   />
-                </ListItem>
-                <Divider component="li" />
+                </Paper>
+                <Divider />
               </React.Fragment>
             ))}
             {listStats.length === 0 && (
-                <Box sx={{ py: 3, textAlign: "center" }}>
+              <Box sx={{ py: 3, textAlign: "center" }}>
                 <Typography variant="body2">Nessuna commessa assegnata.</Typography>
               </Box>
             )}
-          </List>
+          </Stack>
         </Box>
       )}
 

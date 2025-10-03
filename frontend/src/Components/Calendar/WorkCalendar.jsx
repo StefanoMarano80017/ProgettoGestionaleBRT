@@ -128,9 +128,9 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
 
   const getDayInfo = (dayData, dayOfWeek, segnalazione, dateStr, isHoliday) => {
     const totalHours = dayData?.reduce((sum, rec) => sum + (Number(rec.ore) || 0), 0) || 0;
-    const { status, showHours, hasPermessoDot, iconTopRight } = computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, isHoliday, today });
+    const { status, showHours, iconTopRight } = computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, isHoliday, today });
     // Let DayEntryTile infer icon and background from status to avoid parent-side overrides.
-    return { status, showHours, hasPermessoDot, iconTopRight };
+    return { status, showHours, iconTopRight };
   };
 
   // Controls: small arrows + 5 month buttons (current centered)
@@ -183,7 +183,7 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
 
           const { day, dateStr, dayData, dayOfWeek, segnalazione, isHoliday } = item;
           const isSelected = selectedDay === dateStr;
-          const { showHours, hasPermessoDot, iconTopRight, status } = getDayInfo(dayData, dayOfWeek, segnalazione, dateStr, isHoliday);
+          const { showHours, iconTopRight, status } = getDayInfo(dayData, dayOfWeek, segnalazione, dateStr, isHoliday);
           const totalHours = dayData?.reduce((sum, rec) => sum + (Number(rec.ore) || 0), 0) || 0;
           const isOutOfMonth = false; // currently not rendering other-month days; keep API ready
 
@@ -197,7 +197,6 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
               isSelected={isSelected}
               status={status}
               showHours={showHours}
-              hasPermessoDot={hasPermessoDot}
               iconTopRight={iconTopRight}
               totalHours={totalHours}
               onClick={onDaySelect}

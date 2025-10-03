@@ -18,9 +18,10 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-  await login(form.username, form.password);
-  // Dopo il login, porta sempre alla Home
-  nav("/", { replace: true });
+      const next = await login(form.username, form.password);
+      // Dopo il login, se veniamo da RequireAuth naviga alla destinazione originale
+      const dest = location?.state?.from?.pathname || "/Home";
+      nav(dest, { replace: true });
     } catch (err) {
       setError(err.message || "Errore di autenticazione");
     }

@@ -4,12 +4,15 @@ import SearchIcon from "@mui/icons-material/Search";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PageHeader from "../../Components/PageHeader";
 import WorkCalendar from "../../Components/Calendar/WorkCalendar";
 import DayEntryPanel from "../../Components/Calendar/DayEntryPanel";
 import EmployeeMonthGrid from "../../Components/Calendar/EmployeeMonthGrid";
 import OperaioEditor from "../../Components/Timesheet/OperaioEditor";
+import EntryListItem from "../../components/Entries/EntryListItem";
+import TileLegend from "../../Components/Calendar/TileLegend";
 import {
   getOperaiByAzienda,
   createPmGroup,
@@ -263,8 +266,20 @@ export default function PMCampoTimesheet() {
   };
 
   const handleDeleteGroup = async (groupId) => {
-    await deletePmGroup(groupId);
-    if (selectedGroupId === groupId) setSelectedGroupId(null);
+    // open confirm dialog
+    setDeleteGroupId(groupId);
+    setConfirmOpen(true);
+  };
+
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [deleteGroupId, setDeleteGroupId] = React.useState(null);
+
+  const doConfirmDeleteGroup = async () => {
+    if (!deleteGroupId) return;
+    await deletePmGroup(deleteGroupId);
+    if (selectedGroupId === deleteGroupId) setSelectedGroupId(null);
+    setDeleteGroupId(null);
+    setConfirmOpen(false);
     refreshGroups();
   };
 
@@ -520,6 +535,13 @@ export default function PMCampoTimesheet() {
                   </Stack>
                 </Box>
               )}
+              <ConfirmDialog
+                open={confirmOpen}
+                title="Elimina gruppo"
+                message="Eliminare questo gruppo?"
+                onClose={() => { setConfirmOpen(false); setDeleteGroupId(null); }}
+                onConfirm={doConfirmDeleteGroup}
+              />
             </Box>
 
             {/* Colonna destra: assegnazione ore */}
@@ -562,17 +584,19 @@ export default function PMCampoTimesheet() {
                     {selectedGroup.timesheet && selectedGroup.timesheet[dateKey]?.length ? (
                       <Stack spacing={1}>
                         {selectedGroup.timesheet[dateKey].map((entry, idx) => (
-                          <Box key={idx} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
-                            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                              <Chip size="small" label={`Commessa ${entry.commessa}`} color="primary" />
-                              <Chip size="small" label={`${entry.oreTot}h totali`} />
-                            </Stack>
-                            <Stack direction="row" flexWrap="wrap" gap={1}>
-                              {Object.entries(entry.assegnazione || {}).map(([opId, ore]) => {
-                                const name = allOperai.find((o) => o.id === opId)?.name || opId;
-                                return <Chip key={opId} size="small" label={`${name}: ${ore}h`} />;
-                              })}
-                            </Stack>
+                          <Box key={idx} sx={{ p: 1.5 }}>
+                            {/* Use EntryListItem to render the commessa + oreTot and assignments as chips in the description */}
+                            <EntryListItem
+                              item={{ commessa: entry.commessa, descrizione: `${entry.oreTot}h totali`, ore: undefined }}
+                              actions={(
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  {Object.entries(entry.assegnazione || {}).map(([opId, ore]) => {
+                                    const name = allOperai.find((o) => o.id === opId)?.name || opId;
+                                    return <Chip key={opId} size="small" label={`${name}: ${ore}h`} />;
+                                  })}
+                                </Stack>
+                              )}
+                            />
                           </Box>
                         ))}
                       </Stack>

@@ -11,7 +11,6 @@ const LABELS = {
   [DayStatus.Permesso]: 'Permesso',
   [DayStatus.Complete]: '8 ore',
   [DayStatus.Partial]: 'Ore parziali',
-  [DayStatus.Future]: 'Giorno futuro',
 };
 
 export default function TileLegend() {
