@@ -26,13 +26,11 @@ public class CommessaController {
         this.commessaService = commessaService;
     }
 
-    /** Lista tutte le commesse (opzionalmente filtrate per progetto) */
+    /** Lista tutte le commesse  */
     @GetMapping
     public ResponseEntity<List<CommessaDTO>> getAllCommesse() {
         List<Commessa> commesse = commessaService.findAll();
-        List<CommessaDTO> dtos = commesse.stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
+        List<CommessaDTO> dtos = commesse.stream().map(commessaDTO -> commessaService.mapToDTO(commessaDTO)).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
 
@@ -40,27 +38,26 @@ public class CommessaController {
     @GetMapping("/{id}")
     public ResponseEntity<CommessaDTO> getCommessa(@PathVariable Long id) {
         Commessa commessa = commessaService.findById(id);
-        return ResponseEntity.ok(mapToDTO(commessa));
+        return ResponseEntity.ok(commessaService.mapToDTO(commessa));
     }
 
     /** Crea una nuova commessa */
     @PostMapping
     public ResponseEntity<CommessaDTO> createCommessa(@RequestBody CommessaDTO dto) {
-        Commessa commessa = Commessa.builder()
-                .code(dto.getCode())
-                .build();
-
-        Commessa saved = commessaService.save(commessa);
-        return ResponseEntity.status(201).body(mapToDTO(saved));
+        Commessa newCommessa = commessaService.CreateCommessa(dto.getCode());
+        return ResponseEntity.status(201).body(commessaService.mapToDTO(newCommessa));
     }
 
     /** Aggiorna una commessa esistente */
     @PutMapping("/{id}")
     public ResponseEntity<CommessaDTO> updateCommessa(@PathVariable Long id, @RequestBody CommessaDTO dto) {
         Commessa existing = commessaService.findById(id);
+        if(existing == null) {
+            return ResponseEntity.notFound().build();
+        }
         existing.setCode(dto.getCode());
         Commessa updated = commessaService.save(existing);
-        return ResponseEntity.ok(mapToDTO(updated));
+        return ResponseEntity.ok(commessaService.mapToDTO(updated));
     }
 
     /** Cancella una commessa */
@@ -69,13 +66,5 @@ public class CommessaController {
         commessaService.findById(id);
         commessaService.deleteById(id);
         return ResponseEntity.noContent().build();
-    }
-
-    /** Mappa entity → DTO */
-    private CommessaDTO mapToDTO(Commessa commessa) {
-        return CommessaDTO.builder()
-                .id(commessa.getId())
-                .code(commessa.getCode())
-                .build();
     }
 }

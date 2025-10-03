@@ -21,4 +21,6 @@ public interface TimesheetDayRepository extends JpaRepository<TimesheetDay, Long
 
     // tutti i timesheet di un mese (per aggregazioni)
     List<TimesheetDay> findByDateBetween(LocalDate start, LocalDate end);
+
+    boolean existsByEmployeeAndDate(Employee employee, LocalDate date);
 }

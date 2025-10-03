@@ -21,16 +21,17 @@ import com.brt.TimesheetService.model.TimesheetItem;
 
 @Repository
 public interface TimesheetItemRepository extends JpaRepository<TimesheetItem, Long> {
+
     // Totale ore per commessa per un dipendente in un intervallo di date
-    @Query("SELECT new com.brt.TimesheetService.dto.CommessaHoursDTO(" +
-       "c.id, c.code, SUM(ti.hours), e.name) " +
+    @Query("SELECT new com.brt.TimesheetService.dto.ReportDTOs.EmployeeCommessaHoursDTO(" +
+       "e.id, e.name, c.id, c.code, SUM(ti.hours)) " +
        "FROM TimesheetItem ti " +
        "JOIN ti.commessa c " +
        "JOIN ti.timesheetDay td " +
        "JOIN td.employee e " +
-       "WHERE e.id = :employeeId AND td.date BETWEEN :startDate AND :endDate " +
-       "GROUP BY c.id, c.code, e.name")
-    Page<EmployeeTotalHoursDTO> getTotalHoursByCommessaForEmployee(@Param("employeeId") Long employeeId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate, Pageable pageable);
+       "WHERE c.code = :commessaCode AND td.date BETWEEN :startDate AND :endDate " +
+       "GROUP BY e.id, e.name, c.id, c.code")
+    Page<EmployeeCommessaHoursDTO> getTotalHoursByCommessaForEmployee(@Param("commessaCode") String commessaCode, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate, Pageable pageable);
 
     // tutti gli item di un giorno specifico
        Page<TimesheetItem> findByTimesheetDay(TimesheetDay timesheetDay, Pageable pageable);
