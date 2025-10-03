@@ -16,14 +16,6 @@ import BadgeCard from "../../Components/BadgeCard/Badge";
 import WorkCalendar from "../../Components/Calendar/WorkCalendar";
 import DayEntryPanel from "../../Components/Calendar/DayEntryPanel";
 import { projectsMock } from "../../mocks/ProjectMock";
-import BeachAccessIcon from "@mui/icons-material/BeachAccess";
-import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
-import EventAvailableIcon from "@mui/icons-material/EventAvailable";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import TimelapseIcon from "@mui/icons-material/Timelapse";
-import LegendItem from "../../Components/Timesheet/LegendItem";
-import { getTimesheetForEmployee } from "../../mocks/ProjectMock";
 import { useCommessaLookup } from "../../Hooks/Timesheet/useCommessaLookup";
 import { useMonthNavigation } from "../../Hooks/Timesheet/useMonthNavigation";
 import { useSelection } from "../../Hooks/Timesheet/useSelection";
@@ -117,48 +109,6 @@ export default function DipendenteTimesheet() {
                 Seleziona un giorno per inserire o modificare i dati.
               </Alert>
             )}
-
-            {/* Legenda compatta (sotto il dettaglio) */}
-            <Box sx={{ mt: 2, p: 1.5, borderRadius: 2, }}>
-              <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap" useFlexGap>
-                <LegendItem
-                  icon={<CheckCircleIcon fontSize="small" />}
-                  label="Verde"
-                  text="Giorno completo (8h)."
-                  color="success.main"
-                />
-                <LegendItem
-                  icon={<TimelapseIcon fontSize="small" />}
-                  label="Giallo"
-                  text="Giorno parziale (<8h)."
-                  color="warning.main"
-                />
-                <LegendItem
-                  icon={<WarningAmberIcon fontSize="small" />}
-                  label="Rosso"
-                  text="Segnalazione amministrazione."
-                  color="error.main"
-                />
-                <LegendItem
-                  icon={<BeachAccessIcon fontSize="small" />}
-                  label="Ferie"
-                  text="Giornata di ferie."
-                  color="success.main"
-                />
-                <LegendItem
-                  icon={<LocalHospitalIcon fontSize="small" />}
-                  label="Malattia"
-                  text="Assenza per malattia."
-                  color="secondary.main"
-                />
-                <LegendItem
-                  icon={<EventAvailableIcon fontSize="small" />}
-                  label="Permesso"
-                  text="Permesso parziale."
-                  color="info.main"
-                />
-              </Stack>
-            </Box>
           </Box>
 
           {/* Destra: Calendario (1/3) */}

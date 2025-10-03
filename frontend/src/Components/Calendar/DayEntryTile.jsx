@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Typography, Tooltip } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { getTileSx } from "./tileStyles";
+import { getTileSx } from "./utils/tileStyles";
 import { getStatusIcon } from "./statusIcons.jsx";
 
 /**

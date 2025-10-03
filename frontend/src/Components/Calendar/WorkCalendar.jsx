@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Box, Typography, Chip } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import DayEntryTile from "./DayEntryTile";
-import { computeDayStatus } from "./dayStatus";
+import { computeDayStatus } from "./utils/dayStatus";
 import MonthSelector from "./MonthSelector";
 import TileLegend from "./TileLegend";
 import { DayStatus, getStatusIcon } from "./statusIcons.jsx";
@@ -172,11 +172,10 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
               // slightly larger rows for the 'wide' variant to accommodate more info
               gridAutoRows: variant === 'wide' ? "56px" : "44px",
               gap: distributeGaps ? 0 : gap,
-              maxHeight: variant === 'wide' ? 380 : 320,
-            overflowY: "auto",
-            scrollbarGutter: "stable",
-            width: distributeGaps ? "100%" : fixedDayWidth ? "max-content" : "100%",
-            justifyContent: distributeGaps ? "space-between" : "normal",
+              overflowY: "auto",
+              scrollbarGutter: "stable",
+              width: distributeGaps ? "100%" : fixedDayWidth ? "max-content" : "100%",
+              justifyContent: distributeGaps ? "space-between" : "normal",
           }}
         >
         {days.map((item, index) => {
@@ -212,10 +211,10 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, rend
       </Box>
 
       {/* Monthly summary or legend under the calendar */}
-      <Box sx={{ mt: 1.5 }}>
+      <Box>
         {showMonthlySummary ? (
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography variant="body2">Mese: {fullMonth[currentMonth]} {currentYear}</Typography>
+            <Typography variant="body2">Riepilogo mensile per: {fullMonth[currentMonth]} {currentYear}</Typography>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <Chip size="small" label={`Ferie: ${monthlySummary.ferie.days} gg (${monthlySummary.ferie.hours}h)`} sx={{ borderRadius: 1 }} />
               <Chip size="small" label={`Malattia: ${monthlySummary.malattia.days} gg (${monthlySummary.malattia.hours}h)`} sx={{ borderRadius: 1 }} />

@@ -1,6 +1,5 @@
 import React from "react";
 import { Box, Stack, Typography, Paper, Chip, Divider, Button, IconButton } from "@mui/material";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EntryListPanel from "../Entries/EntryListPanel";

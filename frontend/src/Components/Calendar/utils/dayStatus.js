@@ -1,11 +1,29 @@
 // Utility to compute calendar day status and display flags
-// Inputs: dayData (array), dayOfWeek (0-6), segnalazione (truthy string), dateStr (ISO), isHoliday (bool), today (Date)
+//
+// Inputs:
+// - dayData: array of records for the day (may be undefined/empty)
+// - dayOfWeek: integer 0..6 following JS Date.getDay() convention (0=Sun, 6=Sat)
+// - segnalazione: truthy value when an admin signal exists for the day
+// - dateStr: ISO date string (YYYY-MM-DD or full ISO)
+// - isHoliday: boolean
+// - today: Date instance (optional, defaults to now)
+//
 // Output: { status, showHours, iconTopRight }
-
 export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, isHoliday, today = new Date() }) {
+  // Normalize totals
   const totalHours = (dayData || []).reduce((sum, rec) => sum + (Number(rec?.ore) || 0), 0);
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-  const isFuture = new Date(dateStr) > today;
+
+  // Normalize date-only values to avoid timezone/time-of-day issues when comparing days
+  const makeDateOnly = (d) => {
+    const dd = new Date(d);
+    dd.setHours(0, 0, 0, 0);
+    return dd;
+  };
+  const todayDate = makeDateOnly(today);
+  const targetDate = dateStr ? makeDateOnly(new Date(dateStr)) : null;
+
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // JS Date.getDay() convention
+  const isFuture = targetDate ? targetDate.getTime() > todayDate.getTime() : false;
 
   // Highest priority: admin warning
   if (segnalazione) {

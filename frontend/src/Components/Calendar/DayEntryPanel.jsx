@@ -1,33 +1,14 @@
-import React, { useMemo, useState } from "react";
-import {
-  Box,
-  Stack,
-  Typography,
-  Button,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
-  Chip,
-  Tooltip,
-  Alert,
-  Divider,                  // <-- aggiunto
-} from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
+import React from "react";
+import { Box, Stack, Typography, Button, Tooltip, Alert, Divider } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EntryListItem from "../../components/Entries/EntryListItem";
 import EditEntryDialog from "../../components/Timesheet/EditEntryDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
-// Icone per color coding (come WorkCalendar)
-import BeachAccessIcon from "@mui/icons-material/BeachAccess";     // FERIE
-import LocalHospitalIcon from "@mui/icons-material/LocalHospital"; // MALATTIA
-import EventAvailableIcon from "@mui/icons-material/EventAvailable"; // PERMESSO
 import TileLegend from './TileLegend.jsx';
 import Paper from '@mui/material/Paper';
+import { useDayEntryDerived } from "../../Hooks/Timesheet/dayEntry/useDayEntryDerived.jsx";
+import { useDayEntryEditing } from "../../Hooks/Timesheet/dayEntry/useDayEntryEditing.jsx";
+import { useConfirmDelete } from "../../Hooks/Timesheet/dayEntry/useConfirmDelete.jsx";
 
 export default function DayEntryPanel({
   selectedDay,
@@ -35,179 +16,32 @@ export default function DayEntryPanel({
   onAddRecord,
   commesse = [],
   readOnly = false,
-  mode: modeProp, // optional: 'readonly' shorthand to force readOnly
+  mode: modeProp,
   maxHoursPerDay = 8,
 }) {
-  if (modeProp === 'readonly') readOnly = true; // backward compatibility convenience
-  const records = data[selectedDay] || [];
-  const totalHours = useMemo(
-    () => records.reduce((sum, r) => sum + Number(r.ore || 0), 0),
-    [records]
-  );
-  // Format selectedDay as it-IT (dd/MM/yyyy)
-  const itDate = useMemo(() => {
-    if (!selectedDay) return "";
-    const [y, m, d] = selectedDay.split("-").map(Number);
-    const dt = new Date(y, m - 1, d);
-    return new Intl.DateTimeFormat("it-IT", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(dt);
-  }, [selectedDay]);
-  const canAddMore = totalHours < maxHoursPerDay;
+  if (modeProp === 'readonly') readOnly = true;
 
-  // Segnalazione amministrazione per il giorno selezionato
-  const segnalazione = data[`${selectedDay}_segnalazione`] || null;
+  // Derived data
+  const { records, segnalazione, totalHours, itDate } = useDayEntryDerived(selectedDay, data, maxHoursPerDay);
 
-  // Mappa colore/icona per CHIP per commessa (coerente con WorkCalendar)
-  const getChipProps = (commessa) => {
-    if (commessa === "FERIE") {
-      return { color: "success", icon: <BeachAccessIcon fontSize="small" /> };
-    }
-    if (commessa === "MALATTIA") {
-      return { color: "secondary", icon: <LocalHospitalIcon fontSize="small" /> };
-    }
-    if (commessa === "PERMESSO") {
-      return { color: "info", icon: <EventAvailableIcon fontSize="small" /> };
-    }
-    return { color: "default", icon: undefined };
-  };
-
-  // Stato sintetico del giorno (per CHIP nel footer)
-  const getDayStatus = () => {
-    const hasFerie = records.some((r) => r.commessa === "FERIE");
-    const hasMalattia = records.some((r) => r.commessa === "MALATTIA");
-    const hasPermesso = records.some((r) => r.commessa === "PERMESSO");
-
-    if (segnalazione) {
-      return { label: "Segnalazione", color: "error" };
-    }
-    if (hasFerie) {
-      return { label: "Ferie", color: "success" };
-    }
-    if (hasMalattia) {
-      return { label: "Malattia", color: "secondary" };
-    }
-    if (hasPermesso) {
-      return { label: "Permesso parziale", color: "info" };
-    }
-    if (totalHours === 8) {
-      return { label: "Completo", color: "success" };
-    }
-    if (totalHours > 0 && totalHours < 8) {
-      return { label: "Parziale", color: "warning" };
-    }
-    return { label: "Vuoto", color: "default" };
-  };
-
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState("add"); // 'add' | 'edit'
-  const [idx, setIdx] = useState(null);
-  const [form, setForm] = useState({
-    commessa: commesse[0] || "",
-    ore: 1,
-    descrizione: "",
+  // Editing dialog logic
+  const editing = useDayEntryEditing({
+    records,
+    commesse,
+    totalHours,
+    maxHoursPerDay,
+    selectedDay,
+    onAddRecord,
   });
-  const [error, setError] = useState("");
 
-  // Altezza fissa per riga e finestra scrollabile su 5 righe
-  const ROW_HEIGHT = 53;
-  const LIST_HEIGHT = 350;
-
-  // Calcola il massimo consentito in base alla modalità (per non superare 8h)
-  const maxOre = useMemo(() => {
-    if (mode === "add") {
-      return Math.max(0, maxHoursPerDay - totalHours) || 0;
-    }
-    if (mode === "edit" && idx != null) {
-      const current = records[idx];
-      const others = totalHours - Number(current?.ore || 0);
-      return Math.max(0, maxHoursPerDay - others);
-    }
-    return maxHoursPerDay;
-  }, [mode, idx, records, totalHours, maxHoursPerDay]);
-
-  const openAdd = () => {
-    setMode("add");
-    setIdx(null);
-    setForm({
-      commessa: commesse[0] || "",
-  ore: Math.min(1, Math.max(1, maxHoursPerDay - totalHours)) || 1,
-      descrizione: "",
-    });
-    setError("");
-    setOpen(true);
-  };
-
-  const openEdit = (i) => {
-    const r = records[i];
-    setMode("edit");
-    setIdx(i);
-    setForm({
-      commessa: r.commessa,
-      ore: Number(r.ore || 1),
-      descrizione: r.descrizione || "",
-    });
-    setError("");
-    setOpen(true);
-  };
-
-  const handleDelete = (i) => {
+  // Delete confirmation logic
+  const deleteCtrl = useConfirmDelete((i) => {
     const next = records.filter((_, k) => k !== i);
     onAddRecord(selectedDay, next, true);
-  };
+  });
 
-  // Confirm dialog state for delete
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [toDeleteIdx, setToDeleteIdx] = useState(null);
-
-  const requestDelete = (i) => {
-    setToDeleteIdx(i);
-    setConfirmOpen(true);
-  };
-
-  const doConfirmDelete = () => {
-    if (toDeleteIdx != null) {
-      handleDelete(toDeleteIdx);
-    }
-    setConfirmOpen(false);
-    setToDeleteIdx(null);
-  };
-
-  const handleSave = () => {
-    const oreNum = Number(form.ore || 0);
-    if (!form.commessa) return setError("Seleziona una commessa");
-    if (oreNum <= 0) return setError("Le ore devono essere maggiori di 0");
-    if (oreNum > maxOre) {
-      return setError(
-        mode === "add"
-          ? `Puoi aggiungere al massimo ${maxOre}h`
-          : `Puoi impostare al massimo ${maxOre}h per questa riga`
-      );
-    }
-
-    if (mode === "add") {
-      const newRecord = {
-        dipendente: records[0]?.dipendente || "Mario Rossi",
-        commessa: form.commessa,
-        ore: oreNum,
-        descrizione: form.descrizione,
-      };
-      onAddRecord(selectedDay, newRecord, false);
-    } else if (mode === "edit" && idx != null) {
-      const next = [...records];
-      next[idx] = {
-        ...next[idx],
-        commessa: form.commessa,
-        ore: oreNum,
-        descrizione: form.descrizione,
-      };
-      onAddRecord(selectedDay, next, true);
-    }
-
-    setOpen(false);
-  };
+  const ROW_HEIGHT = 53;
+  const LIST_HEIGHT = 350;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
@@ -216,10 +50,10 @@ export default function DayEntryPanel({
         <Typography variant="h6" sx={{ py: 2 }}>
           Dettaglio {itDate} — Totale: {totalHours}h
         </Typography>
-  {!readOnly && (
+        {!readOnly && (
           <Tooltip
             title={
-              canAddMore
+              editing.canAddMore
                 ? ""
                 : "Hai già 8h inserite: puoi modificare le righe esistenti"
             }
@@ -229,8 +63,8 @@ export default function DayEntryPanel({
                 variant="contained"
                 size="small"
                 startIcon={<AddIcon />}
-                onClick={openAdd}
-                disabled={!canAddMore}
+                onClick={editing.openAdd}
+                disabled={!editing.canAddMore}
               >
                 Aggiungi voce
               </Button>
@@ -266,8 +100,8 @@ export default function DayEntryPanel({
               <Paper key={i} sx={{ p: 1, boxShadow: 1, borderRadius: 1, height: ROW_HEIGHT, display: 'flex', alignItems: 'center' }}>
                 <EntryListItem
                   item={r}
-                  onEdit={() => openEdit(i)}
-                  onDelete={() => requestDelete(i)}
+                  onEdit={() => editing.openEdit(i)}
+                  onDelete={() => deleteCtrl.request(i)}
                 />
               </Paper>
             ))}
@@ -298,43 +132,32 @@ export default function DayEntryPanel({
 
       {/* Confirm delete dialog */}
       <ConfirmDialog
-        open={confirmOpen}
+        open={deleteCtrl.open}
         title="Conferma eliminazione"
         message="Sei sicuro di voler eliminare questa voce?"
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={doConfirmDelete}
+        onClose={deleteCtrl.cancel}
+        onConfirm={deleteCtrl.confirm}
       />
 
       {/* Dialog add/edit (shared) */}
-  {!readOnly && (
+      {!readOnly && (
         <EditEntryDialog
-          open={open}
-          mode={mode}
-          item={mode === "edit" && idx != null ? records[idx] : null}
+          open={editing.dialogOpen}
+          mode={editing.mode}
+          item={editing.mode === 'edit' && editing.idx != null ? records[editing.idx] : null}
           commesse={commesse}
-          maxOre={maxOre}
-          onClose={() => setOpen(false)}
+            maxOre={editing.maxOre}
+          onClose={editing.close}
           onSave={(entry) => {
-            if (mode === "add") {
-              const newRecord = {
-                dipendente: records[0]?.dipendente || "Mario Rossi",
-                commessa: entry.commessa,
-                ore: entry.ore,
-                descrizione: entry.descrizione,
-              };
-              onAddRecord(selectedDay, newRecord, false);
-            } else if (mode === "edit" && idx != null) {
-              const next = [...records];
-              next[idx] = { ...next[idx], commessa: entry.commessa, ore: entry.ore, descrizione: entry.descrizione };
-              onAddRecord(selectedDay, next, true);
-            }
-            setOpen(false);
+            // Reuse editing logic but allow optimistic form injection
+            editing.setForm(f => ({ ...f, commessa: entry.commessa, ore: entry.ore, descrizione: entry.descrizione }));
+            editing.save();
           }}
-          onDelete={(entry) => {
-            if (mode === "edit" && idx != null) {
-              const next = records.filter((_, k) => k !== idx);
+          onDelete={() => {
+            if (editing.mode === 'edit' && editing.idx != null) {
+              const next = records.filter((_, k) => k !== editing.idx);
               onAddRecord(selectedDay, next, true);
-              setOpen(false);
+              editing.close();
             }
           }}
         />

@@ -1,6 +1,5 @@
 import React from "react";
 import { Box, Typography, Stack } from "@mui/material";
-import { useLocation } from "react-router-dom";
 
 // Uniform icon rendering like the top Header: accepts either a JSX element or an Icon component
 const renderIcon = (IconOrElement, sx) => {

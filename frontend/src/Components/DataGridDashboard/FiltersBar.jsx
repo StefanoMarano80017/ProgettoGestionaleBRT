@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Card, CardContent, Stack, Chip } from "@mui/material";
+import { Box, Card, CardContent, Stack } from "@mui/material";
 import FiltersMenu from "./FiltersMenu";
 
 export default function FiltersBar({ filters = [], activeFilters = [] }) {

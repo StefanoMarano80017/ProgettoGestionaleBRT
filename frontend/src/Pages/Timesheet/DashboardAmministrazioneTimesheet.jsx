@@ -8,19 +8,10 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Chip,
-  Button,
-  TextField,
   Alert,
   Paper,
-  Divider,
-  InputAdornment,
   Container,
 } from "@mui/material";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import SendIcon from "@mui/icons-material/Send";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import SearchIcon from "@mui/icons-material/Search";
 // Logica estratta in hooks riusabili (Timesheet)
 import { useMonthNavigation } from "../../Hooks/Timesheet/useMonthNavigation";
 import { useEmployeeTimesheets } from "../../Hooks/Timesheet/useEmployeeTimesheets";

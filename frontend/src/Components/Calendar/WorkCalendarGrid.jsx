@@ -1,12 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Box, IconButton, Typography, Tooltip, Chip, Stack } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { Box, IconButton, Typography, Tooltip } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import BeachAccessIcon from "@mui/icons-material/BeachAccess";
-import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
-import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import DayEntryTile from "./DayEntryTile";
 
 const weekDays = ["Lu", "Ma", "Me", "Gi", "Ve", "Sa", "Do"];
@@ -77,100 +73,11 @@ export default function WorkCalendarGrid({
         hasFerie,
         hasMalattia,
         segnalazione,
-        status, // {label,color}
+        status,
       });
     }
     return out;
   }, [data, currentMonth, currentYear, lastDay, today]);
-
-  const columns = useMemo(
-    () => [
-      { field: "day", headerName: "Giorno", width: 90 },
-      { field: "weekdayLabel", headerName: "Settimana", width: 110 },
-      { field: "dateStr", headerName: "Data", width: 130 },
-      {
-        field: "totalHours",
-        headerName: "Ore",
-        type: "number",
-        width: 90,
-        align: "center",
-        headerAlign: "center",
-      },
-      {
-        field: "status",
-        headerName: "Stato",
-        width: 170,
-        sortable: false,
-        renderCell: (p) => {
-          const { label, color } = p.row.status || { label: "—", color: "default" };
-          return <Chip size="small" color={color} variant={color === "default" ? "outlined" : "filled"} label={label} />;
-        },
-      },
-      {
-        field: "flags",
-        headerName: "Icone",
-        width: 130,
-        sortable: false,
-        renderCell: (p) => {
-          const icons = [];
-          if (p.row.hasFerie) icons.push(<BeachAccessIcon key="ferie" fontSize="small" />);
-          if (p.row.hasMalattia) icons.push(<LocalHospitalIcon key="mal" fontSize="small" />);
-          if (p.row.hasPermesso) icons.push(<EventAvailableIcon key="perm" fontSize="small" />);
-          return (
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              {icons.length ? icons : <Typography variant="caption" color="text.disabled">—</Typography>}
-            </Stack>
-          );
-        },
-      },
-      {
-        field: "commesse",
-        headerName: "Commesse",
-        flex: 1,
-        minWidth: 240,
-        sortable: false,
-        renderCell: (p) => {
-          const list = p.row.dayData || [];
-          if (!list.length) return <Typography variant="caption" color="text.disabled">Nessuna</Typography>;
-          const chips = list.slice(0, 3).map((r, i) => {
-            let chipColor = "default";
-            let icon = null;
-            if (r.commessa === "FERIE") { chipColor = "success"; icon = <BeachAccessIcon fontSize="inherit" />; }
-            else if (r.commessa === "MALATTIA") { chipColor = "secondary"; icon = <LocalHospitalIcon fontSize="inherit" />; }
-            else if (r.commessa === "PERMESSO") { chipColor = "info"; icon = <EventAvailableIcon fontSize="inherit" />; }
-            return (
-              <Chip
-                key={`${r.commessa}-${i}`}
-                size="small"
-                color={chipColor}
-                variant={chipColor === "default" ? "outlined" : "filled"}
-                label={`${r.commessa} (${r.ore}h)`}
-                icon={icon}
-                sx={{ mr: 0.5 }}
-              />
-            );
-          });
-          const extra = list.length > 3 ? <Typography variant="caption">+{list.length - 3}</Typography> : null;
-          return <Box sx={{ display: "flex", alignItems: "center", overflow: "hidden" }}>{chips}{extra}</Box>;
-        },
-      },
-      {
-        field: "segnalazione",
-        headerName: "Note",
-        width: 70,
-        sortable: false,
-        renderCell: (p) =>
-          p.row.segnalazione ? (
-            <Tooltip title={p.row.segnalazione.descrizione}>
-              <WarningAmberIcon color="error" fontSize="small" />
-            </Tooltip>
-          ) : (
-            <Typography variant="caption" color="text.disabled">—</Typography>
-          ),
-      },
-    ],
-    []
-  );
 
   const handlePrev = () => {
     if (currentMonth === 0) {
@@ -259,24 +166,25 @@ export default function WorkCalendarGrid({
           const tooltipContent = (
             <span style={{ whiteSpace: "pre-line" }}>{tooltipLines.join("\n")}</span>
           );
+          const status = getDayStatus(recs, seg, dateKey, today);
 
           return (
-              <Box key={dateKey} sx={{ height }}>
+            <Box key={dateKey} sx={{ height }}>
               <DayEntryTile
-                  dateStr={dateKey}
-                  day={d}
-                  isSelected={false}
+                dateStr={dateKey}
+                day={d}
+                isSelected={false}
                 /* let DayEntryTile decide visuals based on status */
                 status={status?.label ? (status.label.toLowerCase().includes('ferie') ? 'ferie' : status.label.toLowerCase().includes('malattia') ? 'malattia' : status.label.toLowerCase().includes('segnalazione') ? 'admin-warning' : status.label.toLowerCase().includes('permesso') ? 'permesso' : status.label.toLowerCase().includes('completo') ? 'complete' : status.label.toLowerCase().includes('parziale') ? 'partial' : undefined) : undefined}
                 variant={height < 44 ? 'compact' : 'default'}
                 iconTopRight={false}
-                  showHours={total > 0}
-                  totalHours={total}
-                  onClick={onDayClick ? (ds) => onDayClick(ds) : undefined}
-                  tooltipContent={tooltipContent}
-                  showDayNumber={false}
-                />
-              </Box>
+                showHours={total > 0}
+                totalHours={total}
+                onClick={onDayClick ? (ds) => onDayClick(ds) : undefined}
+                tooltipContent={tooltipContent}
+                showDayNumber={false}
+              />
+            </Box>
           );
         })}
       </Box>
