@@ -1,27 +1,45 @@
 // src/context/ThemeContext.jsx
-import { createContext, useContext, useState, useMemo } from "react";
-import { ThemeProvider as MuiThemeProvider, useMediaQuery } from "@mui/material";
-import { lightTheme, darkTheme } from "../Theme/MainTheme";
+import React, { useMemo, useState } from "react";
+import {
+  ThemeProvider as MUIThemeProvider,
+  CssBaseline,
+  createTheme,
+  useMediaQuery,
+} from "@mui/material";
+import appTheme from "../Theme/MainTheme";
 
-const ThemeContext = createContext();
+const ThemeCtx = React.createContext(null);
+export const useThemeContext = () => React.useContext(ThemeCtx);
 
-export function ThemeProvider({ children }) {
-  // Rileva preferenza utente dal sistema
-  const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-  const [darkMode, setDarkMode] = useState(prefersDarkMode);
+export function AppThemeProvider({ children }) {
+  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
+  const [mode, setMode] = useState(
+    () => localStorage.getItem("themeMode") || (prefersDark ? "dark" : "light")
+  );
 
-  // Calcola il tema corrente
-  const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
+  const toggleTheme = () => {
+    setMode((m) => {
+      const next = m === "light" ? "dark" : "light";
+      localStorage.setItem("themeMode", next);
+      return next;
+    });
+  };
 
-  const toggleTheme = () => setDarkMode((prev) => !prev);
+  const muiTheme = useMemo(() => {
+    if (typeof appTheme === "function") return appTheme(mode);
+    if (appTheme && typeof appTheme.getTheme === "function")
+      return appTheme.getTheme(mode);
+    return createTheme({ palette: { mode } });
+  }, [mode]);
 
   return (
-    <ThemeContext.Provider value={{ darkTheme, toggleTheme }}>
-      <MuiThemeProvider theme={theme}>{children}</MuiThemeProvider>
-    </ThemeContext.Provider>
+    <ThemeCtx.Provider value={{ mode, toggleTheme, setMode }}>
+      <MUIThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        {children}
+      </MUIThemeProvider>
+    </ThemeCtx.Provider>
   );
 }
 
-export function useThemeContext() {
-  return useContext(ThemeContext);
-}
+export default AppThemeProvider;

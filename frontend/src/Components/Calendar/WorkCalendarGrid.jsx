@@ -7,6 +7,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import BeachAccessIcon from "@mui/icons-material/BeachAccess";
 import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import TimesheetDayCell from "./TimesheetDayCell";
 
 const weekDays = ["Lu", "Ma", "Me", "Gi", "Ve", "Sa", "Do"];
 const monthNames = [
@@ -32,7 +33,15 @@ function getDayStatus(dayData = [], segnalazione, dateStr, today) {
   return { label: "Vuoto", color: "default" };
 }
 
-export default function WorkCalendarGrid({ data = {}, selectedDay, onDaySelect }) {
+const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+
+export default function WorkCalendarGrid({
+  data = {},         // { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': { descrizione } }
+  year,
+  month,             // 0-based
+  compact = false,
+  onDayClick,        // (dateKey) => void
+}) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -176,6 +185,15 @@ export default function WorkCalendarGrid({ data = {}, selectedDay, onDaySelect }
     } else setCurrentMonth((m) => m + 1);
   };
 
+  const width = compact ? 44 : 60;
+  const height = compact ? 28 : 36;
+
+  const daysInMonth = React.useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
+  const firstDow = React.useMemo(() => new Date(year, month, 1).getDay(), [year, month]); // 0=Dom
+  const startOffset = (firstDow + 6) % 7; // lun=0
+
+  const headers = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+
   return (
     <Box sx={{ width: "100%" }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
@@ -184,24 +202,54 @@ export default function WorkCalendarGrid({ data = {}, selectedDay, onDaySelect }
         <IconButton onClick={handleNext}><ArrowForwardIosIcon /></IconButton>
       </Box>
 
-      <Box sx={{ height: 440, width: "100%" }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          density="compact"
-          pageSizeOptions={[10, 31]}
-          initialState={{ pagination: { paginationModel: { pageSize: 10, page: 0 } } }}
-          hideFooterSelectedRowCount
-          disableColumnMenu
-          disableRowSelectionOnClick
-          onRowClick={(p) => onDaySelect?.(p.row.id)}
-          getRowClassName={(params) => (params.id === selectedDay ? "row-selected" : "")}
-          sx={{
-            "& .row-selected": {
-              backgroundColor: (theme) => theme.palette.action.selected,
-            },
-          }}
-        />
+      {/* Header giorni settimana */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 0.5,
+          mb: 0.5,
+          px: 0.5,
+        }}
+      >
+        {headers.map((h) => (
+          <Typography key={h} variant="caption" sx={{ textAlign: "center", color: "text.secondary" }}>
+            {h}
+          </Typography>
+        ))}
+      </Box>
+
+      {/* Griglia giorni */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 0.5,
+        }}
+      >
+        {/* Celle vuote prima del primo giorno */}
+        {Array.from({ length: startOffset }).map((_, i) => (
+          <Box key={`empty-${i}`} />
+        ))}
+
+        {/* Giorni del mese */}
+        {Array.from({ length: daysInMonth }).map((_, idx) => {
+          const d = idx + 1;
+          const dateKey = `${year}-${pad(month + 1)}-${pad(d)}`;
+          const recs = data[dateKey] || [];
+          const seg = data[`${dateKey}_segnalazione`] || null;
+
+          return (
+            <TimesheetDayCell
+              key={dateKey}
+              records={recs}
+              segnalazione={seg}
+              width={width}
+              height={height}
+              onClick={onDayClick ? () => onDayClick(dateKey) : undefined}
+            />
+          );
+        })}
       </Box>
     </Box>
   );

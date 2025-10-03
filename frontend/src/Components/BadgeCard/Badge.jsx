@@ -7,20 +7,55 @@ import {
   Typography,
   Box,
   IconButton,
+  Chip,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import LogoGestionale from "../../Assets/LogoGestionale.png";
+import { useAuth } from "../../Layouts/AuthContext";
+import LogoBRT from "../../assets/LogoBRT.png";
+import LogoGestionale from "../../assets/LogoGestionale.png";
+// Se li aggiungi al repo:
+import LogoInwave from "../../assets/LogoInwave.png";
+import LogoSTEP from "../../assets/LogoSTEP.png";
 
-function BadgeCard({
-  avatar,
-  actionIcon = null,
-  companyId = "",
-  companyLogo = "",
-  holderName = "",
-  isBadgiato = false, // nuovo prop: true se ha badgiato quella giornata
-  sx = {},
-}) {
+export default function BadgeCard(props) {
+  const {
+    avatar,
+    actionIcon = null,
+    companyId: propCompanyId,
+    companyLogo: propCompanyLogo = "",
+    holderName: propHolderName,
+    isBadgiato = false,
+    company: propCompany, // opzionale: forzare azienda via prop
+    sx = {},
+  } = props;
+
+  const { user } = useAuth();
+
+  // Dati base utente
+  const holderName =
+    (propHolderName && String(propHolderName).trim()) ||
+    (user ? `${user.nome} ${user.cognome}` : "");
+  const companyId =
+    (propCompanyId && String(propCompanyId).trim()) ||
+    user?.id ||
+    "";
+
+  // Azienda corrente (prop > user.azienda)
+  const companyRaw = propCompany || user?.azienda || "";
+  const companyKey = String(companyRaw).toUpperCase();
+
+  const COMPANY_LOGOS = {
+    BRT: LogoBRT,
+    INWAVE: LogoInwave, // se mancante, verrà fallback
+    STEP: LogoSTEP,     // se mancante, verrà fallback
+  };
+
+  const companyLogo =
+    (propCompanyLogo && String(propCompanyLogo).trim()) ||
+    COMPANY_LOGOS[companyKey] ||
+    LogoGestionale;
+
   return (
     <Card
       sx={{
@@ -67,25 +102,34 @@ function BadgeCard({
         )}
       </Box>
 
-      {/* logo azienda in alto a destra */}
-      {companyLogo && (
+      {/* Logo azienda in basso a destra */}
+      {companyLogo ? (
         <Box
           component="img"
           src={companyLogo}
-          alt="company logo"
+          alt={companyKey || "Azienda"}
           sx={{
             position: "absolute",
-            bottom: 0,
-            right: 15,
-            width: 56,
-            height: 56,
+            bottom: 10,
+            right: 10,
+            height: 24,
             objectFit: "contain",
+            pointerEvents: "none",
           }}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      ) : (
+        <Chip
+          label={companyKey || "AZIENDA"}
+          size="small"
+          sx={{ position: "absolute", bottom: 10, right: 10, borderRadius: 1 }}
         />
       )}
 
-      {/* eventuale icona azione in alto a sinistra */}
-      <Typography variant="h7" color="customBlack.main" sx={{ position: "absolute", top: 14, left: 14 }}>
+      {/* Titolo */}
+      <Typography variant="subtitle2" color="customBlack.main" sx={{ position: "absolute", top: 14, left: 14 }}>
         Badge Dipendente
       </Typography>
 
@@ -102,16 +146,12 @@ function BadgeCard({
           textAlign: "center",
         }}
       >
-        <Typography
-          variant="subtitle2"
-          color="customBlack.main"
-          sx={{ letterSpacing: 0.5 }}
-        >
-          {companyId}
+        {/* Nome e ID in customBlue3 */}
+        <Typography variant="subtitle1" sx={{ color: "customBlue3.main" }}>
+          {holderName || "—"}
         </Typography>
-
-        <Typography variant="h6" color="customBlack.main" sx={{ fontWeight: 700 }}>
-          {holderName}
+        <Typography variant="caption" sx={{ color: "customBlue3.main" }}>
+          {companyId || "—"}
         </Typography>
       </CardContent>
 
@@ -135,5 +175,3 @@ function BadgeCard({
     </Card>
   );
 }
-
-export default BadgeCard;

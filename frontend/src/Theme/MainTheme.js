@@ -18,9 +18,7 @@ export const lightTheme = createTheme({
     customBlue3: { main: "#003554" },
     customPink: { main: "#D8315B" },
   },
-  typography: {
-    fontFamily: `"Lato"`
-  },
+  typography: { fontFamily: `"Lato"` },
 });
 
 export const darkTheme = createTheme({
@@ -41,7 +39,9 @@ export const darkTheme = createTheme({
     customBlue3: { main: "#003554" },
     customPink: { main: "#D8315B" },
   },
-  typography: {
-    fontFamily: `"Lato"`
-  },
+  typography: { fontFamily: `"Lato"` },
 });
+
+// Default export: pick theme by mode
+const getTheme = (mode = "light") => (mode === "dark" ? darkTheme : lightTheme);
+export default getTheme;
