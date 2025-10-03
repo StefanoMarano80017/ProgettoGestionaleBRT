@@ -27,15 +27,14 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SendIcon from "@mui/icons-material/Send";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SearchIcon from "@mui/icons-material/Search";
-import { getEmployees, getAllEmployeeTimesheets, sendSegnalazione } from "../mocks/ProjectMock";
-import { getEmployeeMonthSummary, getGlobalMonthByCommessa } from "../mocks/TimesheetAggregatesMock";
-import TimesheetDayCell from "../Components/Calendar/TimesheetDayCell";
-import EmployeeMonthGrid from "../Components/Calendar/EmployeeMonthGrid";
+import { getEmployees, getAllEmployeeTimesheets, sendSegnalazione } from "../../mocks/ProjectMock";
+import { getEmployeeMonthSummary, getGlobalMonthByCommessa } from "../../mocks/TimesheetAggregatesMock";
+import EmployeeMonthGrid from "../../Components/Calendar/EmployeeMonthGrid";
 
 const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 const yyyymmdd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const isWorkCode = (c) => c && !["FERIE", "MALATTIA", "PERMESSO"].includes(String(c).toUpperCase());
+const isWorkCode = (c) => c && ["FERIE", "MALATTIA", "PERMESSO"].includes(String(c).toUpperCase()) === false;
 
 export default function DashboardAmministrazioneTimesheet() {
   const today = new Date();
@@ -191,42 +190,13 @@ export default function DashboardAmministrazioneTimesheet() {
 
   return (
     <Container maxWidth="xl" sx={{ py: 2 }}>
-      {/* Filtro mese/anno + info */}
+      {/* Barra filtri estesa (Azienda, Dipendente, Commessa) */}
       <Paper sx={{ mb: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: "customBackground.main" }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center" justifyContent="space-between">
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: "wrap" }}>
-            <FormControl size="small">
-              <InputLabel>Mese</InputLabel>
-              <Select label="Mese" value={month} onChange={(e) => setMonth(Number(e.target.value))} sx={{ minWidth: 160 }}>
-                {MONTHS.map((m, idx) => (
-                  <MenuItem key={m} value={idx}>{m}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small">
-              <InputLabel>Anno</InputLabel>
-              <Select label="Anno" value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 120 }}>
-                {Array.from({ length: 4 }, (_, i) => today.getFullYear() - 1 + i).map((y) => (
-                  <MenuItem key={y} value={y}>{y}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
-
-          <Stack direction="row" spacing={1} alignItems="center">
-            <InfoOutlinedIcon color="action" />
-            <Typography variant="body2" color="text.secondary">
-              Calendario timesheet: righe per dipendente, colonne per giorno.
-            </Typography>
-          </Stack>
-        </Stack>
-
-        {/* Barra filtri estesa */}
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
           alignItems="center"
-          sx={{ mt: 2, flexWrap: "wrap" }}
+          sx={{ flexWrap: "wrap" }}
         >
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <InputLabel>Azienda</InputLabel>
@@ -273,6 +243,35 @@ export default function DashboardAmministrazioneTimesheet() {
               ),
             }}
           />
+        </Stack>
+
+        {/* Filtro mese/anno + info */}
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center" justifyContent="space-between" sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: "wrap" }}>
+            <FormControl size="small">
+              <InputLabel>Mese</InputLabel>
+              <Select label="Mese" value={month} onChange={(e) => setMonth(Number(e.target.value))} sx={{ minWidth: 160 }}>
+                {MONTHS.map((m, idx) => (
+                  <MenuItem key={m} value={idx}>{m}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small">
+              <InputLabel>Anno</InputLabel>
+              <Select label="Anno" value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 120 }}>
+                {Array.from({ length: 4 }, (_, i) => today.getFullYear() - 1 + i).map((y) => (
+                  <MenuItem key={y} value={y}>{y}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            <InfoOutlinedIcon color="action" />
+            <Typography variant="body2">
+              Calendario timesheet: righe per dipendente, colonne per giorno.
+            </Typography>
+          </Stack>
         </Stack>
       </Paper>
 
@@ -369,7 +368,7 @@ export default function DashboardAmministrazioneTimesheet() {
               <Box sx={{ flex: 1 }}>
                 <Typography variant="subtitle2" gutterBottom>Commesse del giorno</Typography>
                 {!dayRecords.length ? (
-                  <Typography variant="body2" color="text.secondary">Nessun inserimento per il giorno selezionato.</Typography>
+                  <Typography variant="body2">Nessun inserimento per il giorno selezionato.</Typography>
                 ) : (
                   <Stack spacing={1}>
                     {dayRecords.map((r, idx) => (
@@ -387,7 +386,7 @@ export default function DashboardAmministrazioneTimesheet() {
                               variant={["FERIE","MALATTIA","PERMESSO"].includes(r.commessa) ? "filled" : "outlined"}
                               sx={{ borderRadius: 1 }}
                             />
-                            <Typography variant="body2" color="text.secondary">{r.descrizione || "—"}</Typography>
+                            <Typography variant="body2">{r.descrizione || "—"}</Typography>
                           </Stack>
                           <Chip size="small" variant="outlined" label={`${r.ore}h`} />
                         </Stack>
@@ -406,7 +405,7 @@ export default function DashboardAmministrazioneTimesheet() {
                   <Chip size="small" color="primary" variant="outlined" label={`Totale mese: ${monthSummary.total}h`} />
                 </Stack>
                 {!monthSummary.commesse.length ? (
-                  <Typography variant="body2" color="text.secondary">Nessuna commessa lavorativa nel mese.</Typography>
+                  <Typography variant="body2">Nessuna commessa lavorativa nel mese.</Typography>
                 ) : (
                   <Stack spacing={1} sx={{ mb: 2 }}>
                     {monthSummary.commesse.map((c) => (
@@ -421,9 +420,9 @@ export default function DashboardAmministrazioneTimesheet() {
                 {/* NUOVO: Aggregati mensili globali per commessa (tutti i dipendenti filtrati) */}
                 <Typography variant="subtitle2" gutterBottom>Aggregati mensili per commessa (tutti i dipendenti filtrati)</Typography>
                 {aggLoading ? (
-                  <Typography variant="body2" color="text.secondary">Caricamento aggregati...</Typography>
+                  <Typography variant="body2">Caricamento aggregati...</Typography>
                 ) : !globalMonthAgg.length ? (
-                  <Typography variant="body2" color="text.secondary">Nessuna commessa lavorativa nel mese.</Typography>
+                  <Typography variant="body2">Nessuna commessa lavorativa nel mese.</Typography>
                 ) : (
                   <Stack spacing={1}>
                     {globalMonthAgg.map((c) => (

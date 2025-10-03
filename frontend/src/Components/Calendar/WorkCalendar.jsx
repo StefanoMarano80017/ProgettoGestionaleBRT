@@ -11,6 +11,8 @@ import {
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import DayEntryTile from "./DayEntryTile";
+import MonthSelector from "./MonthSelector";
 
 const shortMonth = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
 const fullMonth = [
@@ -45,7 +47,7 @@ function formatDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
+export default function WorkCalendar({ data = {}, selectedDay, onDaySelect, renderDayTooltip, fixedDayWidth = false, gap = 1, distributeGaps = false, variant = "default", selectorVariant = "windowed", selectorLabels = "short" }) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -168,52 +170,28 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
   };
 
   // Controls: small arrows + 5 month buttons (current centered)
-  const prev2Date = new Date(currentYear, currentMonth - 2, 1);
-  const prev1Date = new Date(currentYear, currentMonth - 1, 1);
-  const currDate  = new Date(currentYear, currentMonth, 1);
-  const next1Date = new Date(currentYear, currentMonth + 1, 1);
-  const next2Date = new Date(currentYear, currentMonth + 2, 1);
-
-  const mkShort = (d) =>
-    `${shortMonth[d.getMonth()]}${d.getFullYear() !== currentYear ? " " + d.getFullYear() : ""}`;
-
-  const prev2Label = mkShort(prev2Date);
-  const prev1Label = mkShort(prev1Date);
-  const currLabel  = mkShort(currDate);
-  const next1Label = mkShort(next1Date);
-  const next2Label = mkShort(next2Date);
-
   return (
     <Box sx={{ width: "100%" }}>
       {/* Month controls */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 1 }}>
-        <IconButton size="small" onClick={() => shiftMonth(-1)}>
-          <ArrowBackIos fontSize="inherit" />
-        </IconButton>
-
-        <Button variant="outlined" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(prev2Date.getMonth(), prev2Date.getFullYear())}>
-          {prev2Label}
-        </Button>
-        <Button variant="outlined" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(prev1Date.getMonth(), prev1Date.getFullYear())}>
-          {prev1Label}
-        </Button>
-        <Button variant="contained" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(currDate.getMonth(), currDate.getFullYear())}>
-          {currLabel}
-        </Button>
-        <Button variant="outlined" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(next1Date.getMonth(), next1Date.getFullYear())}>
-          {next1Label}
-        </Button>
-        <Button variant="outlined" size="small" sx={{ fontSize: "0.75rem" }} onClick={() => setMonthYear(next2Date.getMonth(), next2Date.getFullYear())}>
-          {next2Label}
-        </Button>
-
-        <IconButton size="small" onClick={() => shiftMonth(1)}>
-          <ArrowForwardIos fontSize="inherit" />
-        </IconButton>
-      </Box>
+      <MonthSelector
+        year={currentYear}
+        month={currentMonth}
+        onChange={(m, y) => setMonthYear(m, y)}
+        variant={selectorVariant}
+        labels={selectorLabels}
+      />
 
       {/* Weekday names */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", mb: 1 }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: fixedDayWidth ? `repeat(7, ${variant === 'wide' ? 52 : 44}px)` : "repeat(7, 1fr)",
+          gap: distributeGaps ? 0 : gap,
+          justifyContent: distributeGaps ? "space-between" : "normal",
+          width: "100%",
+          mb: 1,
+        }}
+      >
         {weekDays.map((wd) => (
           <Box key={wd} sx={{ textAlign: "center" }}>
             <Typography variant="caption">{wd}</Typography>
@@ -222,17 +200,20 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
       </Box>
 
       {/* Days grid (compact, stable) */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
-          gridAutoRows: "44px",
-          gap: 1,
-          maxHeight: 320,
-          overflowY: "auto",
-          scrollbarGutter: "stable",
-        }}
-      >
+      <Box sx={{ overflowX: fixedDayWidth && !distributeGaps ? "auto" : "hidden", width: "100%" }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: fixedDayWidth ? `repeat(7, ${variant === 'wide' ? 52 : 44}px)` : "repeat(7, 1fr)",
+            gridAutoRows: "44px",
+            gap: distributeGaps ? 0 : gap,
+            maxHeight: 320,
+            overflowY: "auto",
+            scrollbarGutter: "stable",
+            width: distributeGaps ? "100%" : fixedDayWidth ? "max-content" : "100%",
+            justifyContent: distributeGaps ? "space-between" : "normal",
+          }}
+        >
         {days.map((item, index) => {
           if (!item) return <Box key={`empty-${index}`} sx={{ borderRadius: 1 }} />;
 
@@ -241,83 +222,27 @@ export default function WorkCalendar({ data = {}, selectedDay, onDaySelect }) {
           const { bgcolor, icon, showHours, hasPermessoDot, iconTopRight } = getDayInfo(dayData, dayOfWeek, segnalazione, dateStr, isHoliday);
           const totalHours = dayData?.reduce((sum, rec) => sum + (Number(rec.ore) || 0), 0) || 0;
 
-          const dateChipBg = (isSelected || bgcolor !== "transparent")
-            ? "rgba(255,255,255,0.25)"
-            : "rgba(0,0,0,0.06)";
+          const tooltipContent = renderDayTooltip?.(dateStr, { dayData, dayOfWeek, isHoliday, segnalazione, totalHours });
 
           return (
-            <Box
+            <DayEntryTile
               key={dateStr}
-              onClick={() => onDaySelect?.(dateStr)}
-              sx={{
-                position: "relative",
-                cursor: "pointer",
-                borderRadius: 1,
-                background: isSelected
-                    ? (theme) => theme.palette.primary.light
-                    : bgcolor,
-                bgcolor: isSelected ? "primary.light" : bgcolor,
-                color: bgcolor !== "transparent" ? "white" : "text.primary",
-                height: "100%",
-                px: 1,
-                boxShadow: isSelected
-                  ? "inset 0 0 0 2px #fff"
-                  : "inset 0 0 0 1px rgba(0,0,0,0.12)",
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  position: "absolute",
-                  top: 4,
-                  left: 6,
-                  lineHeight: 1,
-                  px: 0.5,
-                  borderRadius: 1,
-                  backgroundColor: dateChipBg,
-                }}
-              >
-                {day}
-              </Typography>
-
-              <Typography
-                variant="caption"
-                sx={{ position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)", lineHeight: 1 }}
-              >
-                {showHours ? `${totalHours}h` : ""}
-              </Typography>
-
-              {icon && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: iconTopRight ? 4 : "50%",
-                    right: iconTopRight ? 6 : undefined,
-                    left: iconTopRight ? undefined : "50%",
-                    transform: iconTopRight ? "none" : "translate(-50%, -50%)",
-                    lineHeight: 0,
-                  }}
-                >
-                  {icon}
-                </Box>
-              )}
-
-              {hasPermessoDot && (
-                <Box
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    bgcolor: "white",
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                  }}
-                />
-              )}
-            </Box>
+              dateStr={dateStr}
+              day={day}
+              isSelected={isSelected}
+              bgcolor={bgcolor}
+              icon={icon}
+              showHours={showHours}
+              hasPermessoDot={hasPermessoDot}
+              iconTopRight={iconTopRight}
+              totalHours={totalHours}
+              onClick={onDaySelect}
+              tooltipContent={tooltipContent}
+              variant={variant}
+            />
           );
         })}
+        </Box>
       </Box>
 
       {/* Monthly summary under the calendar */}

@@ -7,7 +7,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import BeachAccessIcon from "@mui/icons-material/BeachAccess";
 import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
-import TimesheetDayCell from "./TimesheetDayCell";
+import DayEntryTile from "./DayEntryTile";
 
 const weekDays = ["Lu", "Ma", "Me", "Gi", "Ve", "Sa", "Do"];
 const monthNames = [
@@ -238,16 +238,50 @@ export default function WorkCalendarGrid({
           const dateKey = `${year}-${pad(month + 1)}-${pad(d)}`;
           const recs = data[dateKey] || [];
           const seg = data[`${dateKey}_segnalazione`] || null;
+          const total = (recs || []).reduce((s, r) => s + Number(r?.ore || 0), 0);
+          const ferie = (recs || []).some((r) => r?.commessa === "FERIE");
+          const mal = (recs || []).some((r) => r?.commessa === "MALATTIA");
+          const perm = (recs || []).some((r) => r?.commessa === "PERMESSO");
+          let bg = "transparent";
+          if (seg) bg = "rgba(244, 67, 54, 0.15)";
+          else if (ferie) bg = "rgba(76, 175, 80, 0.18)";
+          else if (mal) bg = "rgba(156, 39, 176, 0.15)";
+          else if (perm) bg = "rgba(2, 136, 209, 0.15)";
+          else if (total === 8) bg = "rgba(76, 175, 80, 0.12)";
+          else if (total > 0 && total < 8) bg = "rgba(255, 193, 7, 0.15)";
+
+          const tooltipLines = [
+            recs?.length ? `Ore totali: ${total}h` : "Nessun inserimento",
+            ...(recs || []).map((r) => `${r.commessa}: ${r.ore}h${r.descrizione ? ` — ${r.descrizione}` : ""}`),
+            seg ? `Segnalazione: ${seg.descrizione}` : null,
+          ].filter(Boolean);
+
+          const tooltipContent = (
+            <span style={{ whiteSpace: "pre-line" }}>{tooltipLines.join("\n")}</span>
+          );
+
+          let icon = null;
+          if (seg) icon = <WarningAmberIcon sx={{ fontSize: 16, color: 'error.main' }} />;
+          else if (ferie) icon = <BeachAccessIcon sx={{ fontSize: 16 }} />;
+          else if (mal) icon = <LocalHospitalIcon sx={{ fontSize: 16 }} />;
+          else if (perm) icon = <EventAvailableIcon sx={{ fontSize: 16 }} />;
 
           return (
-            <TimesheetDayCell
-              key={dateKey}
-              records={recs}
-              segnalazione={seg}
-              width={width}
-              height={height}
-              onClick={onDayClick ? () => onDayClick(dateKey) : undefined}
-            />
+            <Box key={dateKey} sx={{ height }}>
+              <DayEntryTile
+                dateStr={dateKey}
+                day={d}
+                isSelected={false}
+                bgcolor={bg}
+                icon={icon}
+                iconTopRight={!!icon}
+                showHours={total > 0}
+                totalHours={total}
+                onClick={onDayClick ? (ds) => onDayClick(ds) : undefined}
+                tooltipContent={tooltipContent}
+                showDayNumber={false}
+              />
+            </Box>
           );
         })}
       </Box>

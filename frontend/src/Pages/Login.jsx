@@ -10,7 +10,6 @@ export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/timesheet";
 
   const [form, setForm] = React.useState({ username: "", password: "" });
   const [error, setError] = React.useState("");
@@ -19,8 +18,9 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-      await login(form.username, form.password);
-      nav(from, { replace: true });
+  await login(form.username, form.password);
+  // Dopo il login, porta sempre alla Home
+  nav("/", { replace: true });
     } catch (err) {
       setError(err.message || "Errore di autenticazione");
     }

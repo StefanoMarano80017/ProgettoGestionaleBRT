@@ -5,6 +5,7 @@ export const ROLES = {
   DIRETTORE_GENERALE: "DIRETTORE_GENERALE",
   PM_CAMPO: "PM_CAMPO",
   COORDINATORE: "COORDINATORE",
+  OPERAIO: "OPERAIO",
 };
 
 // Mock utenti (password in chiaro SOLO per mock)
@@ -17,6 +18,7 @@ const USERS = [
     cognome: "Rossi",
     roles: [ROLES.DIPENDENTE],
     azienda: "BRT",
+    canLogin: true,
   },
   {
     id: "emp-002",
@@ -26,6 +28,7 @@ const USERS = [
     cognome: "Bianchi",
     roles: [ROLES.DIPENDENTE],
     azienda: "INWAVE",
+    canLogin: true,
   },
   {
     id: "emp-003",
@@ -35,6 +38,7 @@ const USERS = [
     cognome: "Verdi",
     roles: [ROLES.DIPENDENTE],
     azienda: "STEP",
+    canLogin: true,
   },
   {
     id: "emp-004",
@@ -44,6 +48,7 @@ const USERS = [
     cognome: "Conti",
     roles: [ROLES.DIPENDENTE],
     azienda: "BRT",
+    canLogin: true,
   },
   {
     id: "emp-005",
@@ -53,6 +58,7 @@ const USERS = [
     cognome: "Neri",
     roles: [ROLES.DIPENDENTE],
     azienda: "INWAVE",
+    canLogin: true,
   },
   {
     id: "emp-006",
@@ -62,6 +68,7 @@ const USERS = [
     cognome: "Ferri",
     roles: [ROLES.DIPENDENTE],
     azienda: "STEP",
+    canLogin: true,
   },
   {
     id: "emp-007",
@@ -71,6 +78,7 @@ const USERS = [
     cognome: "Mancini",
     roles: [ROLES.DIPENDENTE],
     azienda: "BRT",
+    canLogin: true,
   },
   {
     id: "emp-008",
@@ -80,6 +88,7 @@ const USERS = [
     cognome: "Galli",
     roles: [ROLES.DIPENDENTE],
     azienda: "INWAVE",
+    canLogin: true,
   },
   {
     id: "emp-009",
@@ -89,6 +98,7 @@ const USERS = [
     cognome: "Moretti",
     roles: [ROLES.DIPENDENTE],
     azienda: "STEP",
+    canLogin: true,
   },
   {
     id: "emp-010",
@@ -98,6 +108,7 @@ const USERS = [
     cognome: "Riva",
     roles: [ROLES.DIPENDENTE],
     azienda: "BRT",
+    canLogin: true,
   },
 
   {
@@ -108,6 +119,7 @@ const USERS = [
     cognome: "Min",
     roles: [ROLES.AMMINISTRATORE],
     azienda: "BRT",
+    canLogin: true,
   },
   {
     id: "dt-001",
@@ -117,6 +129,7 @@ const USERS = [
     cognome: "Rico",
     roles: [ROLES.DIRETTORE_TECNICO],
     azienda: "INWAVE",
+    canLogin: true,
   },
   {
     id: "dg-001",
@@ -126,6 +139,7 @@ const USERS = [
     cognome: "Dire",
     roles: [ROLES.DIRETTORE_GENERALE],
     azienda: "STEP",
+    canLogin: true,
   },
   {
     id: "pmc-001",
@@ -135,6 +149,7 @@ const USERS = [
     cognome: "Campo",
     roles: [ROLES.PM_CAMPO],
     azienda: "BRT",
+    canLogin: true,
   },
   {
     id: "coord-001",
@@ -144,13 +159,21 @@ const USERS = [
     cognome: "Dinatore",
     roles: [ROLES.COORDINATORE],
     azienda: "INWAVE",
+    canLogin: true,
   },
+
+  // Operai: utenti utilizzabili per timesheet di PM Campo, ma non abilitati al login
+  { id: "op-001", username: "op1", password: "nopass", nome: "Luca", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "BRT", canLogin: false },
+  { id: "op-002", username: "op2", password: "nopass", nome: "Giorgio", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "BRT", canLogin: false },
+  { id: "op-003", username: "op3", password: "nopass", nome: "Sandro", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "INWAVE", canLogin: false },
+  { id: "op-004", username: "op4", password: "nopass", nome: "Enrico", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "STEP", canLogin: false },
+  { id: "op-005", username: "op5", password: "nopass", nome: "Diego", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "STEP", canLogin: false },
 ];
 
 export async function authenticate(username, password) {
   await new Promise((r) => setTimeout(r, 250));
   const found = USERS.find((u) => u.username === username && u.password === password);
-  if (!found) throw new Error("Credenziali non valide");
+  if (!found || found.canLogin === false) throw new Error("Credenziali non valide");
   const { password: _omit, ...safe } = found;
   return {
     user: safe,

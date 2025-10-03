@@ -29,6 +29,8 @@ export default function DayEntryPanel({
   data = {},
   onAddRecord,
   commesse = [],
+  readOnly = false,
+  maxHoursPerDay = 8,
 }) {
   const records = data[selectedDay] || [];
   const totalHours = useMemo(
@@ -46,7 +48,7 @@ export default function DayEntryPanel({
       year: "numeric",
     }).format(dt);
   }, [selectedDay]);
-  const canAddMore = totalHours < 8;
+  const canAddMore = totalHours < maxHoursPerDay;
 
   // Segnalazione amministrazione per il giorno selezionato
   const segnalazione = data[`${selectedDay}_segnalazione`] || null;
@@ -109,22 +111,22 @@ export default function DayEntryPanel({
   // Calcola il massimo consentito in base alla modalità (per non superare 8h)
   const maxOre = useMemo(() => {
     if (mode === "add") {
-      return Math.max(0, 8 - totalHours) || 0;
+      return Math.max(0, maxHoursPerDay - totalHours) || 0;
     }
     if (mode === "edit" && idx != null) {
       const current = records[idx];
       const others = totalHours - Number(current?.ore || 0);
-      return Math.max(0, 8 - others);
+      return Math.max(0, maxHoursPerDay - others);
     }
-    return 8;
-  }, [mode, idx, records, totalHours]);
+    return maxHoursPerDay;
+  }, [mode, idx, records, totalHours, maxHoursPerDay]);
 
   const openAdd = () => {
     setMode("add");
     setIdx(null);
     setForm({
       commessa: commesse[0] || "",
-      ore: Math.min(1, Math.max(1, 8 - totalHours)) || 1,
+  ore: Math.min(1, Math.max(1, maxHoursPerDay - totalHours)) || 1,
       descrizione: "",
     });
     setError("");
@@ -184,31 +186,33 @@ export default function DayEntryPanel({
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
       {/* Header */}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="h6" sx={{ py: 2 }}>
           Dettaglio {itDate} — Totale: {totalHours}h
         </Typography>
-        <Tooltip
-          title={
-            canAddMore
-              ? ""
-              : "Hai già 8h inserite: puoi modificare le righe esistenti"
-          }
-        >
-          <span>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={openAdd}
-              disabled={!canAddMore}
-            >
-              Aggiungi voce
-            </Button>
-          </span>
-        </Tooltip>
+        {!readOnly && (
+          <Tooltip
+            title={
+              canAddMore
+                ? ""
+                : "Hai già 8h inserite: puoi modificare le righe esistenti"
+            }
+          >
+            <span>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={openAdd}
+                disabled={!canAddMore}
+              >
+                Aggiungi voce
+              </Button>
+            </span>
+          </Tooltip>
+        )}
       </Stack>
       <Divider />
       {/* Lista record: altezza fissa (5 righe) + scroll */}
@@ -275,12 +279,16 @@ export default function DayEntryPanel({
                     sx={{ borderRadius: 1 }}
                   />
                   {/* Azioni */}
-                  <IconButton size="small" onClick={() => openEdit(i)}>
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" color="error" onClick={() => handleDelete(i)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  {!readOnly && (
+                    <>
+                      <IconButton size="small" onClick={() => openEdit(i)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDelete(i)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </>
+                  )}
                 </Stack>
               );
             })}
@@ -321,6 +329,7 @@ export default function DayEntryPanel({
       )}
 
       {/* Dialog add/edit */}
+      {!readOnly && (
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>
           {mode === "add" ? "Aggiungi voce" : "Modifica voce"}
@@ -382,6 +391,7 @@ export default function DayEntryPanel({
           </Button>
         </DialogActions>
       </Dialog>
+      )}
     </Box>
   );
 }

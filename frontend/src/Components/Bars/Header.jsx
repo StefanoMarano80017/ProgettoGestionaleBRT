@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Breadcrumbs, IconButton, Tooltip } from "@mui/material";
+import { Box, Breadcrumbs, IconButton, Tooltip, Typography } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchBar from "../Inputs/SearchBar";
 import NotificationsMenu from "../NotificationMenu";
@@ -68,6 +68,8 @@ export default function PageHeader({ onToggleSidebar }) {
     return items;
   }, [location.pathname, pageMeta]);
 
+  const currentTitle = React.useMemo(() => crumbs[crumbs.length - 1]?.label || "", [crumbs]);
+
   return (
     <Box
       sx={{
@@ -75,6 +77,7 @@ export default function PageHeader({ onToggleSidebar }) {
         alignItems: "center",
         justifyContent: "space-between",
         flexWrap: "wrap",
+        bgcolor: "customBackground.main",
         borderBottom: 1,
         borderColor: "divider",
         pr: 6,
@@ -94,7 +97,10 @@ export default function PageHeader({ onToggleSidebar }) {
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",
-                  color: isLast ? "primary.main" : "text.secondary",
+                  // Use current path to decide Timesheet coloring for the last crumb
+                  color: isLast
+                    ? (location.pathname.toLowerCase().startsWith('/timesheet') ? 'customBlue3.main' : 'primary.main')
+                    : 'text.secondary',
                   "&:hover": { color: "text.primary" },
                 }}
               >
@@ -114,6 +120,7 @@ export default function PageHeader({ onToggleSidebar }) {
             );
           })}
         </Breadcrumbs>
+        {/* page title removed; only breadcrumb icons are shown */}
       </Box>
 
       {/* Right: search + notifications + theme */}

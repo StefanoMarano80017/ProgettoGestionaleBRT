@@ -3,7 +3,7 @@ import { Box, Stack, Alert, Typography, Card } from "@mui/material";
 import LayoutDashColumn from "./LayoutDashColumn";
 import CalendarDipendenti from "../Calendar/CalendarDipendenti";
 import SetOreGiorno from "../Calendar/SetOreGiorno";
-import MultiProgressCard from "../ProgressBar/MultiProgressCard";
+// MultiProgressCard removed — no longer rendering progress cards here
 
 /**
  * ContatoreIngressi
@@ -29,7 +29,7 @@ const ContatoreIngressi = ({ selectedDate, setSelectedDate, currentMonth, setCur
               setCurrentMonth={setCurrentMonth}
               daysInfo={daysInfo}
             />
-            <MultiProgressCard progresses={progresses}/>
+            {/* progresses were previously shown with MultiProgressCard; component removed */}
           </Box>
           }
           right={

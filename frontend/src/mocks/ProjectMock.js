@@ -13,6 +13,20 @@ const EMPLOYEES = [
   { id: "emp-005", name: "Marco Neri", azienda: "INWAVE" },
 ];
 
+// Operai (non loggabili) per PM Campo
+export const OPERAI = [
+  { id: "op-001", name: "Luca Operaio", azienda: "BRT" },
+  { id: "op-002", name: "Giorgio Operaio", azienda: "BRT" },
+  { id: "op-003", name: "Sandro Operaio", azienda: "INWAVE" },
+  { id: "op-004", name: "Enrico Operaio", azienda: "STEP" },
+  { id: "op-005", name: "Diego Operaio", azienda: "STEP" },
+  { id: "op-006", name: "Paolo Operaio", azienda: "BRT" },
+  { id: "op-007", name: "Alessio Operaio", azienda: "BRT" },
+  { id: "op-008", name: "Michele Operaio", azienda: "INWAVE" },
+  { id: "op-009", name: "Stefano Operaio", azienda: "STEP" },
+  { id: "op-010", name: "Franco Operaio", azienda: "INWAVE" },
+];
+
 // Solo queste commesse
 const COMMESSE = ["VS-25-01", "VS-25-02", "VS-25-03"];
 
@@ -47,7 +61,8 @@ const segnalazioni = [
 
 const today = new Date();
 const start = new Date(today.getFullYear(), 0, 1);
-const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+// Genera fino ad oggi (niente dati futuri)
+const end = new Date(today);
 
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 const toKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -78,6 +93,28 @@ const holidaySet = getFixedHolidays(today.getFullYear());
 
 // Timesheet per dipendente: { [employeeId]: { "YYYY-MM-DD": Record[] , "YYYY-MM-DD_segnalazione": {...} } }
 export const employeeTimesheetMock = {};
+
+// Timesheet per gruppi (PM Campo)
+// Struttura: { [groupId]: { name, members: [opIds], azienda, timesheet: { 'YYYY-MM-DD': [ { commessa, oreTot, assegnazione: { opId: ore } } ] } } }
+export const pmGroupsMock = {};
+
+// Timesheet personali per operaio (voci non legate ai gruppi): FERIE/MALATTIA/PERMESSO
+// Struttura: { [opId]: { 'YYYY-MM-DD': [ { commessa: 'FERIE'|'MALATTIA'|'PERMESSO', ore } ] } }
+export const operaioPersonalMock = {};
+
+export function getOperaioPersonalMap() {
+  // Ritorna una copia per evitare mutazioni esterne
+  return new Promise((resolve) => setTimeout(() => {
+    const copy = {};
+    Object.entries(operaioPersonalMock).forEach(([opId, days]) => {
+      copy[opId] = {};
+      Object.entries(days || {}).forEach(([dk, arr]) => {
+        copy[opId][dk] = (arr || []).map((e) => ({ commessa: e.commessa, ore: Number(e.ore) || 0 }));
+      });
+    });
+    resolve(copy);
+  }, 80));
+}
 
 // Generazione dati per ogni dipendente
 for (const emp of EMPLOYEES) {
@@ -175,6 +212,13 @@ export function getEmployees() {
   );
 }
 
+// Operai per azienda (per PM Campo)
+export function getOperaiByAzienda(azienda) {
+  return new Promise((resolve) =>
+    setTimeout(() => resolve(OPERAI.filter((o) => !azienda || o.azienda === azienda).map((o) => ({ ...o }))), 80)
+  );
+}
+
 // NUOVO: tutti i timesheet per tutti i dipendenti
 export function getAllEmployeeTimesheets() {
   return new Promise((resolve) =>
@@ -196,3 +240,366 @@ export function sendSegnalazione(employeeId, dateKey, descrizione) {
     }, 120);
   });
 }
+
+// === PM CAMPO: Gruppi ===
+let nextGroupId = 1;
+export function createPmGroup({ name, members = [], azienda }) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const id = `grp-${nextGroupId++}`;
+      pmGroupsMock[id] = { id, name, members: members.slice(), azienda, timesheet: {} };
+      resolve({ ...pmGroupsMock[id] });
+    }, 100);
+  });
+}
+
+export function listPmGroups(azienda) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const list = Object.values(pmGroupsMock).filter((g) => !azienda || g.azienda === azienda).map((g) => ({ ...g, members: g.members.slice() }));
+      resolve(list);
+    }, 80);
+  });
+}
+
+export function updatePmGroup(groupId, { name, members, azienda }) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (!pmGroupsMock[groupId]) return reject(new Error("Gruppo non trovato"));
+      if (name !== undefined) pmGroupsMock[groupId].name = name;
+      if (members !== undefined) pmGroupsMock[groupId].members = members.slice();
+      if (azienda !== undefined) pmGroupsMock[groupId].azienda = azienda;
+      resolve({ ...pmGroupsMock[groupId], members: pmGroupsMock[groupId].members.slice() });
+    }, 100);
+  });
+}
+
+export function deletePmGroup(groupId) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      delete pmGroupsMock[groupId];
+      resolve({ ok: true });
+    }, 80);
+  });
+}
+
+// Assegna ore a un gruppo su una commessa in una data, con riparto uniforme sugli operai
+export function assignHoursToGroup({ groupId, dateKey, commessa, oreTot }) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const grp = pmGroupsMock[groupId];
+      if (!grp) return reject(new Error("Gruppo non trovato"));
+      if (!grp.members || grp.members.length === 0) return reject(new Error("Il gruppo non ha membri"));
+      if (!grp.timesheet[dateKey]) grp.timesheet[dateKey] = [];
+      const tot = Number(oreTot) || 0;
+      const perHead = Math.floor(tot / grp.members.length);
+      const remainder = tot % grp.members.length;
+      const proposed = {};
+      grp.members.forEach((opId, idx) => {
+        proposed[opId] = perHead + (idx < remainder ? 1 : 0);
+      });
+      // Valida rispetto ad altri gruppi + voci personali
+      const sumByOp = {};
+      Object.values(pmGroupsMock).forEach((g) => {
+        const list = g.timesheet?.[dateKey] || [];
+        list.forEach((entry) => {
+          Object.entries(entry.assegnazione || {}).forEach(([opId, ore]) => {
+            sumByOp[opId] = (sumByOp[opId] || 0) + (Number(ore) || 0);
+          });
+        });
+      });
+      // Somma voci personali
+      Object.keys(proposed).forEach((opId) => {
+        const personal = operaioPersonalMock?.[opId]?.[dateKey] || [];
+        personal.forEach((p) => {
+          sumByOp[opId] = (sumByOp[opId] || 0) + (Number(p.ore) || 0);
+        });
+      });
+      // Aggiungi proposta corrente
+      Object.entries(proposed).forEach(([opId, ore]) => {
+        sumByOp[opId] = (sumByOp[opId] || 0) + (Number(ore) || 0);
+      });
+      const violator = Object.entries(sumByOp).find(([_, h]) => Number(h) > 8);
+      if (violator) return reject(new Error("Superato il limite di 8h considerando le voci personali. Ridurre le ore totali o riassegnare."));
+
+      grp.timesheet[dateKey].push({ commessa, oreTot: tot, assegnazione: proposed });
+      resolve({ ...grp });
+    }, 120);
+  });
+}
+
+// Sovrascrive le voci del gruppo per una data con nuove entries [{ commessa, oreTot }],
+// ricalcolando la distribuzione per i membri del gruppo.
+export function updateGroupDayEntries({ groupId, dateKey, entries }) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const grp = pmGroupsMock[groupId];
+      if (!grp) return reject(new Error("Gruppo non trovato"));
+      if (!grp.members || grp.members.length === 0) return reject(new Error("Il gruppo non ha membri"));
+      // Costruisci proposta "next" con riparto uniforme
+      const next = [];
+      for (const e of entries || []) {
+        const oreTot = Number(e.oreTot) || 0;
+        const perHead = Math.floor(oreTot / grp.members.length);
+        const remainder = oreTot % grp.members.length;
+        const assegnazione = {};
+        grp.members.forEach((opId, idx) => {
+          assegnazione[opId] = perHead + (idx < remainder ? 1 : 0);
+        });
+        next.push({ commessa: e.commessa, oreTot, assegnazione });
+      }
+
+      // Valida: nessun operaio deve superare 8h totali nella data (sommando tutti i gruppi)
+      const sumByOp = {};
+      // Somma ore da altri gruppi nella stessa data
+      Object.values(pmGroupsMock).forEach((g) => {
+        if (!g.members) return;
+        const list = g.timesheet?.[dateKey] || [];
+        // Per il gruppo corrente, usa ancora i vecchi dati per somma base (verrà sostituito)
+        if (g.id === groupId) return;
+        list.forEach((entry) => {
+          Object.entries(entry.assegnazione || {}).forEach(([opId, ore]) => {
+            sumByOp[opId] = (sumByOp[opId] || 0) + (Number(ore) || 0);
+          });
+        });
+      });
+      // Somma voci personali
+      grp.members.forEach((opId) => {
+        const personal = operaioPersonalMock?.[opId]?.[dateKey] || [];
+        personal.forEach((p) => {
+          sumByOp[opId] = (sumByOp[opId] || 0) + (Number(p.ore) || 0);
+        });
+      });
+      // Aggiungi proposta next per il gruppo corrente
+      next.forEach((entry) => {
+        Object.entries(entry.assegnazione || {}).forEach(([opId, ore]) => {
+          sumByOp[opId] = (sumByOp[opId] || 0) + (Number(ore) || 0);
+        });
+      });
+      // Verifica limite 8h
+      const violator = Object.entries(sumByOp).find(([_, h]) => Number(h) > 8);
+      if (violator) return reject(new Error("Superato il limite di 8h (considerando personale e altri gruppi). Ridurre le ore."));
+
+      // Applica
+      grp.timesheet[dateKey] = next;
+      resolve({ ...grp });
+    }, 120);
+  });
+}
+
+// Aggiorna le ore per commessa di un singolo operaio in una data, su tutte le squadre che lo includono.
+// entries: [{ commessa, ore }]
+export function updateOperaioDayAssignments({ opId, dateKey, entries }) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const wanted = new Map();
+        for (const e of entries || []) {
+          const ore = Number(e.ore) || 0;
+          if (e.commessa) wanted.set(String(e.commessa), ore);
+        }
+        if (wanted.size === 0) return resolve({ ok: true });
+
+        // Calcola somma finale proposta per l'operaio
+        let proposedTotal = 0;
+        Object.values(pmGroupsMock).forEach((grp) => {
+          if (!grp?.members?.includes(opId)) return;
+          const list = grp.timesheet?.[dateKey];
+          if (!Array.isArray(list)) return;
+          list.forEach((entry) => {
+            const base = Number(entry.assegnazione?.[opId] || 0);
+            const override = wanted.has(entry.commessa) ? Number(wanted.get(entry.commessa) || 0) : base;
+            proposedTotal += override;
+          });
+        });
+        // Somma anche voci personali (FERIE/MALATTIA/PERMESSO)
+        const personal = operaioPersonalMock?.[opId]?.[dateKey] || [];
+        personal.forEach((p) => { proposedTotal += Number(p.ore) || 0; });
+        if (proposedTotal > 8) return reject(new Error("Totale giornaliero > 8h per l'operaio. Ridurre le ore."));
+
+        // Applica modifiche
+        Object.values(pmGroupsMock).forEach((grp) => {
+          if (!grp?.members?.includes(opId)) return;
+          const list = grp.timesheet?.[dateKey];
+          if (!Array.isArray(list)) return;
+          list.forEach((entry) => {
+            if (!wanted.has(entry.commessa)) return;
+            if (!entry.assegnazione) entry.assegnazione = {};
+            entry.assegnazione[opId] = Number(wanted.get(entry.commessa) || 0);
+            entry.oreTot = Object.values(entry.assegnazione).reduce((s, v) => s + (Number(v) || 0), 0);
+          });
+        });
+        resolve({ ok: true });
+      } catch (e) {
+        reject(e);
+      }
+    }, 120);
+  });
+}
+
+// Aggiorna le voci personali (FERIE/MALATTIA/PERMESSO) per un operaio in una data
+// entries: [{ commessa: 'FERIE'|'MALATTIA'|'PERMESSO', ore }]
+export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const ALLOWED = new Set(["FERIE", "MALATTIA", "PERMESSO"]);
+        const sanitized = (entries || [])
+          .map((e) => ({ commessa: String(e.commessa || ""), ore: Number(e.ore) || 0 }))
+          .filter((e) => ALLOWED.has(e.commessa) && e.ore > 0);
+
+        // Calcola totale proposto: personale + ore dai gruppi correnti
+        let total = sanitized.reduce((s, e) => s + (Number(e.ore) || 0), 0);
+        Object.values(pmGroupsMock).forEach((grp) => {
+          if (!grp?.members?.includes(opId)) return;
+          const list = grp.timesheet?.[dateKey] || [];
+          list.forEach((entry) => { total += Number(entry.assegnazione?.[opId] || 0); });
+        });
+        if (total > 8) return reject(new Error("Totale giornaliero > 8h considerando anche le voci personali. Ridurre le ore."));
+
+        if (!operaioPersonalMock[opId]) operaioPersonalMock[opId] = {};
+        if (sanitized.length === 0) delete operaioPersonalMock[opId][dateKey];
+        else operaioPersonalMock[opId][dateKey] = sanitized;
+        resolve({ ok: true });
+      } catch (e) {
+        reject(e);
+      }
+    }, 120);
+  });
+}
+
+// Seed iniziale per PM Campo: crea alcune squadre e inserisce ore su alcune date
+(() => {
+  try {
+    if (Object.keys(pmGroupsMock).length > 0) return; // già popolato
+    const brtOps = OPERAI.filter((o) => o.azienda === "BRT").map((o) => o.id);
+    const inwaveOps = OPERAI.filter((o) => o.azienda === "INWAVE").map((o) => o.id);
+    const stepOps = OPERAI.filter((o) => o.azienda === "STEP").map((o) => o.id);
+
+    const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const twoDaysAgo = new Date(today); twoDaysAgo.setDate(today.getDate() - 2);
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const seedGroup = (id, name, members, azienda, entriesByDate) => {
+      pmGroupsMock[id] = { id, name, members: members.slice(0), azienda, timesheet: {} };
+      Object.entries(entriesByDate).forEach(([date, entries]) => {
+        const list = [];
+        for (const e of entries) {
+          // Se l'entry fornisce una assegnazione per-operaio, usala; altrimenti riparto uniforme
+          if (e.assegnazione) {
+            const assegnazione = { ...e.assegnazione };
+            const oreTot = Object.values(assegnazione).reduce((s, v) => s + (Number(v) || 0), 0);
+            list.push({ commessa: e.commessa, oreTot, assegnazione });
+          } else {
+            const oreTot = Number(e.oreTot) || 0;
+            const perHead = members.length > 0 ? Math.floor(oreTot / members.length) : 0;
+            const remainder = members.length > 0 ? oreTot % members.length : 0;
+            const assegnazione = {};
+            members.forEach((opId, idx) => {
+              assegnazione[opId] = perHead + (idx < remainder ? 1 : 0);
+            });
+            list.push({ commessa: e.commessa, oreTot, assegnazione });
+          }
+        }
+        pmGroupsMock[id].timesheet[date] = list;
+      });
+    };
+
+    // SEED voci personali per operai (fino ad oggi)
+    const seedPersonalForOperai = () => {
+      const year = today.getFullYear();
+      const start = new Date(year, 0, 1);
+      const end = new Date(today);
+      const ALLOWED = ["FERIE", "MALATTIA", "PERMESSO"];
+      OPERAI.forEach((op) => {
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const key = toKey(d);
+          if (isWeekend(d) || holidaySet.has(key)) continue;
+          // Probabilità
+          const roll = Math.random();
+          let entry = null;
+          if (roll < 0.025) entry = { commessa: "MALATTIA", ore: getRandomInt(6, 8) };
+          else if (roll < 0.055) entry = { commessa: "FERIE", ore: 8 };
+          else if (roll < 0.11) entry = { commessa: "PERMESSO", ore: getRandomInt(1, 4) };
+          if (entry) {
+            if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
+            operaioPersonalMock[op.id][key] = [entry];
+          }
+        }
+      });
+    };
+
+    // Helper per aggiungere voci giornaliere (tutti i feriali fino ad oggi) considerando le voci personali
+    const addDailyEntriesUntilToday = (members, rotateOffset = 0) => {
+      const entriesByDate = {};
+      const year = today.getFullYear();
+      const yearStart = new Date(year, 0, 1);
+      const endDate = new Date(today);
+      let dayIndex = 0;
+      for (let d = new Date(yearStart); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const key = toKey(d);
+        if (isWeekend(d) || holidaySet.has(key)) continue;
+        // Calcola ore disponibili per ogni membro tenendo conto delle voci personali
+        const assegnazione = {};
+        let oreTot = 0;
+        members.forEach((opId) => {
+          const personal = operaioPersonalMock?.[opId]?.[key] || [];
+          const personalH = personal.reduce((s, r) => s + (Number(r.ore) || 0), 0);
+          const avail = Math.max(0, 8 - personalH);
+          assegnazione[opId] = avail;
+          oreTot += avail;
+        });
+        if (oreTot <= 0) continue; // tutti occupati da personali
+        const commessa = COMMESSE[(dayIndex + rotateOffset) % COMMESSE.length];
+        entriesByDate[key] = [{ commessa, assegnazione }];
+        dayIndex++;
+      }
+      return entriesByDate;
+    };
+
+    const d1 = toKey(today);
+    const d0 = toKey(yesterday);
+  const dF = toKey(firstOfMonth);
+  const d2 = toKey(twoDaysAgo);
+
+    // BRT - Squadra Alfa (usa primi 2 BRT)
+    const g1Id = "grp-1";
+    const g1Members = brtOps.slice(0, 2);
+  // Prima genera personali
+  seedPersonalForOperai();
+
+  const g1YearEntries = addDailyEntriesUntilToday(g1Members, 0);
+    // aggiungi anche alcuni casi specifici già presenti
+    g1YearEntries[d1] = [{ commessa: "VS-25-01", oreTot: g1Members.length * 8 }];
+    g1YearEntries[d0] = [{ commessa: "VS-25-02", oreTot: g1Members.length * 5 }];
+    seedGroup(g1Id, "Squadra Alfa", g1Members, "BRT", g1YearEntries);
+
+    // INWAVE - Squadra Beta (due membri se disponibili)
+    const g2Id = "grp-2";
+    const g2Members = inwaveOps.slice(0, 2);
+  const g2YearEntries = addDailyEntriesUntilToday(g2Members, 1);
+    seedGroup(g2Id, "Squadra Beta", g2Members, "INWAVE", g2YearEntries);
+
+    // STEP - Squadra Gamma (due membri)
+    const g3Id = "grp-3";
+    const g3Members = stepOps.slice(0, 2);
+    if (g3Members.length > 0) {
+  const g3YearEntries = addDailyEntriesUntilToday(g3Members, 2);
+      seedGroup(g3Id, "Squadra Gamma", g3Members, "STEP", g3YearEntries);
+    }
+
+    // NUOVO GRUPPO: Squadra Delta (BRT) con altri 2 BRT (evita sovrapposizioni con Alfa se possibile)
+    const g4Id = "grp-4";
+    const g4Members = brtOps.slice(-2);
+    if (g4Members.length >= 2) {
+  const g4YearEntries = addDailyEntriesUntilToday(g4Members, 0);
+      seedGroup(g4Id, "Squadra Delta", g4Members, "BRT", g4YearEntries);
+    }
+
+    // Allinea il contatore ID gruppi al prossimo disponibile
+    nextGroupId = Math.max(nextGroupId, 5);
+  } catch (e) {
+    // ignora errori
+  }
+})();

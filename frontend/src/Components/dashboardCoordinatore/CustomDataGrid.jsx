@@ -3,7 +3,6 @@ import { Box, Chip, IconButton } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import CustomAvatarGroup from "../Avatar/CustomAvatarGroup";
-import CustomProgressBar from "../ProgressBar/CustomProgressBar";
 
 export default function ProjectTasksDataGrid({ tasks }) {
   const columns = [
@@ -40,8 +39,8 @@ export default function ProjectTasksDataGrid({ tasks }) {
     {
       field: "progress",
       headerName: "Progresso",
-      width: 200,
-      renderCell: (params) => <CustomProgressBar progress={params.value}/>,
+      width: 120,
+      renderCell: (params) => <Chip label={`${params.value}%`} size="small" />,
     },
     {
       field: "actions",

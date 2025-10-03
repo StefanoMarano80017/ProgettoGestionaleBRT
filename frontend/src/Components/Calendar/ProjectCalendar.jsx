@@ -1,7 +1,6 @@
 import * as React from "react";
-import { PickersDay } from "@mui/x-date-pickers";
+import { PickersDay, StaticDatePicker } from "@mui/x-date-pickers";
 import { isSameDay } from "date-fns";
-import CalendarWithSidePanel from "./CalendarWithSidePanel";
 import ProjectSidePanel from "./ProjectSidePanel";
 import { Badge, Box, Typography } from "@mui/material";
 
@@ -98,20 +97,20 @@ export default function ProjectCalendar({
   const selectedTasks = tasksMap[selectedKey] || null;
 
   return (
-    <CalendarWithSidePanel
-      selectedDate={selectedDate}
-      setSelectedDate={setSelectedDate}
-      currentMonth={currentMonth}
-      setCurrentMonth={setCurrentMonth}
-      renderDay={renderDay}
-      sidePanel={
-        <ProjectSidePanel
-          tasks={selectedTasks} // array di task per il giorno selezionato
-          employees={employees}
+    <Box sx={{ display: "flex", gap: 2, alignItems: "stretch" }}>
+      <Box sx={{ flex: calendarFlex }}>
+        <StaticDatePicker
+          displayStaticWrapperAs="desktop"
+          openTo="day"
+          value={selectedDate}
+          onChange={(d) => setSelectedDate(d)}
+          onMonthChange={(d) => setCurrentMonth(d)}
+          renderDay={renderDay}
         />
-      }
-      calendarFlex={calendarFlex}
-      sidePanelFlex={sidePanelFlex}
-    />
+      </Box>
+      <Box sx={{ flex: sidePanelFlex }}>
+        <ProjectSidePanel tasks={selectedTasks} employees={employees} />
+      </Box>
+    </Box>
   );
 }
