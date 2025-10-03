@@ -1,5 +1,6 @@
 package com.brt.TimesheetService.service;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.brt.TimesheetService.dto.TimesheetItemDTO;
 import com.brt.TimesheetService.exception.ResourceNotFoundException;
 import com.brt.TimesheetService.model.Commessa;
+import com.brt.TimesheetService.model.Employee;
 import com.brt.TimesheetService.model.TimesheetDay;
 import com.brt.TimesheetService.model.TimesheetItem;
 import com.brt.TimesheetService.repository.TimesheetItemRepository;
@@ -24,15 +26,60 @@ public class TimesheetItemService {
 
     private final TimesheetItemRepository timesheetItemRepository;
     private final CommessaService commessaService;
+    private final TimesheetUtils timesheetUtils;
 
-    public TimesheetItemService(TimesheetItemRepository timesheetItemRepository, CommessaService commessaService) {
+    public TimesheetItemService(TimesheetItemRepository timesheetItemRepository, CommessaService commessaService, TimesheetUtils timesheetUtils) {
         this.timesheetItemRepository = timesheetItemRepository;
         this.commessaService = commessaService;
+        this.timesheetUtils = timesheetUtils;
     }
 
     public TimesheetItem findById(Long id) {
-        return timesheetItemRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Item non trovato: " + id));
+        return timesheetItemRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Item non trovato: " + id));
+    }
+
+    // ===========================
+    // ITEM MANAGEMENT
+    // ===========================
+    public TimesheetItemDTO addItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
+        Employee employee = timesheetUtils.getEmployeeOrThrow(employeeId);
+        TimesheetDay day  = timesheetUtils.findTimesheetOrThrow(employee, date);
+        addItemMerge(day, dto);
+        timesheetUtils.updateStatusAndAbsence(day);
+        timesheetUtils.mapToDTOAndSave(day);
+        return timesheetUtils.mapEntityToDTO(day);
+    }
+
+    public TimesheetItemDTO updateItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
+        Employee employee = timesheetUtils.getEmployeeOrThrow(employeeId);
+        TimesheetDay day  = timesheetUtils.findTimesheetOrThrow(employee, date);
+        timesheetItemService.updateItem(dto);
+        timesheetUtils.updateStatusAndAbsence(day);
+        return timesheetItemService.mapEntitiesToDTOs(day.getItems()).stream()
+                .filter(i -> itemId.equals(i.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Item non trovato dopo update id: " + itemId));
+    }
+
+    public void deleteItem(Long employeeId, LocalDate date, Long itemId) {
+        verifyTimesheetExists(employeeId, date);
+        TimesheetDay day = getOrCreateTimesheet(employeeId, date);
+        timesheetItemService.deleteItem(itemId);
+        timesheetUtils.updateStatusAndAbsence(day);
+        saveAndLog(day, "Item eliminato e timesheet aggiornato");
+    }
+
+    private TimesheetDay getOrCreateTimesheet(Long employeeId, LocalDate date) {
+        Employee employee = timesheetUtils.getEmployeeOrThrow(employeeId);
+        return timesheetDayRepository.findByEmployeeAndDate(employee, date)
+                .orElse(TimesheetDay.builder().employee(employee).date(date).build());
+    }
+
+    private void verifyTimesheetExists(Long employeeId, LocalDate date) {
+        Employee employee = timesheetUtils.getEmployeeOrThrow(employeeId);
+        if (timesheetDayRepository.findByEmployeeAndDate(employee, date).isEmpty()) {
+            throw new ResourceNotFoundException("Timesheet non trovato per il giorno: " + date);
+        }
     }
 
     /**
@@ -40,7 +87,7 @@ public class TimesheetItemService {
      * somma le ore sullo stesso item (merge).
      */
     @Transactional
-    public TimesheetItem addItem(TimesheetDay day, TimesheetItemDTO dto) {
+    private TimesheetItem addItemMerge(TimesheetDay day, TimesheetItemDTO dto) {
         String code = dto.getCommessaCode();
         if (code != null) {
             TimesheetItem existing = day.getItems().stream()
@@ -69,24 +116,23 @@ public class TimesheetItemService {
     }
 
     @Transactional
-    public TimesheetItem updateItem(Long itemId, TimesheetItemDTO dto) {
-        TimesheetItem item = findById(itemId);
+    public TimesheetItem updateItem(TimesheetItemDTO dto) {
+        TimesheetItem item = findById(dto.getId());
         if (item == null) {
-            throw new ResourceNotFoundException("Item non trovato: " + itemId);
+            throw new ResourceNotFoundException("Item non trovato: " + dto.getId());
         }
 
-        if (dto.getCommessaCode() != null) {
-            Commessa commessa = commessaService.getCommessa(dto.getCommessaCode());
-            item.setCommessa(commessa);
-            item.setDescription(dto.getDescription());
-            item.setHours(dto.getHours());
-            TimesheetItem saved = timesheetItemRepository.save(item);
-            logger.info("Aggiornato item id={}, commessa={}, ore={}", saved.getId(),
-                        saved.getCommessa() != null ? saved.getCommessa().getCode() : null,
-                        saved.getHours());
-                            return saved;
+        if (dto.getCommessaCode() == null) {
+                    throw new IllegalArgumentException("Commessa code non trovata in item: " + dto);
         }
-        throw new IllegalArgumentException("Commessa code non trovata in item: " + dto);
+
+        Commessa commessa = commessaService.getCommessa(dto.getCommessaCode());
+        item.setCommessa(commessa);
+        item.setDescription(dto.getDescription());
+        item.setHours(dto.getHours());
+        TimesheetItem saved = timesheetItemRepository.save(item);
+        logger.info("Aggiornato item id={}, commessa={}, ore={}", saved.getId(), saved.getCommessa() != null ? saved.getCommessa().getCode() : null, saved.getHours());
+        return saved;
     }
 
     @Transactional
@@ -183,4 +229,5 @@ public class TimesheetItemService {
         // Default -> Double
         return value;
     }
+
 }

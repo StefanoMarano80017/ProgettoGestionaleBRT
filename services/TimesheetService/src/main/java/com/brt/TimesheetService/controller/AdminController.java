@@ -36,7 +36,7 @@ public class AdminController {
                                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
                                                              @RequestBody TimesheetDayDTO dto) {
         AbsenceType absenceType = dto.getAbsenceTypeEnum();
-        List<TimesheetDayDTO> created = timesheetDayService.createAbsenceTimesheets(employeeId, startDate, endDate, absenceType, true);
+        List<TimesheetDayDTO> created = timesheetDayService.createAbsenceTimesheets(employeeId, startDate, endDate, absenceType);
         return ResponseEntity.status(200).body(created);
     }
 
@@ -48,7 +48,7 @@ public class AdminController {
     public ResponseEntity<Void> setAbsence(@PathVariable Long employeeId,
                                            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                            @RequestBody  TimesheetDayDTO dto) {
-        timesheetDayService.createAbsenceTimesheet(employeeId, date, dto.getAbsenceTypeEnum(), true);
+        timesheetDayService.createAbsenceTimesheet(employeeId, date, dto.getAbsenceTypeEnum());
         return ResponseEntity.noContent().build();
     }
 

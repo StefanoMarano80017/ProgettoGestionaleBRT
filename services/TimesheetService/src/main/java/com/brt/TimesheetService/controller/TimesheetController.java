@@ -37,8 +37,8 @@ public class TimesheetController {
             @PathVariable Long employeeId,
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false)  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate  startDate,
+            @RequestParam(required = false)  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate  endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
@@ -76,12 +76,11 @@ public class TimesheetController {
         return ResponseEntity.status(201).body(saved);
     }
 
-    @PutMapping("/{date}/items/{itemId}")
+    @PutMapping("/{date}/items")
     public ResponseEntity<TimesheetItemDTO> updateItem(@PathVariable Long employeeId,
                                                        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-                                                       @PathVariable Long itemId,
-                                                       @RequestBody TimesheetItemDTO itemDTO) {
-        TimesheetItemDTO updated = timesheetDayService.updateItem(employeeId, date, itemId, itemDTO);
+                                                       @RequestBody TimesheetItemDTO itemDTO) {                                                           
+        TimesheetItemDTO updated = timesheetDayService.updateItem(employeeId, date, itemDTO);
         return ResponseEntity.ok(updated);
     }
 
