@@ -1,5 +1,5 @@
 import React from "react";
-import { authenticate } from "../mocks/UsersMock";
+import { authenticate } from "@mocks/UsersMock";
 
 const AuthContext = React.createContext(null);
 export const useAuth = () => React.useContext(AuthContext);

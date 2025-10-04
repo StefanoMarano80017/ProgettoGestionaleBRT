@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import TextFilter from "../../../Components/DataGridDashboard/Filters/TextFilter";
+import TextFilter from "@components/DataGridDashboard/Filters/TextFilter";
 import { Chip } from "@mui/material";
 
 export function useTextFilter(initialValue = "", placeholder) {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { DayStatus, getStatusIcon } from '../../../Components/Calendar/statusIcons.jsx';
+import { DayStatus, getStatusIcon } from '@calendar/statusIcons.jsx';
 import { useTheme } from '@mui/material/styles';
 import useDayStatusColor from './useDayStatusColor';
 

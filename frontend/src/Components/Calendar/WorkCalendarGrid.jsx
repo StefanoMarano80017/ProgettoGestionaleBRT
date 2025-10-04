@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { Box, IconButton, Typography, Tooltip } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import DayEntryTile from "./DayEntryTile";
+import DayEntryTile from "@components/Calendar/DayEntryTile";
 import { useCalendarMonthYear } from '@/Hooks/Timesheet/calendar';
 import useCalendarGridRows from '@/Hooks/Timesheet/calendar/useCalendarGridRows';
 
@@ -39,27 +39,27 @@ export default function WorkCalendarGrid({
   compact = false,
   onDayClick,        // (dateKey) => void
 }) {
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const { currentMonth, currentYear, shift } = useCalendarMonthYear(today);
   const { rows } = useCalendarGridRows({ data, year: currentYear, month: currentMonth, today });
 
-  const handlePrev = () => shift(-1);
-  const handleNext = () => shift(1);
+  const handlePrev = useCallback(() => shift(-1), [shift]);
+  const handleNext = useCallback(() => shift(1), [shift]);
 
   const width = compact ? 44 : 60;
   const height = compact ? 44 : 36; // ensure compact cells have at least 44px height for consistency
 
-  const daysInMonth = React.useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
-  const firstDow = React.useMemo(() => new Date(year, month, 1).getDay(), [year, month]); // 0=Dom
-  const startOffset = (firstDow + 6) % 7; // lun=0
+  const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
+  const firstDow = useMemo(() => new Date(year, month, 1).getDay(), [year, month]); // 0=Dom
+  const startOffset = useMemo(() => (firstDow + 6) % 7, [firstDow]); // lun=0
 
-  const headers = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+  const headers = useMemo(() => ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"], []);
 
   return (
     <Box sx={{ width: "100%" }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
         <IconButton onClick={handlePrev}><ArrowBackIosIcon /></IconButton>
-        <Typography variant="h6">{monthNames[currentMonth]} {currentYear}</Typography>
+  <Typography variant="h6">{monthNames[currentMonth]} {currentYear}</Typography>
         <IconButton onClick={handleNext}><ArrowForwardIosIcon /></IconButton>
       </Box>
 

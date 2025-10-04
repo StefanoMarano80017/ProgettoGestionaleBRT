@@ -1,46 +1,75 @@
-import React from "react";
-import { Box, Typography, Tooltip } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import { getTileSx } from "./utils/tileStyles";
-import { getStatusIcon } from "./statusIcons.jsx";
+import React, { useMemo, memo } from 'react';
+import PropTypes from 'prop-types';
+import { Box, Typography, Tooltip } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { getTileSx, isWeekend as utilIsWeekend } from './utils';
+import { getStatusIcon } from '@calendar/statusIcons.jsx';
+
+/**
+ * Resolve which icon element to render for the tile based on:
+ * - explicit custom icon (optionally recolored by status or inferred type)
+ * - status fallback via getStatusIcon
+ * Applies compact sizing when requested.
+ */
+function resolveTileIcon({ icon, status, theme, isCompact }) {
+  if (icon && React.isValidElement(icon)) {
+    let statusColor;
+    if (status === 'ferie') {
+      statusColor = theme.palette.customPink?.main || theme.palette.secondary.main;
+    } else if (status === 'malattia') {
+      statusColor = theme.palette.success.main;
+    }
+    if (!statusColor && icon.type) {
+      const typeName = icon.type.displayName || icon.type.name || String(icon.type);
+      if (typeName.includes('BeachAccess')) {
+        statusColor = theme.palette.customPink?.main || theme.palette.secondary.main;
+      } else if (typeName.includes('LocalHospital')) {
+        statusColor = theme.palette.success.main;
+      }
+    }
+    if (statusColor || isCompact) {
+      const existingSx = icon.props?.sx || {};
+      const mergedSx = { ...existingSx, ...(statusColor ? { color: statusColor } : {}), ...(isCompact ? { fontSize: 14 } : {}) };
+      return React.cloneElement(icon, { sx: mergedSx });
+    }
+    return icon;
+  }
+  const si = getStatusIcon(theme, status);
+  if (!si) return null;
+  if (isCompact && React.isValidElement(si)) {
+    const existingSx = si.props?.sx || {};
+    return React.cloneElement(si, { sx: { ...existingSx, fontSize: 14 } });
+  }
+  return si;
+}
 
 /**
  * DayEntryTile
  * Presentational tile for a single day inside the calendar grid.
  * Handles selection outline, background color logic, icons, hours badge, and optional tooltip.
  */
-export default function DayEntryTile({
+export function DayEntryTile({
   dateStr,
   day,
-  // State flags
   isSelected = false,
   isHoliday = false,
   isOutOfMonth = false,
-  // Visual data
-  bgcolor = "transparent",
+  bgcolor = 'transparent',
   totalHours = 0,
-  // Decorations
   icon = null,
   iconTopRight = false,
-  status = undefined, // 'admin-warning' | 'holiday' | 'ferie' | 'malattia' | 'permesso' | 'complete' | 'partial' | 'future'
-  // UI
+  status = undefined,
   showHours = false,
   showDayNumber = true,
   tooltipContent,
-  variant = "default", // 'default' | 'wide'
+  variant = 'default', // 'default' | 'wide' | 'compact'
   onClick,
 }) {
-  const isWide = variant === "wide";
-  const isCompact = variant === "compact";
+  const isWide = variant === 'wide';
+  const isCompact = variant === 'compact';
   const theme = useTheme();
-  // determine weekend from dateStr (expects ISO yyyy-mm-dd or valid Date string)
-  const isWeekend = React.useMemo(() => {
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return false;
-    const wd = d.getDay();
-    return wd === 0 || wd === 6;
-  }, [dateStr]);
+  const isWeekend = useMemo(() => utilIsWeekend(dateStr), [dateStr]);
+  const resolvedIcon = useMemo(() => resolveTileIcon({ icon, status, theme, isCompact }), [icon, status, theme, isCompact]);
 
   const tile = (
     <Box
@@ -83,7 +112,7 @@ export default function DayEntryTile({
       </Typography>
 
       {/* Main icon (centered for default, top-right for compact). If not provided, infer from status */}
-      {(icon || status) && (
+      {(resolvedIcon) && (
         <Box
           sx={{
             position: "absolute",
@@ -95,51 +124,7 @@ export default function DayEntryTile({
             lineHeight: 0,
           }}
         >
-          {(() => {
-            // If a custom icon element was provided, color it based on status for consistency
-            if (icon && React.isValidElement(icon)) {
-              // Determine color by explicit status first
-              let statusColor =
-                status === 'ferie'
-                  ? (theme.palette.customPink?.main || theme.palette.secondary.main)
-                  : status === 'malattia'
-                  ? theme.palette.success.main
-                  : undefined;
-
-              // If no status provided, try to infer from the icon component type (e.g. BeachAccess, LocalHospital)
-              if (!statusColor && icon.type) {
-                const typeName = icon.type.displayName || icon.type.name || String(icon.type);
-                if (typeName.includes('BeachAccess')) {
-                  statusColor = theme.palette.customPink?.main || theme.palette.secondary.main;
-                } else if (typeName.includes('LocalHospital')) {
-                  statusColor = theme.palette.success.main;
-                }
-              }
-
-              if (statusColor) {
-                // merge existing sx if any and apply compact font size
-                const existingSx = icon.props?.sx || {};
-                const mergedSx = { ...existingSx, color: statusColor, ...(isCompact ? { fontSize: 14 } : {}) };
-                return React.cloneElement(icon, { sx: mergedSx });
-              }
-              // If no explicit statusColor, still apply compact sizing when requested
-              if (isCompact) {
-                const existingSx = icon.props?.sx || {};
-                return React.cloneElement(icon, { sx: { ...existingSx, fontSize: 14 } });
-              }
-              return icon;
-            }
-
-            // Fallback to shared status icon (already themed)
-            const si = getStatusIcon(theme, status);
-            if (!si) return null;
-            // enforce compact sizing for compact variant
-            if (isCompact && React.isValidElement(si)) {
-              const existingSx = si.props?.sx || {};
-              return React.cloneElement(si, { sx: { ...existingSx, fontSize: 14 } });
-            }
-            return si;
-          })()}
+          {resolvedIcon}
         </Box>
       )}
       {/* (dot indicator removed) */}
@@ -154,3 +139,25 @@ export default function DayEntryTile({
     tile
   );
 }
+
+DayEntryTile.displayName = 'DayEntryTile';
+
+DayEntryTile.propTypes = {
+  dateStr: PropTypes.string.isRequired,
+  day: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  isSelected: PropTypes.bool,
+  isHoliday: PropTypes.bool,
+  isOutOfMonth: PropTypes.bool,
+  bgcolor: PropTypes.string,
+  totalHours: PropTypes.number,
+  icon: PropTypes.node,
+  iconTopRight: PropTypes.bool,
+  status: PropTypes.string,
+  showHours: PropTypes.bool,
+  showDayNumber: PropTypes.bool,
+  tooltipContent: PropTypes.node,
+  variant: PropTypes.oneOf(['default', 'wide', 'compact']),
+  onClick: PropTypes.func,
+};
+
+export default memo(DayEntryTile);

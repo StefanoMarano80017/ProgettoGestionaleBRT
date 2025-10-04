@@ -1,10 +1,10 @@
 import React from "react";
-import { useAuth } from "../../Layouts/AuthContext";
-import { ROLES } from "../../mocks/UsersMock";
-import DipendenteTimesheet from "./DipendenteTimesheet";
-import DashboardAmministrazioneTimesheet from "./DashboardAmministrazioneTimesheet";
-import PMCampoTimesheet from "./PMCampoTimesheet";
-import Coordinatore from "./CoordinatoreTimesheet";
+import { useAuth } from "@layouts/AuthContext";
+import { ROLES } from "@mocks/UsersMock";
+import DipendenteTimesheet from "@pages/Timesheet/DipendenteTimesheet";
+import DashboardAmministrazioneTimesheet from "@pages/Timesheet/DashboardAmministrazioneTimesheet";
+import PMCampoTimesheet from "@pages/Timesheet/PMCampoTimesheet";
+import Coordinatore from "@pages/Timesheet/CoordinatoreTimesheet";
 
 export default function TimesheetRouter() {
   const { roles } = useAuth();

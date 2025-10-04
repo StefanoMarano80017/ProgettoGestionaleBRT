@@ -6,7 +6,7 @@ import {
   createTheme,
   useMediaQuery,
 } from "@mui/material";
-import appTheme from "../Theme/MainTheme";
+import appTheme from "@theme/MainTheme";
 
 const ThemeCtx = React.createContext(null);
 export const useThemeContext = () => React.useContext(ThemeCtx);

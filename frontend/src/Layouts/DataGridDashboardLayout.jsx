@@ -1,7 +1,7 @@
 import React from "react";
 import { Box }          from "@mui/material";
-import FiltersBar       from "../Components/DataGridDashboard/FiltersBar"
-import NavigationBar    from "../Components/DataGridDashboard/NavigationBar";
+import FiltersBar       from "@components/DataGridDashboard/FiltersBar"
+import NavigationBar    from "@components/DataGridDashboard/NavigationBar";
 
 export default function DataGridDashboardLayout({
   tabIndex,

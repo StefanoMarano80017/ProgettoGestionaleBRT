@@ -1,10 +1,10 @@
-import React from "react";
-import { Box, Typography } from "@mui/material";
-import DayEntryTile from "./DayEntryTile";
-import useEmployeeMonthGridRows from '@/Hooks/Timesheet/useEmployeeMonthGridRows';
+import React, { useMemo, useCallback } from 'react';
+import { Box, Typography } from '@mui/material';
+import DayEntryTile from './DayEntryTile';
+import useEmployeeMonthGridRows from '@hooks/Timesheet/useEmployeeMonthGridRows';
 
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
-const GAP = 4; // px, come WorkCalendarGrid (gap: 0.5)
+const GAP = 4; // px, like WorkCalendarGrid (gap: 0.5)
 
 export default function EmployeeMonthGrid({
   year,
@@ -24,7 +24,82 @@ export default function EmployeeMonthGrid({
   sx = {},
 }) {
   const { daysInMonth, visualRows } = useEmployeeMonthGridRows({ rows, tsMap, year, month });
-  const gridTemplateColumns = React.useMemo(() => `${dipWidth}px ${azWidth}px ${Array.from({ length: daysInMonth }).map(() => `${dayWidth}px`).join(' ')}`,[dipWidth, azWidth, dayWidth, daysInMonth]);
+  const gridTemplateColumns = useMemo(
+    () => `${dipWidth}px ${azWidth}px ${Array.from({ length: daysInMonth }).map(() => `${dayWidth}px`).join(' ')}`,
+    [dipWidth, azWidth, dayWidth, daysInMonth]
+  );
+
+  const leftCellSx = useMemo(() => ({
+    position: 'sticky', left: 0, zIndex: 3, width: dipWidth, bgcolor: 'background.paper', display: 'flex', alignItems: 'center', fontWeight: 600, pl: 1,
+  }), [dipWidth]);
+
+  const aziendaCellSx = useMemo(() => ({
+    position: 'sticky', left: dipWidth + GAP, zIndex: 3, width: azWidth, bgcolor: 'background.paper', display: 'flex', alignItems: 'center', fontWeight: 600, pl: 1,
+  }), [dipWidth, azWidth]);
+
+  /**
+   * Precompute header day numbers for the month to avoid recreating arrays on each render.
+   */
+  const headerDays = useMemo(() => Array.from({ length: daysInMonth }).map((_, i) => i + 1), [daysInMonth]);
+
+  /**
+   * A memoized row renderer to avoid recreating inline functions and improve perf when the parent re-renders.
+   */
+  const EmployeeRow = React.memo(function EmployeeRow({ row }) {
+    const variant = dayHeight < 44 ? 'compact' : 'default';
+    const effectiveDayHeight = variant === 'compact' ? 44 : dayHeight;
+
+    const handleEmployeeClick = useCallback(() => {
+      if (onEmployeeClick) onEmployeeClick(row);
+    }, [onEmployeeClick, row]);
+
+    const onDayClickForRow = useCallback((dateStr) => {
+      if (onDayClick) onDayClick(row, dateStr);
+    }, [onDayClick, row]);
+
+    return (
+      <Box
+        key={row.id}
+        sx={{
+          display: 'grid',
+          gridTemplateColumns,
+          alignItems: 'center',
+          columnGap: `${GAP}px`,
+          rowGap: `${GAP}px`,
+          mb: 0.75,
+        }}
+      >
+        <Box sx={{ ...leftCellSx, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1, py: 0.75, fontSize: 14, fontWeight: 500, cursor: onEmployeeClick ? 'pointer' : 'default', '&:hover': onEmployeeClick ? { backgroundColor: 'action.hover' } : {} }} title={row.dipendente} onClick={onEmployeeClick ? handleEmployeeClick : undefined}>
+          {row.dipendente}
+        </Box>
+        <Box sx={{ ...aziendaCellSx, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1, py: 0.75, fontSize: 13, color: 'text.secondary' }}>
+          {row.azienda || '—'}
+        </Box>
+
+        {row.cells.map((cell) => {
+          const isSelected = selectedDate === cell.dateStr && selectedEmpId && String(selectedEmpId) === String(row.id);
+          // pass the raw tooltip string; DayEntryTile can render it suitably
+          return (
+            <Box key={`c-${row.id}-${cell.dateStr}`} sx={{ height: effectiveDayHeight }}>
+              <DayEntryTile
+                dateStr={cell.dateStr}
+                day={cell.day}
+                isSelected={isSelected}
+                status={cell.status}
+                variant={variant}
+                iconTopRight={false}
+                showHours={cell.totalHours > 0}
+                totalHours={cell.totalHours}
+                onClick={onDayClick ? () => onDayClickForRow(cell.dateStr) : undefined}
+                tooltipContent={cell.tooltipContent}
+                showDayNumber={true}
+              />
+            </Box>
+          );
+        })}
+      </Box>
+    );
+  });
 
   return (
     <Box
@@ -123,50 +198,11 @@ export default function EmployeeMonthGrid({
             }}
           >
             {/* Celle sticky a sinistra */}
-            <Box
-              sx={{
-                position: "sticky",
-                left: 0,
-                zIndex: 1,
-                width: dipWidth,
-                bgcolor: "customBackground.main",
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-                px: 1,
-                py: 0.75,
-                display: "flex",
-                alignItems: "center",
-                overflow: "hidden",
-                whiteSpace: "nowrap",
-                textOverflow: "ellipsis",
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: onEmployeeClick ? "pointer" : "default",
-                '&:hover': onEmployeeClick ? { backgroundColor: 'action.hover' } : {},
-              }}
-              title={row.dipendente}
-              onClick={onEmployeeClick ? () => onEmployeeClick(row) : undefined}
-            >
+            <Box sx={{ ...leftCellSx, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1, py: 0.75, fontSize: 14, fontWeight: 500, cursor: onEmployeeClick ? 'pointer' : 'default', '&:hover': onEmployeeClick ? { backgroundColor: 'action.hover' } : {} }} title={row.dipendente} onClick={onEmployeeClick ? () => onEmployeeClick(row) : undefined}>
               {row.dipendente}
             </Box>
             <Box
-              sx={{
-                position: "sticky",
-                left: dipWidth + GAP,
-                zIndex: 1,
-                width: azWidth,
-                bgcolor: "customBackground.main",
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-                px: 1,
-                py: 0.75,
-                display: "flex",
-                alignItems: "center",
-                fontSize: 13,
-                color: "text.secondary",
-              }}
+              sx={{ ...aziendaCellSx, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1, py: 0.75, fontSize: 13, color: 'text.secondary' }}
             >
               {row.azienda || "—"}
             </Box>

@@ -1,15 +1,29 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
-import DayEntryTile from './DayEntryTile';
-// Uses getDayStatus -> status
-import { getDayStatus } from '@/Hooks/Timesheet/calendar/useDayStatus.js';
-import MonthSelector from './MonthSelector';
-import TileLegend from './TileLegend';
-import { useCalendarMonthYear, useItalianHolidays, useCalendarDays } from '@/Hooks/Timesheet/calendar';
+import DayEntryTile from '@components/Calendar/DayEntryTile';
+import MonthSelector from '@components/Calendar/MonthSelector';
+import TileLegend from '@components/Calendar/TileLegend';
+import { useCalendarMonthYear, useItalianHolidays, useCalendarDays } from '@hooks/Timesheet/calendar';
+import { computeDayStatus } from '@components/Calendar/utils';
 
-// Nomi brevi dei giorni
-const weekDays = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
+const WEEK_DAYS = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
 
+/**
+ * WorkCalendar
+ * High-level month view calendar rendering 6 weeks worth of day tiles.
+ *
+ * Props:
+ * - data: object keyed by dateStr -> array of records
+ * - selectedDay: ISO date string currently selected
+ * - onDaySelect: (dateStr) => void
+ * - renderDayTooltip?: (dateStr, context) => ReactNode (lazy tooltip content)
+ * - fixedDayWidth?: boolean force fixed px width columns
+ * - gap?: grid gap
+ * - distributeGaps?: spread columns across width removing internal gaps
+ * - variant?: 'default' | 'wide' | 'compact'
+ * - selectorVariant?: forward to MonthSelector
+ * - selectorLabels?: label density for MonthSelector
+ */
 export default function WorkCalendar({
   data = {},
   selectedDay,
@@ -22,19 +36,10 @@ export default function WorkCalendar({
   selectorVariant = 'windowed',
   selectorLabels = 'short'
 }) {
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const { currentMonth, currentYear, setMonthYear } = useCalendarMonthYear(today);
   const holidaySet = useItalianHolidays(currentYear);
   const { days } = useCalendarDays({ data, currentMonth, currentYear, holidaySet });
-
-  const getDayInfo = (dayData, dayOfWeek, segnalazione, dateStr, isHoliday) => {
-    const totalHours = dayData?.reduce((sum, rec) => sum + (Number(rec.ore) || 0), 0) || 0;
-    const { status } = getDayStatus(dayData, segnalazione, dateStr, today);
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const showHours = ['permesso','complete','partial'].includes(status) || (isWeekend && totalHours > 0 && !isHoliday);
-    const iconTopRight = ['permesso','complete','partial'].includes(status);
-    return { status, showHours, iconTopRight, totalHours };
-  };
 
   // Controls: small arrows + 5 month buttons (current centered)
   return (
@@ -59,7 +64,7 @@ export default function WorkCalendar({
           mb: 1,
         }}
       >
-        {weekDays.map((wd) => (
+        {WEEK_DAYS.map((wd) => (
           <Box key={wd} sx={{ textAlign: "center" }}>
             <Typography variant="caption">{wd}</Typography>
           </Box>
@@ -83,10 +88,17 @@ export default function WorkCalendar({
         >
         {days.map((item, index) => {
           if (!item) return <Box key={`empty-${index}`} sx={{ borderRadius: 1 }} />;
-
           const { day, dateStr, dayData, dayOfWeek, segnalazione, isHoliday } = item;
           const isSelected = selectedDay === dateStr;
-          const { showHours, iconTopRight, status, totalHours } = getDayInfo(dayData, dayOfWeek, segnalazione, dateStr, isHoliday);
+          const totalHours = dayData?.reduce((s, r) => s + (Number(r?.ore) || 0), 0) || 0;
+          const { status, showHours, iconTopRight } = computeDayStatus({
+            dayData,
+            dayOfWeek,
+            segnalazione,
+            dateStr,
+            isHoliday,
+            today,
+          });
           const isOutOfMonth = false; // currently not rendering other-month days; keep API ready
 
           const tooltipContent = renderDayTooltip?.(dateStr, { dayData, dayOfWeek, isHoliday, segnalazione, totalHours });
@@ -105,7 +117,7 @@ export default function WorkCalendar({
               tooltipContent={tooltipContent}
               variant={variant}
               isHoliday={isHoliday}
-              /* isOutOfMonth intentionally omitted to allow DayEntryTile to use its default */
+              // isOutOfMonth intentionally omitted to allow DayEntryTile default handling
             />
           );
         })}

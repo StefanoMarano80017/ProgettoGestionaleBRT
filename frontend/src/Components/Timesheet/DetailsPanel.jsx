@@ -2,8 +2,8 @@ import React from "react";
 import { Box, Stack, Typography, Paper, Chip, Divider, Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import EntryListPanel from "../Entries/EntryListPanel";
-import EditEntryDialog from "./EditEntryDialog";
+import EntryListPanel from "@components/Entries/EntryListPanel";
+import EditEntryDialog from "@components/Timesheet/EditEntryDialog";
 import SendIcon from '@mui/icons-material/Send';
 
 export default function DetailsPanel({
@@ -21,6 +21,7 @@ export default function DetailsPanel({
   onDeleteEntry,
   // optional: commesse available for add dialog (e.g., distinctCommesse from parent)
   commesse = [],
+  externalEditing = false, // se true disabilita il dialog interno per evitare doppio controllo
 }) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [editItem, setEditItem] = React.useState(null);
@@ -88,8 +89,19 @@ export default function DetailsPanel({
                 items={dayRecords}
                 actions={(it) => (
                   <>
-                    <IconButton size="small" onClick={() => handleOpenEdit(it)}><EditIcon fontSize="small" /></IconButton>
-                    <IconButton size="small" color="error" onClick={() => onDeleteEntry && onDeleteEntry(it)}><DeleteIcon fontSize="small" /></IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => (externalEditing ? (onEditEntry && onEditEntry(it)) : handleOpenEdit(it))}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => (externalEditing ? (onDeleteEntry && onDeleteEntry(it)) : (onDeleteEntry && onDeleteEntry(it)))}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
                   </>
                 )}
               />
@@ -99,7 +111,7 @@ export default function DetailsPanel({
                 <Button
                   size="small"
                   variant="outlined"
-                  onClick={() => { if (onEditEntry) onEditEntry({ __adminAdd: true }); }}
+                  onClick={() => { if (onEditEntry) onEditEntry({ __adminAdd: true }); else if (!externalEditing) { setEditItem(null); setEditMode('add'); setEditOpen(true); } }}
                   disabled={!selEmp || !selDate}
                 >
                   Aggiungi voce
@@ -140,16 +152,29 @@ export default function DetailsPanel({
           </Stack>
         </Box>
       )}
-      <EditEntryDialog
-        open={editOpen}
-        mode={editMode}
-        item={editItem}
-        commesse={commesse}
-        maxOre={8}
-        onClose={() => setEditOpen(false)}
-        onSave={handleSaveEdit}
-        onDelete={handleDelete}
-      />
+      {!externalEditing && (
+        <EditEntryDialog
+          open={editOpen}
+          mode={editMode}
+          item={editItem}
+          commesse={commesse}
+          maxOre={8}
+          dailyLimit={8}
+          dayUsed={(function(){
+            const all = dayRecords || [];
+            const current = editItem;
+            return all.reduce((acc, r, idx) => {
+              // exclude current editing item by reference or id
+              if (current && r === current) return acc;
+              if (current && r.id && current.id && r.id === current.id) return acc;
+              if (current && !r.id && !current.id && r.commessa === current.commessa && Number(r.ore) === Number(current.ore) && (r.descrizione || '') === (current.descrizione || '')) return acc;
+              return acc + (Number(r.ore) || 0);
+            }, 0);
+          })()}
+          onClose={() => setEditOpen(false)}
+          onSave={handleSaveEdit}
+        />
+      )}
     </Paper>
   );
 }

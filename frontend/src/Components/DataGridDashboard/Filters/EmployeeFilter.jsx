@@ -12,9 +12,9 @@ import {
   Tooltip,
   OutlinedInput,
 } from "@mui/material";
-import { AvatarInitials } from "../../Avatar/AvatarInitials";
+import { AvatarInitials } from "@components/Avatar/AvatarInitials";
 import { JoinLeft, JoinInner, Search } from "@mui/icons-material";
-import ColorDot from "../ColorDot";
+import ColorDot from "@components/DataGridDashboard/ColorDot";
 
 const EmployeeFilter = ({
   employees,

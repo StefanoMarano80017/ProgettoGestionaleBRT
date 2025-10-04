@@ -3,7 +3,6 @@ import React from "react";
 import {
   Box,
   Stack,
-  Typography,
   Select,
   MenuItem,
   FormControl,
@@ -26,44 +25,139 @@ import {
   useSelection,
   useTimesheetFilters,
 } from '@/Hooks/Timesheet';
-import EmployeeMonthGrid from "../../Components/Calendar/EmployeeMonthGrid";
-import TileLegend from "../../Components/Calendar/TileLegend";
-import FiltersBar from "../../components/Timesheet/FiltersBar";
-import DetailsPanel from "../../components/Timesheet/DetailsPanel";
-import SegnalazioneDialog from "../../components/Timesheet/SegnalazioneDialog";
-import EditEntryDialog from "../../components/Timesheet/EditEntryDialog";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import EmployeeMonthGrid from "@components/Calendar/EmployeeMonthGrid";
+import TileLegend from "@components/Calendar/TileLegend";
+import FiltersBar from "@components/Timesheet/FiltersBar";
+import DetailsPanel from "@components/Timesheet/DetailsPanel";
+import SegnalazioneDialog from "@components/Timesheet/SegnalazioneDialog";
+import EditEntryDialog from "@components/Timesheet/EditEntryDialog";
+import ConfirmDialog from "@components/ConfirmDialog";
 
 const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 
+// Helper: sum of hours for the day excluding the currently edited entry
+function computeDayUsed(allEntries = [], currentEntry = null) {
+  if (!Array.isArray(allEntries) || allEntries.length === 0) return 0;
+  return allEntries.reduce((acc, r) => {
+    if (!r) return acc;
+    if (currentEntry) {
+      if (r === currentEntry) return acc; // same reference
+      if (r.id && currentEntry.id && r.id === currentEntry.id) return acc;
+      if (!r.id && !currentEntry.id && r.commessa === currentEntry.commessa && r.ore === currentEntry.ore && r.descrizione === currentEntry.descrizione) return acc;
+    }
+    return acc + (Number(r.ore) || 0);
+  }, 0);
+}
+
 function InnerDashboard() {
-  const { month, year, setMonthYear, employees, dataMap: tsMap, setDataMap } = useTimesheetContext();
+  const { month, year, setMonthYear, employees, dataMap: tsMap, loading: dataLoading, error: dataError } = useTimesheetContext();
   const today = new Date();
-  const setYear = (y) => setMonthYear(month, y);
-  const setMonth = (m) => setMonthYear(m, year);
+  const setYear = React.useCallback((y) => setMonthYear(month, y), [month, setMonthYear]);
+  const setMonth = React.useCallback((m) => setMonthYear(m, year), [year, setMonthYear]);
   const filters = useTimesheetFilters({ tsMap, year, month });
   const { selEmp, selDate, setSelEmp, setSelDate } = useSelection();
   const details = useDayAndMonthDetails({ tsMap, year, month });
+
+  // rows: filtered set of employees
   const rows = React.useMemo(() => filters.applyFilters(employees), [filters, employees]);
-  const aggregates = useTimesheetAggregates({ dataMap: Object.fromEntries(rows.map(r => [r.id, tsMap[r.id]])), year, month, options: { includeGlobalCommessa: true } });
+
+  // filteredDataMap: keeps only the rows currently visible (stable by id)
+  const filteredDataMap = React.useMemo(() => {
+    const entries = rows.map((r) => [r.id, tsMap[r.id]]);
+    return Object.fromEntries(entries);
+  }, [rows, tsMap]);
+
+  const aggregates = useTimesheetAggregates({ dataMap: filteredDataMap, year, month, options: { includeGlobalCommessa: true } });
   const seg = useSegnalazione({ selEmp, selDate });
-  // Editor unified (adapts onSave by writing back into tsMap)
-  const entryEditing = React.useMemo(() => ({
-    openAdd: () => {}, // left as TODO: adapt legacy dialog flow
-  }), []);
-  // Deriva elenco commesse distinte presenti nel mese filtrato (escludendo voci personali)
+
+  // distinctCommesse derived from filtered data for the selected employee
   const distinctCommesse = React.useMemo(() => {
     if (!selEmp) return [];
     const empTs = tsMap[selEmp.id] || {};
     const set = new Set();
     Object.entries(empTs).forEach(([k, list]) => {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return; // skip segnalazioni keys
-      (list || []).forEach(rec => {
+      if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(k)) return;
+      (list || []).forEach((rec) => {
         if (rec && rec.commessa && !['FERIE','MALATTIA','PERMESSO'].includes(rec.commessa)) set.add(rec.commessa);
       });
     });
     return Array.from(set).sort();
   }, [selEmp, tsMap]);
+
+  // split current day records into work vs personal
+  const workEntries = React.useMemo(() => (details.dayRecords || []).filter((r) => !['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa))), [details.dayRecords]);
+  const personalEntries = React.useMemo(() => (details.dayRecords || []).filter((r) => ['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa))), [details.dayRecords]);
+
+  // Editor - useTimesheetEntryEditor provides add/update/remove and a save method
+  const editor = useTimesheetEntryEditor({
+    entries: workEntries,
+    personalEntries,
+    commesse: distinctCommesse,
+    onSave: ({ workEntries: nextWork, personalEntries: nextPers }) => {
+      const merged = [...nextWork, ...nextPers];
+      details.setDayRecords(merged);
+    },
+  });
+
+  // Dialog state
+  const [dialog, setDialog] = React.useState({ open: false, mode: 'add', index: null, current: null });
+  const openAdd = React.useCallback(() => setDialog({ open: true, mode: 'add', index: null, current: { commessa: distinctCommesse[0]||'', ore:1, descrizione:'' } }), [distinctCommesse]);
+  const openEdit = React.useCallback((entry) => setDialog({ open: true, mode: 'edit', index: (workEntries||[]).indexOf(entry), current: { ...entry } }), [workEntries]);
+  const closeDialog = React.useCallback(() => setDialog((d) => ({ ...d, open: false })), []);
+
+  // Commit (add or update) and persist via editor.save()
+  const commit = React.useCallback(async (entry) => {
+    if (!entry) { closeDialog(); return; }
+    try {
+      if (dialog.mode === 'add') {
+        editor.addRow({ commessa: entry.commessa, ore: entry.ore, descrizione: entry.descrizione });
+      } else if (dialog.index >= 0) {
+        editor.updateRow(dialog.index, { commessa: entry.commessa, ore: entry.ore, descrizione: entry.descrizione });
+      }
+      // save may be sync or return a promise; await to keep flow consistent
+      await (editor.save ? editor.save() : Promise.resolve());
+    } catch (err) {
+      // keep UX consistent: close the dialog but rethrow/log if necessary in future
+      // console.error('Failed to save editor changes', err);
+    } finally {
+      closeDialog();
+    }
+  }, [dialog, editor, closeDialog]);
+
+  // remove an edited entry
+  const removeCurrent = React.useCallback(async () => {
+    if (dialog.mode === 'edit' && dialog.index >= 0) {
+      editor.removeRow(dialog.index);
+      await (editor.save ? editor.save() : Promise.resolve());
+    }
+    closeDialog();
+  }, [dialog, editor, closeDialog]);
+
+  // Delete flow: confirm dialog
+  const [confirmDel, setConfirmDel] = React.useState({ open: false, entry: null });
+  const confirmDelete = React.useCallback((entry) => setConfirmDel({ open: true, entry }), []);
+  const performDelete = React.useCallback(async () => {
+    if (!confirmDel.entry) { setConfirmDel({ open:false, entry:null }); return; }
+    const idx = workEntries.indexOf(confirmDel.entry);
+    if (idx >= 0) {
+      editor.removeRow(idx);
+      await (editor.save ? editor.save() : Promise.resolve());
+    }
+    setConfirmDel({ open:false, entry:null });
+    if (dialog.open) closeDialog();
+  }, [confirmDel, workEntries, editor, dialog.open, closeDialog]);
+
+  const entryEditing = React.useMemo(() => ({
+    openAdd,
+    openEdit,
+    confirmDelete,
+    editDialog: { open: dialog.open, mode: dialog.mode, item: dialog.current },
+    deleteDialog: { open: confirmDel.open },
+    closeEdit: closeDialog,
+    saveEdited: commit,
+    doDelete: removeCurrent,
+    setConfirmOpen: (v) => setConfirmDel((s) => ({ ...s, open: v })),
+  }), [openAdd, openEdit, confirmDelete, dialog, confirmDel, closeDialog, commit, removeCurrent]);
 
   const handleDayClick = React.useCallback(async (empRow, dateKey) => {
     setSelEmp(empRow);
@@ -72,11 +166,9 @@ function InnerDashboard() {
   }, [setSelEmp, setSelDate, details]);
 
   const handleEmployeeClick = React.useCallback(async (empRow) => {
-    // Se cambio dipendente, mantengo la stessa data se già selezionata (per confronto rapido)
     const prevDate = selDate;
     setSelEmp(empRow);
     if (prevDate) {
-      // tenta di caricare direttamente il giorno stesso se esiste nei dati del nuovo dipendente
       await details.loadFor(empRow, prevDate);
     } else {
       details.setDayRecords([]);
@@ -140,9 +232,9 @@ function InnerDashboard() {
       </Paper>
 
       {/* Calendar DataGrid */}
-      {error && (
+      {dataError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+          {dataError.toString?.() || dataError}
         </Alert>
       )}
       <Paper sx={{ p: 1, boxShadow: 8, borderRadius: 2, bgcolor: "customBackground.main" }}>
@@ -181,8 +273,9 @@ function InnerDashboard() {
             entryEditing.openEdit(arg);
           }
         }}
-        onDeleteEntry={entryEditing.confirmDelete}
+  onDeleteEntry={entryEditing.confirmDelete}
         commesse={distinctCommesse}
+        externalEditing={true}
       />
       <SegnalazioneDialog
         open={seg.sigOpen}
@@ -192,21 +285,25 @@ function InnerDashboard() {
         onSend={seg.send}
         sendingOk={seg.sendingOk}
       />
-      <EditEntryDialog
-        open={entryEditing.editDialog.open}
-        mode={entryEditing.editDialog.mode || 'edit'}
-        item={entryEditing.editDialog.item}
-        commesse={distinctCommesse}
-        maxOre={8}
-        onClose={entryEditing.closeEdit}
-        onSave={entryEditing.saveEdited}
-      />
+      {entryEditing.editDialog.open && (
+        <EditEntryDialog
+          open={entryEditing.editDialog.open}
+          mode={entryEditing.editDialog.mode || 'edit'}
+          item={entryEditing.editDialog.item}
+          commesse={distinctCommesse}
+          maxOre={8}
+          dailyLimit={8}
+          dayUsed={computeDayUsed(details.dayRecords || [], entryEditing.editDialog.item)}
+          onClose={entryEditing.closeEdit}
+          onSave={entryEditing.saveEdited}
+        />
+      )}
       <ConfirmDialog
-        open={entryEditing.deleteDialog.open}
-        title="Elimina voce"
-        message="Eliminare questa voce?"
-        onClose={() => entryEditing.setConfirmOpen(false)}
-        onConfirm={entryEditing.doDelete}
+        open={confirmDel.open}
+        title="Conferma eliminazione"
+        message="Eliminare definitivamente la voce selezionata?"
+        onClose={() => setConfirmDel({ open:false, entry:null })}
+        onConfirm={performDelete}
       />
     </Container>
   );

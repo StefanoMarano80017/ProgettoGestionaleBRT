@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { Box, Container, Alert } from "@mui/material";
-import PageHeader from "../../Components/PageHeader";
+import PageHeader from "@components/PageHeader";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import BadgeCard from "../../Components/BadgeCard/Badge";
-import WorkCalendar from "../../Components/Calendar/WorkCalendar";
-import DayEntryPanel from "../../Components/Calendar/DayEntryPanel";
-import { projectsMock } from "../../mocks/ProjectMock";
+import BadgeCard from "@components/BadgeCard/Badge";
+import WorkCalendar from "@components/Calendar/WorkCalendar";
+import DayEntryPanel from "@components/Calendar/DayEntryPanel";
+import { projectsMock } from "@mocks/ProjectMock";
 import { useReferenceData } from '@/Hooks/Timesheet';
 import { useDipendenteTimesheetData } from '@/Hooks/Timesheet/DipendenteTimesheet/useDipendenteTimesheetData';
-import CommesseDashboard from "../../Components/DipendenteHomePage/CommesseDashboard";
+import CommesseDashboard from "@components/DipendenteHomePage/CommesseDashboard";
 export default function DipendenteTimesheet() {
   const [selectedDay, setSelectedDay] = useState(null);
   // Core timesheet data and handlers (mocked projects passed for now)

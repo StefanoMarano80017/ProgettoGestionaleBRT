@@ -1,4 +1,4 @@
-import { getAllEmployeeTimesheets } from "./ProjectMock";
+import { getAllEmployeeTimesheets } from "@mocks/ProjectMock";
 
 const isWorkCode = (c) => c && !["FERIE", "MALATTIA", "PERMESSO"].includes(String(c).toUpperCase());
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);

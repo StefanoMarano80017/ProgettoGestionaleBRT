@@ -1,56 +1,88 @@
-import React from "react";
-import Box from "@mui/material/Box";
-
-function stringToColor(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  let color = "#";
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xff;
-    color += ("00" + value.toString(16)).slice(-2);
-  }
-  return color;
-}
-
-function darkenColor(hex, factor = 0.2) {
-  const r = Math.floor(parseInt(hex.slice(1, 3), 16) * (1 - factor));
-  const g = Math.floor(parseInt(hex.slice(3, 5), 16) * (1 - factor));
-  const b = Math.floor(parseInt(hex.slice(5, 7), 16) * (1 - factor));
-  return `rgb(${r}, ${g}, ${b})`;
-}
+import React, { useMemo } from 'react';
+import Box from '@mui/material/Box';
+import { stringToColor, darkenColor } from './utils/color';
 
 /**
- * props:
- * - size: dimensione
- * - name, surname: usati per calcolare le iniziali e colore
- * - text: testo arbitrario (es. "+3"), se presente sovrascrive le iniziali
- * - backgroundColor, borderColor: opzionali, sovrascrivono i colori calcolati
+ * AvatarInitials
+ * Deterministic colored circular avatar displaying initials or custom text.
+ *
+ * Props:
+ * - size?: number (default 40)
+ * - name?: first name (optional if fullName provided)
+ * - surname?: last name (optional if fullName provided)
+ * - fullName?: alternative single prop (takes precedence over name+surname for deriving initials)
+ * - text?: explicit text override (e.g. "+3")
+ * - backgroundColor?: override computed background
+ * - borderColor?: override computed border color
+ * - style?: inline style passthrough
+ * - ...rest: forwarded to root Box
  */
-export function AvatarInitials({ size = 40, name = "", surname = "", text, backgroundColor, borderColor, style, ...rest }) {
-  const displayText = text != null ? text : `${name[0] || ""}${surname[0] || ""}`.toUpperCase();
-  const bgColor = backgroundColor || stringToColor(name + surname);
-  const bColor = borderColor || darkenColor(bgColor, 0.3);
-  const borderWidth = Math.max(2, Math.round(size * 0.1));
+import PropTypes from 'prop-types';
+
+/**
+ * AvatarInitials
+ * Deterministic colored circular avatar displaying initials or custom text.
+ *
+ * Props:
+ * - size?: number (default 40)
+ * - name?: first name (optional if fullName provided)
+ * - surname?: last name (optional if fullName provided)
+ * - fullName?: alternative single prop (takes precedence over name+surname for deriving initials)
+ * - text?: explicit text override (e.g. "+3")
+ * - backgroundColor?: override computed background
+ * - borderColor?: override computed border color
+ * - style?: inline style passthrough
+ */
+export function AvatarInitials({
+  size = 40,
+  name = '',
+  surname = '',
+  fullName,
+  text,
+  backgroundColor,
+  borderColor,
+  style,
+  ...rest
+}) {
+  const { displayText, bgColor, bColor, borderWidth } = useMemo(() => {
+    const sourceName = fullName || `${name} ${surname}`.trim();
+    const initials = text != null
+      ? text
+      : (() => {
+          const parts = sourceName.split(/\s+/).filter(Boolean);
+          if (parts.length === 0) return '';
+          if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+          return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+        })();
+    const computedBg = backgroundColor || stringToColor(sourceName || name + surname);
+    const computedBorder = borderColor || darkenColor(computedBg, 0.3);
+    return {
+      displayText: initials,
+      bgColor: computedBg,
+      bColor: computedBorder,
+      borderWidth: Math.max(2, Math.round(size * 0.1)),
+    };
+  }, [backgroundColor, borderColor, fullName, name, surname, text, size]);
 
   return (
     <Box
       component="div"
+      role="img"
+      aria-label={displayText ? `Avatar ${displayText}` : 'Avatar'}
       sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: "50%",
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '50%',
         border: `${borderWidth}px solid ${bColor}`,
         width: size,
         height: size,
-        overflow: "hidden",
-        fontWeight: "bold",
+        overflow: 'hidden',
+        fontWeight: 'bold',
         fontSize: Math.round(size * 0.4),
-        color: "#fff",
+        color: '#fff',
         backgroundColor: bgColor,
-        userSelect: "none",
+        userSelect: 'none',
         lineHeight: 1,
       }}
       style={style}
@@ -60,3 +92,16 @@ export function AvatarInitials({ size = 40, name = "", surname = "", text, backg
     </Box>
   );
 }
+
+AvatarInitials.propTypes = {
+  size: PropTypes.number,
+  name: PropTypes.string,
+  surname: PropTypes.string,
+  fullName: PropTypes.string,
+  text: PropTypes.string,
+  backgroundColor: PropTypes.string,
+  borderColor: PropTypes.string,
+  style: PropTypes.object,
+};
+
+export default React.memo(AvatarInitials);

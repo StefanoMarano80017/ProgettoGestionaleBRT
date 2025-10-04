@@ -2,7 +2,7 @@
 import React from "react";
 import { Box, Container, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import { PAGES } from "../Routes/pagesConfig";
+import { PAGES } from "@routes/pagesConfig";
 
 const renderIcon = (IconOrElement, sx) => {
   // Se è già un elemento <Icon />, clona e aggiungi sx

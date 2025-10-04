@@ -15,4 +15,4 @@ export * from './useTimesheetApi.js';
 export * from './useTimesheetFilters.js';
 export * from './dayEntry';
 export * from './calendar';
-export { default as useEmployeeMonthGridRows } from '../Timesheet/useEmployeeMonthGridRows.js';
+export { default as useEmployeeMonthGridRows } from './useEmployeeMonthGridRows.js';

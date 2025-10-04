@@ -1,55 +1,66 @@
-import { Box, Button, Typography } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Box, Button, Typography } from '@mui/material';
+import { Link } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { computeSidebarItemColors } from './sidebarUtils';
 
-const SidebarItem = ({ icon, text, path, selected }) => {
+/**
+ * Single navigation item used inside the Sidebar.
+ * Provides consistent sizing + color logic with hover + selected states.
+ *
+ * Props:
+ * - icon: React node (icon element already sized, or any element)
+ * - text: string label shown under icon
+ * - path: router path to navigate to
+ * - selected: boolean active state
+ * - size?: numeric icon box edge (default 40)
+ */
+const SidebarItem = ({ icon, text, path, selected, size = 40 }) => {
+  const { color, hoverColor } = useMemo(
+    () => ({ color: undefined, hoverColor: undefined }),
+    []
+  );
+
   return (
     <Button
       component={Link}
       to={path}
-      color="inherit" // prevents default blue hover
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,          // 👈 prevent shrinking
-        minWidth: 100,           // 👈 keep a minimum width so text/icon don’t collapse
-        p: 1.5,
-        textTransform: "none",
-        borderRadius: 2,
-        bgcolor: selected ? "action.hover" : "transparent",
-        color: (theme) =>
-          selected
-            ? theme.palette.customBlue1?.main || theme.palette.primary.main
-            : theme.palette.mode === "light"
-            ? theme.palette.customBlue3?.main || theme.palette.primary.main
-            : theme.palette.customGray?.main || theme.palette.text.secondary,
-        "&:hover": {
-          bgcolor: selected ? "action.hover" : "transparent",
-          color: (theme) =>
-            selected
-              ? theme.palette.customBlue1?.main || theme.palette.primary.main
-              : theme.palette.primary?.main || theme.palette.customBlue3?.main,
-        },
+      color="inherit"
+      sx={(theme) => {
+        const { color: baseColor, hoverColor: hc } = computeSidebarItemColors(theme, selected);
+        return {
+          display: 'flex',
+          flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          flexShrink: 0,
+          minWidth: 100,
+          p: 1.5,
+          textTransform: 'none',
+          borderRadius: 2,
+          bgcolor: selected ? 'action.hover' : 'transparent',
+          color: baseColor,
+          '&:hover': {
+            bgcolor: selected ? 'action.hover' : 'transparent',
+            color: hc,
+          },
+        };
       }}
     >
       <Box
-        sx={{
-          bgcolor: "transparent",
-          color: (theme) =>
-            selected
-              ? theme.palette.customBlue1?.main || theme.palette.primary.main
-              : theme.palette.mode === "light"
-              ? theme.palette.customBlue3?.main || theme.palette.primary.main
-              : theme.palette.customGray?.main || theme.palette.text.secondary,
-          borderRadius: "10%",
-          width: 40,
-          height: 40,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          mb: 0.5,
-          flexShrink: 0, // 👈 also prevents icon box from collapsing
+        sx={(theme) => {
+          const { color: baseColor } = computeSidebarItemColors(theme, selected);
+          return {
+            bgcolor: 'transparent',
+            color: baseColor,
+            borderRadius: '10%',
+            width: size,
+            height: size,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 0.5,
+            flexShrink: 0,
+          };
         }}
       >
         {icon}
@@ -61,5 +72,4 @@ const SidebarItem = ({ icon, text, path, selected }) => {
   );
 };
 
-
-export default SidebarItem;
+export default React.memo(SidebarItem);

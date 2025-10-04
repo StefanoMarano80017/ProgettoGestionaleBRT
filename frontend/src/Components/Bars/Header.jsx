@@ -1,15 +1,15 @@
 import * as React from "react";
 import { Box, Breadcrumbs, IconButton, Tooltip, Typography } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import SearchBar from "../Inputs/SearchBar";
-import NotificationsMenu from "../NotificationMenu";
+import SearchBar from "@components/Inputs/SearchBar";
+import NotificationsMenu from "@components/NotificationMenu";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import ThemeSwitchComponent from "../Buttons/ThemeSwitch";
-import { useThemeContext } from "../../Layouts/ThemeContext";
-import { PAGES } from "../../Routes/pagesConfig"; // <-- usa la stessa config della Sidebar
+import ThemeSwitchComponent from "@components/Buttons/ThemeSwitch";
+import { useThemeContext } from "@layouts/ThemeContext";
+import { PAGES } from "@routes/pagesConfig"; // <-- usa la stessa config della Sidebar
 
 // Helper per render icone sia come componente che come elemento JSX
 // Icons default to color: 'inherit' so they pick up the parent Box color

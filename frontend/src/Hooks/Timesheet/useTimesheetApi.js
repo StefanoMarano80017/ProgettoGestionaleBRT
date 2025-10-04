@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 // Wrapper centralizzato per passare in futuro da mock a real API
-import * as ProjectMock from '../../mocks/ProjectMock';
-import * as TimesheetAggregatesMock from '../../mocks/TimesheetAggregatesMock';
+import * as ProjectMock from '@mocks/ProjectMock';
+import * as TimesheetAggregatesMock from '@mocks/TimesheetAggregatesMock';
 
 export function useTimesheetApi() {
   // In futuro qui si possono mettere fetch reali + caching/react-query ecc.
@@ -20,10 +20,7 @@ export function useTimesheetApi() {
     assignHoursToGroup: ProjectMock.assignHoursToGroup,
     getActiveCommesseForEmployee: ProjectMock.getActiveCommesseForEmployee,
     getOperaioPersonalMap: ProjectMock.getOperaioPersonalMap,
-    updateGroupDayEntries: async (...args) => {
-      const mod = await import('../../mocks/ProjectMock');
-      return mod.updateGroupDayEntries(...args);
-    }
+    updateGroupDayEntries: ProjectMock.updateGroupDayEntries,
   }), []);
   return { api };
 }
