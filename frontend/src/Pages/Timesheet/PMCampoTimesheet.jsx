@@ -32,11 +32,13 @@ import TileLegend from "../../Components/Calendar/TileLegend";
 import EntryListItem from "../../components/Entries/EntryListItem";
 import EmployeeMonthGrid from "../../Components/Calendar/EmployeeMonthGrid";
 import OperaioEditor from "../../Components/Timesheet/OperaioEditor";
-import { usePmGroups } from "../../Hooks/Timesheet/usePmGroups";
-import { useOpPersonal } from "../../Hooks/Timesheet/useOpPersonal";
-import { useOperaiTimesheet } from "../../Hooks/Timesheet/useOperaiTimesheet";
-import { useMonthNavigation } from "../../Hooks/Timesheet/useMonthNavigation";
-import { usePmCampoEditing } from "../../Hooks/Timesheet/PMCampoTimesheet/usePmCampoEditing";
+import {
+  usePmGroups,
+  useOpPersonal,
+  useOperaiTimesheet,
+  useCalendarMonthYear,
+} from '@/Hooks/Timesheet';
+import { usePmCampoEditing } from '@/Hooks/Timesheet/PMCampoTimesheet/usePmCampoEditing';
 
 export default function PMCampoTimesheet() {
   const [azienda, setAzienda] = useState("BRT");
@@ -57,7 +59,13 @@ export default function PMCampoTimesheet() {
     refreshGroups,
   } = usePmGroups(azienda);
   const { opPersonal, refreshPersonal } = useOpPersonal();
-  const { year: opYear, month: opMonth, prevMonth: handlePrevMonth, nextMonth: handleNextMonth, setToday: setOperaiToday } = useMonthNavigation();
+  const { currentYear: opYear, currentMonth: opMonth, shift, setMonthYear } = useCalendarMonthYear(new Date());
+  const handlePrevMonth = () => shift(-1);
+  const handleNextMonth = () => shift(1);
+  const setOperaiToday = () => {
+    const d = new Date();
+    setMonthYear(d.getMonth(), d.getFullYear());
+  };
 
   // Day / form state
   const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));

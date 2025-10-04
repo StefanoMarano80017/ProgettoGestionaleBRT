@@ -1,63 +1,28 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Container,
-  Divider,
-  Stack,
-  Typography,
-  Alert,
-} from "@mui/material";
-// import CommesseList from "../Components/DipendenteHomePage/CommesseList";
-import CommesseDashboard from "../../Components/DipendenteHomePage/CommesseDashboard";
+import { Box, Container, Alert } from "@mui/material";
 import PageHeader from "../../Components/PageHeader";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import InfoIcon from "@mui/icons-material/Info";
 import BadgeCard from "../../Components/BadgeCard/Badge";
 import WorkCalendar from "../../Components/Calendar/WorkCalendar";
 import DayEntryPanel from "../../Components/Calendar/DayEntryPanel";
 import { projectsMock } from "../../mocks/ProjectMock";
-import { useCommessaLookup } from "../../Hooks/Timesheet/useCommessaLookup";
-import { useMonthNavigation } from "../../Hooks/Timesheet/useMonthNavigation";
-import { useSelection } from "../../Hooks/Timesheet/useSelection";
-import { useDipendenteTimesheetData } from "../../Hooks/Timesheet/DipendenteTimesheet/useDipendenteTimesheetData";
-
+import { useReferenceData } from '@/Hooks/Timesheet';
+import { useDipendenteTimesheetData } from '@/Hooks/Timesheet/DipendenteTimesheet/useDipendenteTimesheetData';
+import CommesseDashboard from "../../Components/DipendenteHomePage/CommesseDashboard";
 export default function DipendenteTimesheet() {
   const [selectedDay, setSelectedDay] = useState(null);
+  // Core timesheet data and handlers (mocked projects passed for now)
   const { data, handleAddRecord, todayKey, isBadgiatoToday } = useDipendenteTimesheetData(projectsMock);
 
-  // ID dipendente corrente (sostituisci con il tuo ID reale da auth/store)
+  // Current employee id (replace with real id from auth/store when available)
   const currentEmployeeId = "emp-001";
-
-  const { commesse: commesseList, loading: commesseLoading } = useCommessaLookup(currentEmployeeId);
-  // Se servisse month/year per filtri futuri
-  const { year, month, monthLabel } = useMonthNavigation();
-  const { selDate, setSelDate } = useSelection();
-
-  // Gestione inserimento/modifica/eliminazione record giornalieri
-  // Gestione inserimento record ora nel hook handleAddRecord
-
-  // (Caricamento commesse già gestito da hook useCommessaLookup)
-
-  function IconTextCard({ icon = <InfoIcon />, legend, text }) {
-    return (
-      <Stack direction="row" spacing={2} alignItems="center">
-        {icon}
-        <Stack>
-          <Typography variant="caption">{legend}</Typography>
-          <Typography variant="body1">{text}</Typography>
-        </Stack>
-      </Stack>
-    );
-  }
-
-  // LegendItem estratto in componente riusabile
-
-  // todayKey e isBadgiatoToday derivati dal hook
+  // Load active 'commesse' for the employee via unified reference data hook
+  const { commesse: commesseList, loading: commesseLoading, error: commesseError } = useReferenceData({ commesse: true, personale: false, pmGroups: false, employeeId: currentEmployeeId });
 
   return (
     <Box sx={{ bgcolor: "background.default", height: "100vh", overflow: "auto" }}>
       <Container maxWidth="xl" sx={{ mt: 4 }}>
-        {/* Header + Badge on the same row */}
+        {/* Page header and status badge */}
         <Box sx={{ mb: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
           <PageHeader
             title="Timesheet"
@@ -65,11 +30,11 @@ export default function DipendenteTimesheet() {
             icon={<AccessTimeIcon />}
           />
           <BadgeCard
-            // niente holderName/companyId: li prende da AuthContext
+            // Badge reflects today's clock-in/clock-out status
             isBadgiato={isBadgiatoToday}
           />
         </Box>
-        {/* Griglia principale */}
+        {/* Main layout: left = day detail, right = month calendar */}
         <Box sx={{
           boxShadow: 8,
           borderRadius: 2,
@@ -80,13 +45,12 @@ export default function DipendenteTimesheet() {
           display: 'flex',
           flexDirection: 'row',
           height: '100%',
-          alignItems: 'stretch',
+          alignItems: 'flex-end',
           justifyContent: 'stretch',
           gap: 4,
         }}>
-          {/* Sinistra: DayEntryPanel (2/3) + Legenda sotto */}
-          <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            {/* Dettaglio giorno */}
+          {/* Left column: day detail and controls */}
+          <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%' }}>
             {selectedDay ? (
               <>
                 {commesseLoading && (
@@ -111,36 +75,21 @@ export default function DipendenteTimesheet() {
             )}
           </Box>
 
-          {/* Destra: Calendario (1/3) */}
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', my: 2, minWidth: 0 }}>
-            
+          {/* Right column: month calendar */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', my: 2, minWidth: 0 }}>
             <WorkCalendar
               data={data}
               selectedDay={selectedDay}
               onDaySelect={(d) => { setSelectedDay(d); }}
-              showMonthlySummary
               variant="wide"
             />
           </Box>
         </Box>
 
-        {/* Sostituisce CommesseList */}
-        <Box
-        sx={{
-          boxShadow: 8,
-          borderRadius: 2,
-          bgcolor: "customBackground.main",
-          py: 3,
-          px: 4,
-          mb: 4,
-        }}
-      >
-        <CommesseDashboard
-          employeeId={currentEmployeeId}
-          assignedCommesse={commesseList}
-          data={data}
-        />
-      </Box>
+        {/* Dashboard with per-commessa charts and stats */}
+        <Box sx={{ boxShadow: 8, borderRadius: 2, bgcolor: "customBackground.main", py: 3, px: 4, mb: 4 }}>
+          <CommesseDashboard employeeId={currentEmployeeId} assignedCommesse={commesseList} data={data} />
+        </Box>
       </Container>
     </Box>
   );

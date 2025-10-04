@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import { Box, IconButton, Typography, Tooltip } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import DayEntryTile from "./DayEntryTile";
+import { useCalendarMonthYear } from '@/Hooks/Timesheet/calendar';
+import useCalendarGridRows from '@/Hooks/Timesheet/calendar/useCalendarGridRows';
 
 const weekDays = ["Lu", "Ma", "Me", "Gi", "Ve", "Sa", "Do"];
 const monthNames = [
@@ -39,58 +40,11 @@ export default function WorkCalendarGrid({
   onDayClick,        // (dateKey) => void
 }) {
   const today = new Date();
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const { currentMonth, currentYear, shift } = useCalendarMonthYear(today);
+  const { rows } = useCalendarGridRows({ data, year: currentYear, month: currentMonth, today });
 
-  const firstDay = useMemo(() => new Date(currentYear, currentMonth, 1), [currentMonth, currentYear]);
-  const lastDay = useMemo(() => new Date(currentYear, currentMonth + 1, 0), [currentMonth, currentYear]);
-
-  const rows = useMemo(() => {
-    const out = [];
-    for (let d = 1; d <= lastDay.getDate(); d++) {
-      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const jsDate = new Date(currentYear, currentMonth, d);
-      const dow = jsDate.getDay(); // 0=Dom ... 6=Sab
-      const dayData = data[dateStr] || [];
-      const segnalazione = data[`${dateStr}_segnalazione`];
-
-      const totalHours = dayData.reduce((s, r) => s + Number(r.ore || 0), 0);
-      const hasPermesso = dayData.some((r) => r.commessa === "PERMESSO");
-      const hasFerie = dayData.some((r) => r.commessa === "FERIE");
-      const hasMalattia = dayData.some((r) => r.commessa === "MALATTIA");
-
-      const status = getDayStatus(dayData, segnalazione, dateStr, today);
-      const weekdayLabel = weekDays[(dow + 6) % 7];
-
-      out.push({
-        id: dateStr,
-        day: d,
-        dateStr,
-        weekdayLabel,
-        totalHours,
-        dayData,
-        hasPermesso,
-        hasFerie,
-        hasMalattia,
-        segnalazione,
-        status,
-      });
-    }
-    return out;
-  }, [data, currentMonth, currentYear, lastDay, today]);
-
-  const handlePrev = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear((y) => y - 1);
-    } else setCurrentMonth((m) => m - 1);
-  };
-  const handleNext = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear((y) => y + 1);
-    } else setCurrentMonth((m) => m + 1);
-  };
+  const handlePrev = () => shift(-1);
+  const handleNext = () => shift(1);
 
   const width = compact ? 44 : 60;
   const height = compact ? 44 : 36; // ensure compact cells have at least 44px height for consistency
@@ -140,47 +94,22 @@ export default function WorkCalendarGrid({
         ))}
 
         {/* Giorni del mese */}
-        {Array.from({ length: daysInMonth }).map((_, idx) => {
-          const d = idx + 1;
-          const dateKey = `${year}-${pad(month + 1)}-${pad(d)}`;
-          const recs = data[dateKey] || [];
-          const seg = data[`${dateKey}_segnalazione`] || null;
-          const total = (recs || []).reduce((s, r) => s + Number(r?.ore || 0), 0);
-          const ferie = (recs || []).some((r) => r?.commessa === "FERIE");
-          const mal = (recs || []).some((r) => r?.commessa === "MALATTIA");
-          const perm = (recs || []).some((r) => r?.commessa === "PERMESSO");
-          let bg = "transparent";
-          if (seg) bg = "rgba(244, 67, 54, 0.15)";
-          else if (ferie) bg = "rgba(76, 175, 80, 0.18)";
-          else if (mal) bg = "rgba(156, 39, 176, 0.15)";
-          else if (perm) bg = "rgba(2, 136, 209, 0.15)";
-          else if (total === 8) bg = "rgba(76, 175, 80, 0.12)";
-          else if (total > 0 && total < 8) bg = "rgba(255, 193, 7, 0.15)";
-
-          const tooltipLines = [
-            recs?.length ? `Ore totali: ${total}h` : "Nessun inserimento",
-            ...(recs || []).map((r) => `${r.commessa}: ${r.ore}h${r.descrizione ? ` — ${r.descrizione}` : ""}`),
-            seg ? `Segnalazione: ${seg.descrizione}` : null,
-          ].filter(Boolean);
-
+        {rows.map(r => {
           const tooltipContent = (
-            <span style={{ whiteSpace: "pre-line" }}>{tooltipLines.join("\n")}</span>
+            <span style={{ whiteSpace: 'pre-line' }}>{r.tooltipContent}</span>
           );
-          const status = getDayStatus(recs, seg, dateKey, today);
-
           return (
-            <Box key={dateKey} sx={{ height }}>
+            <Box key={r.dateStr} sx={{ height }}>
               <DayEntryTile
-                dateStr={dateKey}
-                day={d}
+                dateStr={r.dateStr}
+                day={r.day}
                 isSelected={false}
-                /* let DayEntryTile decide visuals based on status */
-                status={status?.label ? (status.label.toLowerCase().includes('ferie') ? 'ferie' : status.label.toLowerCase().includes('malattia') ? 'malattia' : status.label.toLowerCase().includes('segnalazione') ? 'admin-warning' : status.label.toLowerCase().includes('permesso') ? 'permesso' : status.label.toLowerCase().includes('completo') ? 'complete' : status.label.toLowerCase().includes('parziale') ? 'partial' : undefined) : undefined}
+                status={r.status}
                 variant={height < 44 ? 'compact' : 'default'}
                 iconTopRight={false}
-                showHours={total > 0}
-                totalHours={total}
-                onClick={onDayClick ? (ds) => onDayClick(ds) : undefined}
+                showHours={r.totalHours > 0}
+                totalHours={r.totalHours}
+                onClick={onDayClick ? () => onDayClick(r.dateStr) : undefined}
                 tooltipContent={tooltipContent}
                 showDayNumber={false}
               />

@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
 import DayEntryTile from "./DayEntryTile";
+import useEmployeeMonthGridRows from '@/Hooks/Timesheet/useEmployeeMonthGridRows';
 
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 const GAP = 4; // px, come WorkCalendarGrid (gap: 0.5)
@@ -22,14 +23,8 @@ export default function EmployeeMonthGrid({
   azWidth = 130,
   sx = {},
 }) {
-  const daysInMonth = React.useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
-
-  const gridTemplateColumns = React.useMemo(
-    () => `${dipWidth}px ${azWidth}px ${Array.from({ length: daysInMonth })
-      .map(() => `${dayWidth}px`)
-      .join(" ")}`,
-    [dipWidth, azWidth, dayWidth, daysInMonth]
-  );
+  const { daysInMonth, visualRows } = useEmployeeMonthGridRows({ rows, tsMap, year, month });
+  const gridTemplateColumns = React.useMemo(() => `${dipWidth}px ${azWidth}px ${Array.from({ length: daysInMonth }).map(() => `${dayWidth}px`).join(' ')}`,[dipWidth, azWidth, dayWidth, daysInMonth]);
 
   return (
     <Box
@@ -115,7 +110,7 @@ export default function EmployeeMonthGrid({
 
   {/* Body righe */}
   <Box sx={{ px: 1, py: 1, bgcolor: "background.paper", borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
-        {rows.map((row) => (
+        {visualRows.map((row) => (
           <Box
             key={row.id}
             sx={{
@@ -177,65 +172,25 @@ export default function EmployeeMonthGrid({
             </Box>
 
             {/* Giorni del mese */}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const d = i + 1;
-              const dateKey = `${year}-${pad(month + 1)}-${pad(d)}`;
-              const ts = tsMap[row.id] || {};
-              const recs = ts[dateKey] || [];
-              const seg = ts[`${dateKey}_segnalazione`] || null;
-              const total = (recs || []).reduce((s, r) => s + Number(r?.ore || 0), 0);
-              const ferie = (recs || []).some((r) => r?.commessa === "FERIE");
-              const mal = (recs || []).some((r) => r?.commessa === "MALATTIA");
-              const perm = (recs || []).some((r) => r?.commessa === "PERMESSO");
-
-              let bg = "transparent";
-              if (seg) bg = "rgba(244, 67, 54, 0.15)";
-              else if (ferie) bg = "rgba(76, 175, 80, 0.18)";
-              else if (mal) bg = "rgba(156, 39, 176, 0.15)";
-              else if (perm) bg = "rgba(2, 136, 209, 0.15)";
-              else if (total === 8) bg = "rgba(76, 175, 80, 0.12)";
-              else if (total > 0 && total < 8) bg = "rgba(255, 193, 7, 0.15)";
-
-              const tooltipLines = [
-                recs?.length ? `Ore totali: ${total}h` : "Nessun inserimento",
-                ...(recs || []).map((r) => `${r.commessa}: ${r.ore}h${r.descrizione ? ` — ${r.descrizione}` : ""}`),
-                seg ? `Segnalazione: ${seg.descrizione}` : null,
-              ].filter(Boolean);
-              const tooltipContent = (
-                <span style={{ whiteSpace: "pre-line" }}>{tooltipLines.join("\n")}</span>
-              );
-
-              // Deriva uno status coerente con WorkCalendar/WorkCalendarGrid
-              let status;
-              if (seg) status = 'admin-warning';
-              else if (ferie) status = 'ferie';
-              else if (mal) status = 'malattia';
-              else if (perm) status = 'permesso';
-              else if (total === 8) status = 'complete';
-              else if (total > 0 && total < 8) status = 'partial';
-              else {
-                const jsd = new Date(dateKey);
-                status = jsd > new Date() ? 'future' : undefined;
-              }
-
-              // Decide variant: 'compact' when requested dayHeight is smaller than 44.
+            {row.cells.map(cell => {
               const variant = dayHeight < 44 ? 'compact' : 'default';
               const effectiveDayHeight = variant === 'compact' ? 44 : dayHeight;
-
-              const isSelected = selectedDate === dateKey && selectedEmpId && String(selectedEmpId) === String(row.id);
-
+              const isSelected = selectedDate === cell.dateStr && selectedEmpId && String(selectedEmpId) === String(row.id);
+              const tooltipContent = (
+                <span style={{ whiteSpace: 'pre-line' }}>{cell.tooltipContent}</span>
+              );
               return (
-                <Box key={`c-${row.id}-${dateKey}`} sx={{ height: effectiveDayHeight }}>
+                <Box key={`c-${row.id}-${cell.dateStr}`} sx={{ height: effectiveDayHeight }}>
                   <DayEntryTile
-                    dateStr={dateKey}
-                    day={d}
+                    dateStr={cell.dateStr}
+                    day={cell.day}
                     isSelected={isSelected}
-                    status={status}
+                    status={cell.status}
                     variant={variant}
                     iconTopRight={false}
-                    showHours={total > 0}
-                    totalHours={total}
-                    onClick={onDayClick ? () => onDayClick(row, dateKey) : undefined}
+                    showHours={cell.totalHours > 0}
+                    totalHours={cell.totalHours}
+                    onClick={onDayClick ? () => onDayClick(row, cell.dateStr) : undefined}
                     tooltipContent={tooltipContent}
                     showDayNumber={true}
                   />

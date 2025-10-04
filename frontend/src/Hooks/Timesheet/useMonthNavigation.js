@@ -2,6 +2,9 @@ import { useState, useCallback, useMemo } from 'react';
 
 const MONTH_NAMES = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 
+/**
+ * @deprecated Preferire `useCalendarMonthYear` (in `calendar/`). Verrà rimosso dopo la fase di consolidamento.
+ */
 export function useMonthNavigation(initialDate = new Date()) {
   const [year, setYear] = useState(initialDate.getFullYear());
   const [month, setMonth] = useState(initialDate.getMonth()); // 0-based

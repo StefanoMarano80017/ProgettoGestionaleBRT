@@ -13,7 +13,6 @@ Hooks/Timesheet/
   usePmGroups.js              # Stato e operazioni su gruppi (CRUD, assegnazione ore, calendario)
   useOpPersonal.js            # Mappa voci personali per operaio (FERIE/MALATTIA/PERMESSO)
   useOperaiTimesheet.js       # Derivazione aggregata timesheet per tab "Operai"
-  useMonthNavigation.js       # Navigazione mese/year riutilizzabile
   PMCampoTimesheet/
     usePmCampoEditing.js      # Stato di editing righe commesse/ore per gruppo+giorno
   DipendenteTimesheet/
@@ -43,8 +42,7 @@ Ritorna (principali):
 - Deriva righe tab Operai: `operaiRows`.
 - Costruisce `operaiTsMap` unificato (gruppi + personale).
 
-### useMonthNavigation()
-- Gestione semplice stato mese/anno. Ritorna: `{ year, month, nextMonth, prevMonth, setToday }`.
+
 
 ## Hook Page-Specifici
 ### usePmCampoEditing({ selectedGroup, selectedDay, commesse, groups, opPersonal, refreshGroups, refreshPersonal })

@@ -1,14 +1,13 @@
 import React from "react";
-import { Box, Stack, Typography, Button, Tooltip, Alert, Divider } from "@mui/material";
+import { Box, Stack, Typography, Button, Tooltip, Alert, Divider, Chip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EntryListItem from "../../components/Entries/EntryListItem";
 import EditEntryDialog from "../../components/Timesheet/EditEntryDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import TileLegend from './TileLegend.jsx';
+// TileLegend is rendered in the calendar area; monthly summary chips are shown in this panel
 import Paper from '@mui/material/Paper';
-import { useDayEntryDerived } from "../../Hooks/Timesheet/dayEntry/useDayEntryDerived.jsx";
-import { useDayEntryEditing } from "../../Hooks/Timesheet/dayEntry/useDayEntryEditing.jsx";
-import { useConfirmDelete } from "../../Hooks/Timesheet/dayEntry/useConfirmDelete.jsx";
+import { useDayEntryDerived, useConfirmDelete } from '@/Hooks/Timesheet/dayEntry';
+import { useTimesheetEntryEditor } from '@/Hooks/Timesheet';
 
 export default function DayEntryPanel({
   selectedDay,
@@ -24,14 +23,11 @@ export default function DayEntryPanel({
   // Derived data
   const { records, segnalazione, totalHours, itDate } = useDayEntryDerived(selectedDay, data, maxHoursPerDay);
 
-  // Editing dialog logic
-  const editing = useDayEntryEditing({
-    records,
+  // Unified editing logic (replaces legacy useDayEntryEditing)
+  const editing = useTimesheetEntryEditor({
+    entries: records,
     commesse,
-    totalHours,
-    maxHoursPerDay,
-    selectedDay,
-    onAddRecord,
+    onSave: (nextEntries) => onAddRecord(selectedDay, nextEntries, true)
   });
 
   // Delete confirmation logic
@@ -41,14 +37,18 @@ export default function DayEntryPanel({
   });
 
   const ROW_HEIGHT = 53;
-  const LIST_HEIGHT = 350;
+  // Fixed height for the tile list to match other dashboard panels
+  const LIST_HEIGHT = 365;
+
+  // Monthly summary now expected from upstream aggregation (fallback vuoto)
+  const monthlySummary = data.__monthlySummary || { ferie: { days: 0, hours: 0 }, malattia: { days: 0, hours: 0 }, permesso: { days: 0, hours: 0 } };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
-      {/* Header */}
+  {/* Header */}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="h6" sx={{ py: 2 }}>
-          Dettaglio {itDate} — Totale: {totalHours}h
+          Dettaglio {itDate}
         </Typography>
         {!readOnly && (
           <Tooltip
@@ -63,8 +63,8 @@ export default function DayEntryPanel({
                 variant="contained"
                 size="small"
                 startIcon={<AddIcon />}
-                onClick={editing.openAdd}
-                disabled={!editing.canAddMore}
+                onClick={editing.startAdd}
+                disabled={totalHours >= maxHoursPerDay}
               >
                 Aggiungi voce
               </Button>
@@ -72,27 +72,12 @@ export default function DayEntryPanel({
           </Tooltip>
         )}
       </Stack>
-      <Divider />
-      {/* Lista record: altezza fissa (5 righe) + scroll */}
-      <Box
-        sx={{
-          height: LIST_HEIGHT,
-          overflowY: "auto",          
-          scrollbarGutter: "stable",
-        }}
-      >
+  <Divider />
+  {/* Lista record: area a altezza fissa con scroll */}
+      <Box sx={{ height: LIST_HEIGHT, overflowY: 'auto', scrollbarGutter: 'stable', bgcolor: 'background.default', p: 1, borderRadius: 1 }}>
         {records.length === 0 ? (
-          <Box
-            sx={{
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Alert severity="info" sx={{ width: "100%", mx: 1 }}>
-              Nessun record per questa giornata.
-            </Alert>
+          <Box sx={{ height: LIST_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Alert severity="info" sx={{ width: "100%", mx: 1 }}>Nessun record per questa giornata.</Alert>
           </Box>
         ) : (
           <Stack spacing={0}>
@@ -100,7 +85,7 @@ export default function DayEntryPanel({
               <Paper key={i} sx={{ p: 1, boxShadow: 1, borderRadius: 1, height: ROW_HEIGHT, display: 'flex', alignItems: 'center' }}>
                 <EntryListItem
                   item={r}
-                  onEdit={() => editing.openEdit(i)}
+                  onEdit={() => editing.startEdit(i)}
                   onDelete={() => deleteCtrl.request(i)}
                 />
               </Paper>
@@ -108,7 +93,7 @@ export default function DayEntryPanel({
           </Stack>
         )}
       </Box>
-      {/* Footer */}
+  {/* Footer: riepiloghi giornaliero / mensile */}
       <Divider />
       <Stack
         direction={{ xs: "column", sm: "row" }}
@@ -117,8 +102,25 @@ export default function DayEntryPanel({
         spacing={1}
         sx={{ mt: 2 }}
       >
-        <Typography variant="subtitle2">Totale giornaliero: {totalHours}h</Typography>
-        <TileLegend />
+        {/* Daily summary (left) */}
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="body2">Riepilogo Giornaliero</Typography>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 0.5 }}>
+              <Chip size="small" label={`Totale giornata: ${totalHours}h`} sx={{ borderRadius: 1 }} />
+            </Box>
+          </Box>
+        </Box>
+
+  {/* Riepilogo mensile (right) */}
+        <Box sx={{ pb: 2, display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', sm: 'flex-end' } }}>
+          <Typography variant="body2">Riepilogo Mensile</Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 0.5 }}>
+            <Chip size="small" label={`Ferie: ${monthlySummary.ferie.days} gg (${monthlySummary.ferie.hours}h)`} sx={{ borderRadius: 1 }} />
+            <Chip size="small" label={`Malattia: ${monthlySummary.malattia.days} gg (${monthlySummary.malattia.hours}h)`} sx={{ borderRadius: 1 }} />
+            <Chip size="small" label={`Permessi: ${monthlySummary.permesso.days} gg (${monthlySummary.permesso.hours}h)`} sx={{ borderRadius: 1 }} />
+          </Box>
+        </Box>
       </Stack>
 
       {segnalazione && (
@@ -140,26 +142,16 @@ export default function DayEntryPanel({
       />
 
       {/* Dialog add/edit (shared) */}
-      {!readOnly && (
+      {!readOnly && editing.dialog.open && (
         <EditEntryDialog
-          open={editing.dialogOpen}
-          mode={editing.mode}
-          item={editing.mode === 'edit' && editing.idx != null ? records[editing.idx] : null}
+          open={editing.dialog.open}
+          mode={editing.dialog.mode}
+          item={editing.dialog.current}
           commesse={commesse}
-            maxOre={editing.maxOre}
-          onClose={editing.close}
-          onSave={(entry) => {
-            // Reuse editing logic but allow optimistic form injection
-            editing.setForm(f => ({ ...f, commessa: entry.commessa, ore: entry.ore, descrizione: entry.descrizione }));
-            editing.save();
-          }}
-          onDelete={() => {
-            if (editing.mode === 'edit' && editing.idx != null) {
-              const next = records.filter((_, k) => k !== editing.idx);
-              onAddRecord(selectedDay, next, true);
-              editing.close();
-            }
-          }}
+          maxOre={maxHoursPerDay}
+          onClose={editing.closeDialog}
+          onSave={(entry) => editing.commit(entry)}
+          onDelete={editing.removeCurrent}
         />
       )}
     </Box>

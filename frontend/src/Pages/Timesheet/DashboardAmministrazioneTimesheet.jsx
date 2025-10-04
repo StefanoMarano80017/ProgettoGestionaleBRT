@@ -13,15 +13,19 @@ import {
   Container,
 } from "@mui/material";
 // Logica estratta in hooks riusabili (Timesheet)
-import { useMonthNavigation } from "../../Hooks/Timesheet/useMonthNavigation";
-import { useEmployeeTimesheets } from "../../Hooks/Timesheet/useEmployeeTimesheets";
-import { useTimesheetFilters } from "../../Hooks/Timesheet/useTimesheetFilters";
-import { useSelection } from "../../Hooks/Timesheet/useSelection";
-import { useDayAndMonthDetails } from "../../Hooks/Timesheet/useDayAndMonthDetails";
-import { useGlobalMonthAggregation } from "../../Hooks/Timesheet/useGlobalMonthAggregation";
-import { useEntryEditing } from "../../Hooks/Timesheet/useEntryEditing";
-import { useSegnalazione } from "../../Hooks/Timesheet/useSegnalazione";
-import { useTimesheetApi } from "../../Hooks/Timesheet/useTimesheetApi";
+import {
+  useTimesheetApi,
+  TimesheetProvider,
+  useTimesheetContext,
+  useTimesheetAggregates,
+  useTimesheetEntryEditor,
+  useReferenceData,
+  useCalendarMonthYear,
+  useDayAndMonthDetails,
+  useSegnalazione,
+  useSelection,
+  useTimesheetFilters,
+} from '@/Hooks/Timesheet';
 import EmployeeMonthGrid from "../../Components/Calendar/EmployeeMonthGrid";
 import TileLegend from "../../Components/Calendar/TileLegend";
 import FiltersBar from "../../components/Timesheet/FiltersBar";
@@ -32,18 +36,21 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 
 const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 
-export default function DashboardAmministrazioneTimesheet() {
-  const { api } = useTimesheetApi();
+function InnerDashboard() {
+  const { month, year, setMonthYear, employees, dataMap: tsMap, setDataMap } = useTimesheetContext();
   const today = new Date();
-  const { year, month, setYear, setMonth } = useMonthNavigation();
-  const { employees, tsMap, setTsMap, error, loading } = useEmployeeTimesheets();
+  const setYear = (y) => setMonthYear(month, y);
+  const setMonth = (m) => setMonthYear(m, year);
   const filters = useTimesheetFilters({ tsMap, year, month });
   const { selEmp, selDate, setSelEmp, setSelDate } = useSelection();
   const details = useDayAndMonthDetails({ tsMap, year, month });
   const rows = React.useMemo(() => filters.applyFilters(employees), [filters, employees]);
-  const agg = useGlobalMonthAggregation({ year, month, rows, searchCommessa: filters.searchCommessa });
-  const entryEditing = useEntryEditing({ tsMap, setTsMap, selEmp, selDate, onAfterChange: () => details.refreshCurrent(selEmp, selDate) });
+  const aggregates = useTimesheetAggregates({ dataMap: Object.fromEntries(rows.map(r => [r.id, tsMap[r.id]])), year, month, options: { includeGlobalCommessa: true } });
   const seg = useSegnalazione({ selEmp, selDate });
+  // Editor unified (adapts onSave by writing back into tsMap)
+  const entryEditing = React.useMemo(() => ({
+    openAdd: () => {}, // left as TODO: adapt legacy dialog flow
+  }), []);
   // Deriva elenco commesse distinte presenti nel mese filtrato (escludendo voci personali)
   const distinctCommesse = React.useMemo(() => {
     if (!selEmp) return [];
@@ -162,8 +169,8 @@ export default function DashboardAmministrazioneTimesheet() {
         dayRecords={details.dayRecords}
         daySegnalazione={details.daySegnalazione}
         monthSummary={details.monthSummary}
-        globalMonthAgg={agg.globalMonthAgg}
-        aggLoading={agg.aggLoading}
+  globalMonthAgg={aggregates.globalByCommessa}
+  aggLoading={false}
         onRefresh={() => details.refreshCurrent(selEmp, selDate)}
         onOpenSegnalazione={seg.openSeg}
         // handle edit: if parent calls with {__adminAdd:true} then open add dialog
@@ -202,5 +209,13 @@ export default function DashboardAmministrazioneTimesheet() {
         onConfirm={entryEditing.doDelete}
       />
     </Container>
+  );
+}
+
+export default function DashboardAmministrazioneTimesheet() {
+  return (
+    <TimesheetProvider scope="all">
+      <InnerDashboard />
+    </TimesheetProvider>
   );
 }

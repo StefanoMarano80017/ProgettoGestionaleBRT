@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTimesheetApi } from './useTimesheetApi';
 
+/**
+ * @deprecated Usare useTimesheetAggregates({ dataMap, year, month, options:{ includeGlobalCommessa:true } })
+ */
 export function useGlobalMonthAggregation({ year, month, rows, searchCommessa }) {
   const { api } = useTimesheetApi();
   const [globalMonthAgg, setGlobalMonthAgg] = useState([]);
