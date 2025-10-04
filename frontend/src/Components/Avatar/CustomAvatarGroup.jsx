@@ -5,9 +5,18 @@ import ListItem from "@mui/material/ListItem";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Fade from "@mui/material/Fade";
-import { AvatarInitials } from "./AvatarInitials"; // importa il componente creato prima
+import { AvatarInitials } from "@components/Avatar/AvatarInitials"; // importa il componente creato prima
+import PropTypes from 'prop-types';
 
-export default function CustomAvatarGroup({ data, max = 3 }) {
+/**
+ * CustomAvatarGroup
+ * Small stacked avatar group that shows a popover list for extras.
+ *
+ * Props:
+ * - data: array of { id, name }
+ * - max: number of visible avatars before showing +N
+ */
+export function CustomAvatarGroup({ data = [], max = 3 }) {
   const [anchorEl, setAnchorEl] = React.useState(null);
 
   const handleClick = (event) => setAnchorEl(event.currentTarget);
@@ -15,11 +24,8 @@ export default function CustomAvatarGroup({ data, max = 3 }) {
 
   const open = Boolean(anchorEl);
 
-  const visibleEmployees = data.slice(0, max);
-  const extraCount = data.length - max;
-
-  // Testo del pulsante + (sempre presente)
-  const plusLabel = extraCount > 0 ? `${extraCount}` : "";
+  const visibleEmployees = (data || []).slice(0, max);
+  const extraCount = Math.max(0, (data || []).length - max);
 
   return (
     <>
@@ -27,28 +33,30 @@ export default function CustomAvatarGroup({ data, max = 3 }) {
         {visibleEmployees
           .slice()
           .reverse()
-          .map((emp, idx) => (
-            <Box
-              key={emp.id}
-              sx={{
-                zIndex: idx,
-                ml: idx === 0 ? 0 : -1.5,
-              }}
-            >
-              <AvatarInitials
-                name={emp.name.split(" ")[0] || ""}
-                surname={emp.name.split(" ")[1] || ""}
-                size={40}
-              />
-            </Box>
-          ))}
+          .map((emp, idx) => {
+            const parts = (emp?.name || '').split(/\s+/);
+            const first = parts[0] || '';
+            const last = parts.slice(1).join(' ') || '';
+            return (
+              <Box
+                key={emp.id}
+                sx={{
+                  // render later items above earlier ones
+                  zIndex: visibleEmployees.length - idx,
+                  ml: idx === 0 ? 0 : -1.5,
+                }}
+              >
+                <AvatarInitials name={first} surname={last} size={40} />
+              </Box>
+            );
+          })}
 
         {extraCount > 0 && (
           <Box
             sx={{
               ml: -1.5,
               cursor: "pointer",
-              zIndex: visibleEmployees.length,
+              zIndex: visibleEmployees.length + 1,
             }}
             onClick={handleClick}
           >
@@ -74,18 +82,26 @@ export default function CustomAvatarGroup({ data, max = 3 }) {
           Persone assegnate
         </Typography>
         <List sx={{ p: 1 }}>
-          {data.map((emp) => (
-            <ListItem key={emp.id}>
-              <AvatarInitials
-                name={emp.name.split(" ")[0] || ""}
-                surname={emp.name.split(" ")[1] || ""}
-                size={32}
-              />
-              <Typography sx={{ ml: 1 }}>{emp.name}</Typography>
-            </ListItem>
-          ))}
+          {(data || []).map((emp) => {
+            const parts = (emp?.name || '').split(/\s+/);
+            const first = parts[0] || '';
+            const last = parts.slice(1).join(' ') || '';
+            return (
+              <ListItem key={emp.id}>
+                <AvatarInitials name={first} surname={last} size={32} />
+                <Typography sx={{ ml: 1 }}>{emp.name}</Typography>
+              </ListItem>
+            );
+          })}
         </List>
       </Popover>
     </>
   );
 }
+
+CustomAvatarGroup.propTypes = {
+  data: PropTypes.array,
+  max: PropTypes.number,
+};
+
+export default React.memo(CustomAvatarGroup);

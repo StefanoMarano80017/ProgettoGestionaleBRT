@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useTheme } from '@mui/material/styles';
-import { DayStatus } from '../../../Components/Calendar/statusIcons.jsx';
+import { DayStatus } from '@calendar/statusIcons.jsx';
 
 // Ritorna una funzione che mappa uno status al colore (palette) coerente con il tema
 export function useDayStatusColor() {

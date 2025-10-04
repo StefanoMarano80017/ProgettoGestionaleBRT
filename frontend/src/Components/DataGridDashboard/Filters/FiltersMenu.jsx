@@ -7,10 +7,10 @@ import {
   Typography,
   Stack,
 } from "@mui/material";
-import TextFilter from "./TextFilter";
-import EmployeeFilter from "./EmployeeFilter";
-import StatusFilter from "./StatusFilter";
-import DeadlineFilter from "./DeadlineFilter";
+import TextFilter from "@components/DataGridDashboard/Filters/TextFilter";
+import EmployeeFilter from "@components/DataGridDashboard/Filters/EmployeeFilter";
+import StatusFilter from "@components/DataGridDashboard/Filters/StatusFilter";
+import DeadlineFilter from "@components/DataGridDashboard/Filters/DeadlineFilter";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 
 const colorMap = {

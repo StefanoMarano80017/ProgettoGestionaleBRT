@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { updateGroupDayEntries as mockUpdateGroupDayEntries } from '../../../mocks/ProjectMock';
 
 // Gestisce le righe di edit per il giorno selezionato di un gruppo PM Campo
 export function usePmCampoEditing({ selectedGroup, selectedDay, commesse, groups, opPersonal, refreshGroups, refreshPersonal }) {
@@ -51,8 +52,7 @@ export function usePmCampoEditing({ selectedGroup, selectedDay, commesse, groups
     const sanitized = editEntries.filter(e => e.commessa && Number(e.oreTot) > 0);
     try { validatePerHeadLimit(sanitized, selectedGroup, selectedDay); } catch (e) { setSaveType('error'); setSaveMsg(e.message || 'Supero ore 8h'); return false; }
     try {
-      const { updateGroupDayEntries } = await import('../../../mocks/ProjectMock');
-      await updateGroupDayEntries({ groupId: selectedGroupId, dateKey: selectedDay, entries: sanitized });
+      await mockUpdateGroupDayEntries({ groupId: selectedGroupId, dateKey: selectedDay, entries: sanitized });
       setSaveType('success'); setSaveMsg('Salvato. Distribuzione aggiornata tra i membri.');
       refreshGroups?.(); refreshPersonal?.();
       return true;

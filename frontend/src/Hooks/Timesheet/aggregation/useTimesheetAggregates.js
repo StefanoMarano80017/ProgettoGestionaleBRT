@@ -39,13 +39,16 @@ export function useTimesheetAggregates({ dataMap = {}, year, month, options = {}
     if (options.includeGlobalCommessa) {
       // Build aggregation by commessa across all employees for target month
       const counters = {};
+      const isWorkCode = (c) => c && !['FERIE', 'MALATTIA', 'PERMESSO'].includes(String(c).toUpperCase());
       Object.values(dataMap).forEach(days => {
         Object.entries(days || {}).forEach(([k, v]) => {
           if (!Array.isArray(v)) return;
           const d = new Date(k);
           if (d.getFullYear() !== year || d.getMonth() !== month) return;
           v.forEach(r => {
-            const key = r.commessa || '???';
+            const comm = r && r.commessa ? String(r.commessa) : '';
+            if (!isWorkCode(comm)) return; // skip FERIE/MALATTIA/PERMESSO
+            const key = comm || '???';
             counters[key] = (counters[key] || 0) + (Number(r.ore) || 0);
           });
         });

@@ -1,5 +1,5 @@
 import { rest } from "msw";
-import { projectsMock } from "./ProjectMock";
+import { projectsMock } from "@mocks/ProjectMock";
 
 // Mock degli utenti
 const users = [

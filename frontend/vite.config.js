@@ -8,6 +8,21 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      // Core feature directories
+      '@components': path.resolve(__dirname, 'src/Components'),
+      '@hooks': path.resolve(__dirname, 'src/Hooks'),
+      '@layouts': path.resolve(__dirname, 'src/Layouts'),
+      '@pages': path.resolve(__dirname, 'src/Pages'),
+      '@routes': path.resolve(__dirname, 'src/Routes'),
+      '@services': path.resolve(__dirname, 'src/Services'),
+      '@theme': path.resolve(__dirname, 'src/Theme'),
+      '@assets': path.resolve(__dirname, 'src/assets'),
+      '@mocks': path.resolve(__dirname, 'src/mocks'),
+  // Domain-specific convenience aliases
+  '@timesheet': path.resolve(__dirname, 'src/Hooks/Timesheet'),
+  '@timesheetPages': path.resolve(__dirname, 'src/Pages/Timesheet'),
+  '@calendar': path.resolve(__dirname, 'src/Components/Calendar'),
+  '@entries': path.resolve(__dirname, 'src/Components/Entries'),
     }
   },
   build: {

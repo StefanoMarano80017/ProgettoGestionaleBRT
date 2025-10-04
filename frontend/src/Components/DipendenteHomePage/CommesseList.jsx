@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Box, Card, CardHeader, CardContent, CardActions, Typography, Paper, IconButton, Divider, Pagination, Stack } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import ConfirmDialog from "@components/ConfirmDialog";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import EntryListItem from "../../components/Entries/EntryListItem";
+import EntryListItem from "@components/Entries/EntryListItem";
 
 export default function CommesseList({ selectedDate }) {
   const [commesse, setCommesse] = React.useState([]);

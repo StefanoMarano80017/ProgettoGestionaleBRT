@@ -24,14 +24,14 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import PageHeader from "../../Components/PageHeader";
-import ConfirmDialog from "../../components/ConfirmDialog";
-import WorkCalendar from "../../Components/Calendar/WorkCalendar";
-import DayEntryPanel from "../../Components/Calendar/DayEntryPanel";
-import TileLegend from "../../Components/Calendar/TileLegend";
-import EntryListItem from "../../components/Entries/EntryListItem";
-import EmployeeMonthGrid from "../../Components/Calendar/EmployeeMonthGrid";
-import OperaioEditor from "../../Components/Timesheet/OperaioEditor";
+import PageHeader from "@components/PageHeader";
+import ConfirmDialog from "@components/ConfirmDialog";
+import WorkCalendar from "@components/Calendar/WorkCalendar";
+import DayEntryPanel from "@components/Calendar/DayEntryPanel";
+import TileLegend from "@components/Calendar/TileLegend";
+import EntryListItem from "@components/Entries/EntryListItem";
+import EmployeeMonthGrid from "@components/Calendar/EmployeeMonthGrid";
+import OperaioEditor from "@components/Timesheet/OperaioEditor";
 import {
   usePmGroups,
   useOpPersonal,

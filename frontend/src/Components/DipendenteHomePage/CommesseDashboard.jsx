@@ -16,7 +16,7 @@ import {
   Button,
   Tooltip,
 } from "@mui/material";
-import EntryListItem from "../../components/Entries/EntryListItem";
+import EntryListItem from "@components/Entries/EntryListItem";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import TodayIcon from "@mui/icons-material/Today";

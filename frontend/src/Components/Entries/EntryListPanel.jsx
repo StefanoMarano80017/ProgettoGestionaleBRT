@@ -1,6 +1,6 @@
 import React from "react";
 import { Paper, Stack, Typography, Box } from "@mui/material";
-import EntryListItem from "./EntryListItem";
+import EntryListItem from "@components/Entries/EntryListItem";
 
 /**
  * EntryListPanel
