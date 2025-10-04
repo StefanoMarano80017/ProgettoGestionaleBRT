@@ -81,8 +81,6 @@ export default function PageHeader({ onToggleSidebar }) {
         justifyContent: "space-between",
         flexWrap: "wrap",
         bgcolor: "customBackground.main",
-        borderBottom: 1,
-        borderColor: "divider",
         pr: 6,
         pl: 2,
         py: 1,

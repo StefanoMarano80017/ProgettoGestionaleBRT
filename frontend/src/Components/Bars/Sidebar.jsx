@@ -34,8 +34,6 @@ export default function Sidebar({ userName, onLogout, collapsed = false }) {
         transition: 'width 0.3s',
         bgcolor: 'customBackground.main',
         height: '100vh',
-        borderRight: 1,
-        borderColor: 'divider',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -44,7 +42,6 @@ export default function Sidebar({ userName, onLogout, collapsed = false }) {
       <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <img src={LogoGestionale} alt="Logo" style={{ maxWidth: '47%', height: 'auto' }} />
       </Box>
-      <Divider />
 
       {/* Pages */}
       <List sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>

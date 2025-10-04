@@ -6,6 +6,7 @@ import MonthSelector from '@components/Calendar/MonthSelector';
 import TileLegend from '@components/Calendar/TileLegend';
 import { useCalendarMonthYear, useItalianHolidays, useCalendarDays } from '@hooks/Timesheet/calendar';
 import { computeDayStatus } from '@components/Calendar/utils';
+import { useTimesheetContext } from '@hooks/Timesheet';
 
 const WEEK_DAYS = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
 
@@ -43,6 +44,27 @@ export function WorkCalendar({
   selectorVariant = 'windowed',
   selectorLabels = 'short'
 }) {
+  const tsCtx = (() => { try { return useTimesheetContext(); } catch { return null; } })();
+  const stagedMap = tsCtx?.stagedMap || {};
+
+  const getStagedStatus = (employeeId, dateStr) => {
+    if (!employeeId) return null;
+    const days = stagedMap[employeeId];
+    if (!days) return null;
+    const recs = days[dateStr];
+    if (recs === undefined) return null;
+    if (recs === null) return 'staged-delete';
+    const orig = tsCtx?.dataMap?.[employeeId]?.[dateStr] || [];
+    const staged = Array.isArray(recs) ? recs : [];
+    if (!orig.length && staged.length) return 'staged-insert';
+    if (orig.length && !staged.length) return 'staged-delete';
+    const changed = staged.length !== orig.length || staged.some((r,i) => {
+      const o = orig[i];
+      if (!o) return true;
+      return String(r?.commessa||'') !== String(o?.commessa||'') || Number(r?.ore||0) !== Number(o?.ore||0);
+    });
+    return changed ? 'staged-update' : null;
+  };
   const today = useMemo(() => new Date(), []);
   const { currentMonth, currentYear, setMonthYear } = useCalendarMonthYear(today);
   const holidaySet = useItalianHolidays(currentYear);
@@ -79,7 +101,7 @@ export function WorkCalendar({
       </Box>
 
   {/* Griglia giorni (6 settimane / 42 celle) */}
-      <Box sx={{ overflowX: fixedDayWidth && !distributeGaps ? "auto" : "hidden", width: "100%" }}>
+      <Box sx={{ overflowX: fixedDayWidth && !distributeGaps ? "auto" : "hidden", width: "100%", bgcolor: "background.default", borderRadius: 1 }}>
         <Box
           sx={{
               display: "grid",
@@ -106,10 +128,11 @@ export function WorkCalendar({
             isHoliday,
             today,
           });
+          const stagedStatus = getStagedStatus(item.employeeId || tsCtx?.selection?.employeeId, dateStr);
           // if highlightedDays includes this date, override status to a special flag
           const isHighlighted = highlightedDays && (highlightedDays.has ? highlightedDays.has(dateStr) : (Array.isArray(highlightedDays) && highlightedDays.includes(dateStr)));
           const isStaged = stagedDays && (stagedDays.has ? stagedDays.has(dateStr) : (Array.isArray(stagedDays) && stagedDays.includes(dateStr)));
-          const effectiveStatus = isStaged ? 'staged' : (isHighlighted ? 'prev-incomplete' : status);
+          const effectiveStatus = stagedStatus || (isHighlighted ? 'prev-incomplete' : status);
           const isOutOfMonth = false; // currently not rendering other-month days; keep API ready
 
           const tooltipContent = renderDayTooltip?.(dateStr, { dayData, dayOfWeek, isHoliday, segnalazione, totalHours });

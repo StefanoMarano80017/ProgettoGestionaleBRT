@@ -44,9 +44,7 @@ import EditEntryDialog from "@components/Timesheet/EditEntryDialog";
 import ConfirmDialog from "@components/ConfirmDialog";
 import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
 import updateEmployeeDay from '@hooks/Timesheet/utils/updateEmployeeDay';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+// legend icons moved into StagedChangesPanel
 
 const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 
@@ -414,19 +412,7 @@ function InnerDashboard() {
       )}
       {/* Relocated staged changes panel */}
       <Paper sx={{ mb: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main', display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Modifiche in attesa di conferma</Typography>
-            <Typography variant="caption" color="text.secondary">Le modifiche agli orari vengono applicate solo dopo la conferma.</Typography>
-            {/* Permanent legend under the title */}
-            <Box sx={{ mt: 1 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Chip icon={<AddCircleOutlineIcon fontSize="small" />} label="Inserimento" size="small" color="success" variant="outlined" />
-                <Chip icon={<EditIcon fontSize="small" />} label="Modifica" size="small" color="warning" variant="outlined" />
-                <Chip icon={<DeleteOutlineIcon fontSize="small" />} label="Cancellazione" size="small" color="error" variant="outlined" />
-              </Stack>
-            </Box>
-          </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <StagedChangesPanel />
         </Box>
       </Paper>

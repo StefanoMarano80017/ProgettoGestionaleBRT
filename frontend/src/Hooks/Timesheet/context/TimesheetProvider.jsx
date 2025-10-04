@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback, useRef } from 'react';
+import { semanticEqual, semanticHash } from '@hooks/Timesheet/utils/semanticTimesheet';
 import { useCalendarMonthYear } from '@hooks/Timesheet/calendar/useCalendarMonthYear';
 import { useTimesheetData } from '@hooks/Timesheet/data/useTimesheetData';
 import updateEmployeeDay, { batchUpdateEmployeeDays } from '@hooks/Timesheet/utils/updateEmployeeDay';
@@ -18,17 +19,61 @@ export function TimesheetProvider({
   const [stagedMap, setStagedMap] = useState({});
 
   // Stage a single day update (visible immediately in UI by merging stagedMap over dataMap)
+  const ensureIds = (arr) => {
+    if (!Array.isArray(arr)) return arr;
+    // Fast path: if every record already has _id, reuse original array reference
+    let allHaveId = true;
+    for (let i = 0; i < arr.length; i++) {
+      const r = arr[i];
+      if (r && typeof r === 'object' && !r._id) { allHaveId = false; break; }
+    }
+    if (allHaveId) return arr;
+    return arr.map(r => (r && typeof r === 'object'
+      ? { _id: r._id || crypto.randomUUID?.() || Math.random().toString(36).slice(2), ...r }
+      : r));
+  };
+
+  const stageHashesRef = useRef({}); // { employeeId: { dateKey: hash } }
   const stageUpdate = useCallback((employeeId, dateKey, records) => {
-    // debug: log stageUpdate calls in dev
-    try { console.debug && console.debug('[timesheet] stageUpdate', employeeId, dateKey, records); } catch (e) { /* ignore */ }
+    if (!employeeId || !dateKey) return;
     setStagedMap(prev => {
+      const prevEmp = prev?.[employeeId] || {};
+      const prevVal = prevEmp[dateKey];
+      const baseRecords = (dataMap?.[employeeId]?.[dateKey]) || [];
+      const nextVal = records === null ? null : (Array.isArray(records) ? ensureIds(records) : []);
+
+      // Hashes for quick short-circuit (null represented distinctly)
+      const prevHash = prevVal === null ? 'NULL' : semanticHash(prevVal);
+      const nextHash = nextVal === null ? 'NULL' : semanticHash(nextVal);
+      const baseHash = semanticHash(baseRecords);
+
+      if (prevHash === nextHash && semanticEqual(prevVal, nextVal)) return prev; // identical to current staged
+
+      // If next equals base -> clear staged entry
+      if ((nextVal === null && baseRecords.length === 0) || (nextVal !== null && semanticEqual(nextVal, baseRecords))) {
+        // If there was no previous staged value we can skip creating any new object -> prevents add/remove churn loops
+        if (prevVal === undefined) {
+          return prev; // no change
+        }
+        const next = { ...(prev || {}) };
+        const empCopy = { ...(next[employeeId] || {}) };
+        delete empCopy[dateKey];
+        if (Object.keys(empCopy).length === 0) delete next[employeeId]; else next[employeeId] = empCopy;
+        // update hash cache
+        if (stageHashesRef.current[employeeId]) delete stageHashesRef.current[employeeId][dateKey];
+        return next;
+      }
+
+      // Normal path
       const next = { ...(prev || {}) };
-      if (!next[employeeId]) next[employeeId] = {};
-      // allow null to represent deletion of the day
-      next[employeeId] = { ...next[employeeId], [dateKey]: records === null ? null : (Array.isArray(records) ? [...records] : []) };
+      const newEmp = { ...(next[employeeId] || {}) };
+      newEmp[dateKey] = nextVal;
+      next[employeeId] = newEmp;
+      if (!stageHashesRef.current[employeeId]) stageHashesRef.current[employeeId] = {};
+      stageHashesRef.current[employeeId][dateKey] = nextHash;
       return next;
     });
-  }, []);
+  }, [dataMap]);
 
   // Discard staged edits (optionally for a specific employee or full)
   const discardStaged = useCallback((opts = {}) => {
@@ -120,6 +165,16 @@ export function TimesheetProvider({
   const updateFilter = useCallback((k, v) => setFilters(f => ({ ...f, [k]: v })), []);
   const setEmployeeDate = useCallback((employeeId, date) => setSelection({ employeeId, date }), []);
 
+  const setEmployeeData = useCallback((employeeId, dayMap) => {
+    setDataMap(prev => ({
+      ...(prev||{}),
+      [employeeId]: {
+        ...(prev?.[employeeId]||{}),
+        ...(Object.entries(dayMap||{}).reduce((acc,[dk, recs]) => { acc[dk] = Array.isArray(recs) ? recs.map(r => (r && typeof r === 'object' ? { _id: r._id || crypto.randomUUID?.() || Math.random().toString(36).slice(2), ...r } : r)) : recs; return acc; }, {}))
+      }
+    }));
+  }, [setDataMap]);
+
   const value = useMemo(() => ({
     month: currentMonth,
     year: currentYear,
@@ -127,6 +182,7 @@ export function TimesheetProvider({
     shiftMonth: shift,
     dataMap,
     setDataMap,
+    setEmployeeData,
     stagedMap,
     stageUpdate,
     commitStaged,
@@ -144,7 +200,7 @@ export function TimesheetProvider({
     setSelection,
     setEmployeeDate,
     scope,
-  }), [currentMonth, currentYear, setMonthYear, shift, dataMap, stagedMap, employees, load, loading, error, companies, filters, selection, scope]);
+  }), [currentMonth, currentYear, setMonthYear, shift, dataMap, stagedMap, employees, load, loading, error, companies, filters, selection, scope, setEmployeeData, stageUpdate, commitStaged, commitStagedFor, discardStaged]);
 
   return <TimesheetContext.Provider value={value}>{children}</TimesheetContext.Provider>;
 }
