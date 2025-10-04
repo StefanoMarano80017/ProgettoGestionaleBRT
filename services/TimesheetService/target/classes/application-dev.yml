@@ -6,6 +6,7 @@ spring:
     driver-class-name: org.postgresql.Driver
 
   jpa:
+    defer-datasource-initialization: true
     hibernate:
       ddl-auto: create-drop   # ricrea lo schema ad ogni avvio in dev
     show-sql: true
@@ -16,7 +17,7 @@ spring:
 
   sql:
     init:
-      mode: always            # esegue data.sql ad ogni avvio
+      data-locations: classpath:data.sql
 
 logging:
   level:
