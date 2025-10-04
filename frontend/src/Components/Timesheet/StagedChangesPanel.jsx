@@ -4,6 +4,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { computeDayDiff, summarizeDayDiff } from '@hooks/Timesheet/utils/timesheetModel';
 import { useTimesheetContext } from '@hooks/Timesheet';
 import applyStagedToMock from '@hooks/Timesheet/utils/applyStagedToMock';
 
@@ -11,74 +13,47 @@ export default function StagedChangesPanel({ compact = false, showActions = true
   const ctx = (() => { try { return useTimesheetContext(); } catch (_) { return null; } })();
   const stagedMap = ctx?.stagedMap || {};
   const [anchorEl, setAnchorEl] = useState(null);
-  const [undoStack, setUndoStack] = useState([]); // stack of actions to undo
-  const [snack, setSnack] = useState({ open: false, msg: '', action: null });
+  const [undoStack, setUndoStack] = useState([]);
+  const [snack, setSnack] = useState({ open: false, msg: '', action: null, kind: null });
 
-  // Build flat list of staged items (one per changed record) for rendering
   const flat = useMemo(() => {
     const items = [];
     const employees = ctx?.employees || [];
     const nameById = {};
     employees.forEach(e => { if (e && e.id) nameById[e.id] = e.name || e.dipendente || e.id; });
-
-    const same = (a, b) => {
-      if (!a || !b) return false;
-      return String(a.commessa||'') === String(b.commessa||'') && Number(a.ore||0) === Number(b.ore||0) && String(a.descrizione||'') === String(b.descrizione||'');
-    };
-
     Object.entries(stagedMap).forEach(([empId, days]) => {
-      if (!days) return;
-      Object.entries(days).forEach(([dk, recs]) => {
-        const label = nameById[empId] || empId;
-        const origArr = (ctx?.dataMap?.[empId]?.[dk]) || [];
-        if (recs === null) {
-          items.push({ employeeId: empId, label, date: dk, action: 'day-delete', record: null, origRecord: null, origIndex: -1, stagedIndex: -1 });
-          return;
-        }
-        const stagedArr = Array.isArray(recs) ? recs : [];
-        // Build maps by _id or fallback key
-        const keyFor = (r, i) => (r && r._id) ? r._id : `idx:${i}`;
-        const origMap = new Map();
-        origArr.forEach((r,i) => origMap.set(keyFor(r,i), { rec: r, index: i }));
-        const stagedMapLocal = new Map();
-        stagedArr.forEach((r,i) => stagedMapLocal.set(keyFor(r,i), { rec: r, index: i }));
-
-        // Deletions & updates
-        origMap.forEach((oval, id) => {
-          if (!stagedMapLocal.has(id)) {
-            // deleted
-            items.push({ employeeId: empId, label, date: dk, action: 'delete', record: oval.rec, origRecord: oval.rec, origIndex: oval.index, stagedIndex: -1 });
-          } else {
-            const sval = stagedMapLocal.get(id);
-            if (!same(oval.rec, sval.rec)) {
-              items.push({ employeeId: empId, label, date: dk, action: 'update', record: sval.rec, origRecord: oval.rec, origIndex: oval.index, stagedIndex: sval.index });
-            }
-          }
-        });
-        // Insertions
-        stagedMapLocal.forEach((sval, id) => {
-          if (!origMap.has(id)) {
-            items.push({ employeeId: empId, label, date: dk, action: 'insert', record: sval.rec, origRecord: null, origIndex: -1, stagedIndex: sval.index });
-          }
-        });
+      Object.entries(days || {}).forEach(([dk, val]) => {
+        const orig = ctx?.dataMap?.[empId]?.[dk] || [];
+        const diff = computeDayDiff(orig, val);
+        items.push({ employeeId: empId, label: nameById[empId] || empId, date: dk, diff });
       });
     });
-    // Optional: stable ordering (by date then action priority)
-    const actionOrder = { 'day-delete':0, delete:1, update:2, insert:3 };
-    items.sort((a,b) => a.date===b.date ? (actionOrder[a.action]-actionOrder[b.action]) : (a.date < b.date ? -1 : 1));
+    items.sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     return items;
   }, [stagedMap, ctx]);
 
   const total = flat.length;
-  const totalLabel = total === 1 ? `${total} modifica` : `${total} modifiche`;
+  const totalLabel = total === 1 ? `${total} giorno` : `${total} giorni`;
 
   const handleOpenOverflow = (e) => setAnchorEl(e.currentTarget);
   const handleCloseOverflow = () => setAnchorEl(null);
 
+  const openSnack = (msg, kind) => setSnack({ open: true, msg, action: null, kind });
+  const closeSnack = () => setSnack(s => ({ ...s, open: false }));
+
   const handleGlobalSave = async () => {
     if (!ctx || !ctx.commitStaged) return;
     try {
+      const snapshot = flat.slice();
       await ctx.commitStaged(applyStagedToMock);
+      if (snapshot.length) {
+        let ins=0, upd=0, del=0; snapshot.forEach(it=>{const t=it.diff.type; if(t==='day-delete'||t==='delete-only') del++; else if(t==='new-day'||t==='insert-only') ins++; else upd++;});
+        const parts=[]; if(ins) parts.push(`${ins} nuovi`); if(upd) parts.push(`${upd} modificati`); if(del) parts.push(`${del} eliminati`);
+  const detail = parts.length?` (${parts.join(', ')})`:'';
+  openSnack(`Confermati ${snapshot.length} giorni${detail}`, 'commit');
+      } else {
+        openSnack('Nessuna modifica da confermare', 'commit');
+      }
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('Global commit failed', e);
@@ -90,113 +65,23 @@ export default function StagedChangesPanel({ compact = false, showActions = true
     ctx.discardStaged();
   };
 
-  const handleSaveFor = async (employeeId) => {
-    if (!ctx || !ctx.commitStagedFor) return;
-    try {
-      await ctx.commitStagedFor(employeeId, applyStagedToMock);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Commit for', employeeId, 'failed', e);
-    }
-  };
-
-  const handleDiscardFor = (employeeId) => {
-    if (!ctx || !ctx.discardStaged) return;
-    ctx.discardStaged({ employeeId });
-  };
-
-  const pushUndo = (undoAction) => setUndoStack(prev => [...prev, undoAction]);
-  const popUndo = () => setUndoStack(prev => { const copy = [...prev]; return copy.pop(); });
-  const openSnack = (msg) => setSnack({ open: true, msg, action: 'undo' });
-  const closeSnack = () => setSnack(s => ({ ...s, open: false }));
-
   const handleRemoveEntry = (item) => {
-    if (!ctx || typeof ctx.stageUpdate !== 'function') return;
-    const { employeeId, date: dateKey, action, origIndex, stagedIndex } = item;
-    const current = stagedMap[employeeId]?.[dateKey];
-    const origArr = ctx.dataMap?.[employeeId]?.[dateKey] || [];
-
-    // Day deletion removal => restore original array
-    if (action === 'day-delete') {
-      const before = current; // null
-      ctx.stageUpdate(employeeId, dateKey, origArr.slice());
-      pushUndo(() => ctx.stageUpdate(employeeId, dateKey, before));
-      openSnack('Ripristinato giorno');
-      return;
+    if (!ctx) return;
+    const { employeeId, date, diff } = item;
+    const current = stagedMap?.[employeeId]?.[date];
+    const origArr = ctx.dataMap?.[employeeId]?.[date] || [];
+    if (diff.type === 'day-delete') {
+      ctx.stageReplace(employeeId, date, origArr.slice());
+      return; // NO snack
     }
-
-    const stagedArr = Array.isArray(current) ? current.slice() : [];
-
-    let undo;
-    if (action === 'insert') {
-      let removed;
-      if (stagedIndex >= 0 && stagedIndex < stagedArr.length) {
-        removed = stagedArr.splice(stagedIndex, 1)[0];
-        undo = () => {
-          const cur = stagedMap[employeeId]?.[dateKey];
-          const base = Array.isArray(cur) ? cur.slice() : [];
-          base.splice(stagedIndex, 0, removed);
-          ctx.stageUpdate(employeeId, dateKey, base);
-        };
-      }
-      openSnack('Rimossa nuova voce');
-    } else if (action === 'update') {
-      let prevVal;
-      if (stagedIndex >= 0 && origIndex >= 0 && stagedIndex < stagedArr.length && origIndex < origArr.length) {
-        prevVal = stagedArr[stagedIndex];
-        stagedArr[stagedIndex] = { ...origArr[origIndex] };
-        undo = () => {
-          const cur = stagedMap[employeeId]?.[dateKey];
-            const base = Array.isArray(cur) ? cur.slice() : [];
-            base[stagedIndex] = prevVal;
-            ctx.stageUpdate(employeeId, dateKey, base);
-        };
-      }
-      openSnack('Modifica annullata');
-    } else if (action === 'delete') {
-      let restored;
-      if (origIndex >= 0 && origIndex < origArr.length) {
-        restored = { ...origArr[origIndex] };
-        stagedArr.splice(origIndex, 0, restored);
-        undo = () => {
-          const cur = stagedMap[employeeId]?.[dateKey];
-          const base = Array.isArray(cur) ? cur.slice() : [];
-          // find by _id if possible
-          const idx = base.findIndex(r => r && restored && r._id === restored._id);
-          if (idx >= 0) base.splice(idx, 1);
-          ctx.stageUpdate(employeeId, dateKey, base);
-        };
-      }
-      openSnack('Voce ripristinata');
-    }
-
-    // If stagedArr equals origArr after the change, collapse by sending origArr
-    const equal = stagedArr.length === origArr.length && stagedArr.every((r, i) => {
-      const o = origArr[i];
-      return String(r?.commessa || '') === String(o?.commessa || '') && Number(r?.ore || 0) === Number(o?.ore || 0);
-    });
-    ctx.stageUpdate(employeeId, dateKey, equal ? origArr.slice() : stagedArr);
-    if (undo) pushUndo(undo);
+    ctx.stageReplace(employeeId, date, origArr.slice());
+    return; // NO snack
   };
-
-  const handleUndo = () => {
-    const act = popUndo();
-    if (typeof act === 'function') {
-      act();
-    }
-    closeSnack();
-  };
-
-  // Always render a minimal view so developers can see stagedMap contents during debugging.
-  const isEmpty = !Object.keys(stagedMap || {}).length;
-  // If there are no staged changes but the caller asked to show the legend,
-  // still render the legend area. Only return null when nothing to display
-  // (no staged changes and legend suppressed).
-  if (isEmpty && !showLegend) return null;
 
   const extra = Math.max(0, flat.length - maxVisible);
-
   const open = Boolean(anchorEl);
+  const isEmpty = !Object.keys(stagedMap || {}).length;
+  if (isEmpty && !showLegend) return null;
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -230,79 +115,48 @@ export default function StagedChangesPanel({ compact = false, showActions = true
       }}>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', overflowX: 'auto', height: '100%' }}>
           {flat.slice(0, maxVisible).map((item, idx) => {
-            let IconComp = EditIcon;
-            let chipColor = 'default';
-            if (item.action === 'day-delete' || item.action === 'delete') { IconComp = DeleteOutlineIcon; chipColor = 'error'; }
-            else if (item.action === 'insert') { IconComp = AddCircleOutlineIcon; chipColor = 'success'; }
-            else if (item.action === 'update') { IconComp = EditIcon; chipColor = 'warning'; }
-
-            const entryLabel = item.action === 'day-delete'
-              ? 'Cancellazione giorno'
-              : item.record ? `${String(item.record.commessa || '')} ${item.record.ore || 0}h` : 'Voce';
-            const diffs = [];
-            if (item.action === 'update' && item.origRecord && item.record) {
-              if (String(item.origRecord.commessa || '') !== String(item.record.commessa || '')) {
-                diffs.push(`Commessa: ${item.origRecord.commessa || '—'} → ${item.record.commessa || '—'}`);
-              }
-              if (Number(item.origRecord.ore || 0) !== Number(item.record.ore || 0)) {
-                diffs.push(`Ore: ${item.origRecord.ore || 0} → ${item.record.ore || 0}`);
-              }
-            }
+            const { diff } = item;
+            let IconComp = EditIcon; let chipColor = 'warning';
+            if (diff.type === 'day-delete') { IconComp = DeleteOutlineIcon; chipColor = 'error'; }
+            else if (diff.type === 'new-day' || diff.type === 'insert-only') { IconComp = AddCircleOutlineIcon; chipColor = 'success'; }
+            else if (diff.type === 'delete-only') { IconComp = DeleteOutlineIcon; chipColor = 'error'; }
+            const summary = summarizeDayDiff(diff);
             const tooltipContent = (
               <Box sx={{ p: 0.5 }}>
                 <Box sx={{ fontWeight: 600, mb: 0.5 }}>{item.label}</Box>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ width: 120 }}>{item.date}</Typography>
-                  <Typography variant="body2" color="text.secondary">{
-                    item.action === 'insert' ? 'Inserimento' :
-                    item.action === 'update' ? 'Modifica' :
-                    (item.action === 'delete' || item.action === 'day-delete') ? 'Cancellazione' : 'Nessuna'
-                  }</Typography>
-                </Box>
-                {item.record && item.action !== 'day-delete' && (
-                  <Box sx={{ mt: 0.5 }}>
-                    <Typography variant="body2">{String(item.record.commessa || '')} — {item.record.ore || 0}h</Typography>
-                  </Box>
-                )}
-                {diffs.length > 0 && (
-                  <Box sx={{ mt: 0.5 }}>
-                    {diffs.map((d, i) => <Typography key={i} variant="caption" sx={{ display: 'block' }}>{d}</Typography>)}
+                <Typography variant="body2" sx={{ width: 140 }}>{item.date}</Typography>
+                <Typography variant="caption" color="text.secondary">{summary}</Typography>
+                {diff.changes && diff.changes.length > 0 && (
+                  <Box sx={{ mt: 0.5, maxHeight: 160, overflow: 'auto' }}>
+                    {diff.changes.slice(0, 6).map((c, i) => (
+                      <Typography key={i} variant="caption" sx={{ display: 'block' }}>
+                        {c.type === 'insert' && `+ ${c.after?.commessa || ''} ${c.after?.ore || 0}h`}
+                        {c.type === 'delete' && `− ${c.before?.commessa || ''} ${c.before?.ore || 0}h`}
+                        {c.type === 'update' && `${c.before?.commessa || ''} ${c.before?.ore || 0}h → ${c.after?.commessa || ''} ${c.after?.ore || 0}h`}
+                      </Typography>
+                    ))}
+                    {diff.changes.length > 6 && <Typography variant="caption">…</Typography>}
                   </Box>
                 )}
               </Box>
             );
-
-            const key = `${item.employeeId}-${item.date}-${item.action}-${item.origIndex}-${item.stagedIndex}-${idx}`;
+            const key = `${item.employeeId}-${item.date}-${idx}`;
             return (
               <Tooltip key={key} title={tooltipContent} placement="top" arrow>
-                {compact ? (
-                  <Chip
-                    icon={<IconComp fontSize="small" />}
-                    label={item.date}
-                    variant="outlined"
-                    size="small"
-                    color={chipColor}
-                    onClick={() => { /* could open detail */ }}
-                    onDelete={(e) => { e.stopPropagation && e.stopPropagation(); handleRemoveEntry(item); }}
-                    deleteIcon={<CloseIcon fontSize="small" />}
-                    sx={{ minWidth: 64, height: 28, paddingX: 0.5, fontSize: '0.75rem' }}
-                  />
-                ) : (
-                  <Chip
-                    icon={<IconComp fontSize="small" />}
-                    label={`${item.label} ${item.date}`}
-                    variant="outlined"
-                    size={compact ? 'small' : 'medium'}
-                    color={chipColor}
-                    onClick={() => { /* could open detail */ }}
-                    onDelete={(e) => { e.stopPropagation && e.stopPropagation(); handleRemoveEntry(item); }}
-                    deleteIcon={<CloseIcon fontSize={compact ? 'small' : 'medium'} />}
-                  />
-                )}
+                <Chip
+                  icon={<IconComp fontSize="small" />}
+                  label={compact ? item.date : `${item.date}`}
+                  variant="outlined"
+                  size={compact ? 'small' : 'medium'}
+                  color={chipColor}
+                  onDelete={(e) => { e.stopPropagation && e.stopPropagation(); handleRemoveEntry(item); }}
+                  deleteIcon={<CloseIcon fontSize={compact ? 'small' : 'medium'} />}
+                  sx={compact ? { minWidth: 64, height: 28, paddingX: 0.5, fontSize: '0.75rem' } : undefined}
+                />
               </Tooltip>
             );
           })}
-  </Box>
+        </Box>
 
         {extra > 0 && (
           <>
@@ -315,23 +169,16 @@ export default function StagedChangesPanel({ compact = false, showActions = true
 
             <Menu anchorEl={anchorEl} open={open} onClose={handleCloseOverflow} onClick={(e) => e.stopPropagation()}>
               {flat.slice(maxVisible).map((item, idx) => {
-                let IconComp = EditIcon;
-                let chipColor = 'default';
-                if (item.action === 'day-delete' || item.action === 'delete') { IconComp = DeleteOutlineIcon; chipColor = 'error'; }
-                else if (item.action === 'insert') { IconComp = AddCircleOutlineIcon; chipColor = 'success'; }
-                else if (item.action === 'update') { IconComp = EditIcon; chipColor = 'warning'; }
-
-                const entryLabel = item.action === 'day-delete'
-                  ? 'Cancellazione giorno'
-                  : item.record ? `${String(item.record.commessa || '')} ${item.record.ore || 0}h` : 'Voce';
-                const labelText = compact ? item.date : `${item.label} ${item.date}`;
-                const key = `overflow-${item.employeeId}-${item.date}-${item.action}-${item.origIndex}-${item.stagedIndex}-${idx}`;
+                const { diff } = item;
+                let IconComp = EditIcon; let chipColor = 'warning';
+                if (diff.type === 'day-delete') { IconComp = DeleteOutlineIcon; chipColor = 'error'; }
+                else if (diff.type === 'new-day' || diff.type === 'insert-only') { IconComp = AddCircleOutlineIcon; chipColor = 'success'; }
+                else if (diff.type === 'delete-only') { IconComp = DeleteOutlineIcon; chipColor = 'error'; }
+                const key = `overflow-${item.employeeId}-${item.date}-${idx}`;
                 return (
-                  <MenuItem key={key} onClick={() => { /* could open detail */ }}>
-                    <ListItemIcon>
-                      <IconComp fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary={labelText} secondary={entryLabel} />
+                  <MenuItem key={key}>
+                    <ListItemIcon><IconComp fontSize="small" /></ListItemIcon>
+                    <ListItemText primary={item.date} secondary={summarizeDayDiff(diff)} />
                     <IconButton size="small" edge="end" onClick={(e) => { e.stopPropagation(); handleRemoveEntry(item); }}>
                       <CloseIcon fontSize="small" />
                     </IconButton>
@@ -355,16 +202,33 @@ export default function StagedChangesPanel({ compact = false, showActions = true
         </Box>
       )}
 
-      {/* legend moved to Dashboard header */}
       <Snackbar
         open={snack.open}
         autoHideDuration={4000}
         onClose={closeSnack}
-        message={snack.msg}
-        action={snack.action ? (
-          <Button size="small" color="inherit" onClick={handleUndo}>Annulla</Button>
-        ) : null}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        message={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {snack.kind === 'commit' && <CheckCircleOutlineIcon fontSize="small" color="success" />}
+            <Typography
+              variant="body2"
+              sx={{
+                color: snack.kind === 'commit' ? 'success.main' : 'text.primary',
+                fontWeight: 500
+              }}
+            >{snack.msg}</Typography>
+          </Box>
+        }
+        ContentProps={{
+          sx: theme => ({
+            bgcolor: theme.palette.background.paper,
+            border: '1px solid',
+            borderColor: snack.kind === 'commit' ? 'success.light' : 'divider',
+            boxShadow: 6,
+            px: 2,
+            py: 1.25
+          })
+        }}
       />
     </Box>
   );

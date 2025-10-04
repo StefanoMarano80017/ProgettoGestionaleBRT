@@ -64,25 +64,39 @@ export function DayEntryTile({
   tooltipContent,
   variant = 'default', // 'default' | 'wide' | 'compact'
   onClick,
+  stagedStatus = null,
 }) {
   const isWide = variant === 'wide';
   const isCompact = variant === 'compact';
   const theme = useTheme();
   const isWeekend = useMemo(() => utilIsWeekend(dateStr), [dateStr]);
   const resolvedIcon = useMemo(() => resolveTileIcon({ icon, status, theme, isCompact }), [icon, status, theme, isCompact]);
+  const glowColor = useMemo(() => {
+    if (!stagedStatus) return null;
+    switch (stagedStatus) {
+      case 'staged-insert': return theme.palette.success?.main || '#2e7d32';
+      case 'staged-delete': return theme.palette.error?.main || '#d32f2f';
+      case 'staged-update': return theme.palette.warning?.main || '#ed6c02';
+      default: return null;
+    }
+  }, [stagedStatus, theme]);
+  const glowShadow = glowColor ? `0 0 0 2px ${theme.palette.background.paper}, 0 0 0 3px ${glowColor}, 0 0 8px 4px ${glowColor}` : undefined;
 
   const tile = (
     <Box
       onClick={() => onClick?.(dateStr)}
-      sx={(t) => getTileSx(t, {
-        isSelected,
-        isHoliday,
-        isWeekend,
-        isOutOfMonth,
-        status,
-        hasBg: bgcolor !== "transparent",
-        bgcolor,
-        isWide,
+      sx={(t) => ({
+        ...getTileSx(t, {
+          isSelected,
+          isHoliday,
+          isWeekend,
+          isOutOfMonth,
+          status,
+          hasBg: bgcolor !== "transparent",
+          bgcolor,
+          isWide,
+        }),
+        ...(glowShadow ? { boxShadow: glowShadow, position: 'relative', zIndex: 1, transition: 'box-shadow 160ms ease-in-out' } : { transition: 'box-shadow 160ms ease-in-out' })
       })}
     >
       {/* Day number chip */}
@@ -158,6 +172,7 @@ DayEntryTile.propTypes = {
   tooltipContent: PropTypes.node,
   variant: PropTypes.oneOf(['default', 'wide', 'compact']),
   onClick: PropTypes.func,
+  stagedStatus: PropTypes.string,
 };
 
 export default memo(DayEntryTile);

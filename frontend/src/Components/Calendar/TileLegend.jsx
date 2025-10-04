@@ -1,7 +1,17 @@
 import React, { useMemo, memo } from 'react';
 import PropTypes from 'prop-types';
-import { Stack, Chip } from '@mui/material';
+import { Stack, Chip, Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useTileLegendItems } from '@/Hooks/Timesheet/calendar';
+
+const STATUS_COLOR_MAP = (theme) => ({
+  'staged-insert': theme.palette.success?.main,
+  'staged-update': theme.palette.warning?.main,
+  'staged-delete': theme.palette.error?.main,
+  'prev-incomplete': theme.palette.warning?.light || theme.palette.warning?.main,
+  ferie: theme.palette.customPink?.main || theme.palette.secondary.main,
+  malattia: theme.palette.success?.main,
+});
 
 /**
  * TileLegend
@@ -12,12 +22,20 @@ import { useTileLegendItems } from '@/Hooks/Timesheet/calendar';
  */
 export function TileLegend() {
   const items = useTileLegendItems();
+  const theme = useTheme();
+  const colorMap = STATUS_COLOR_MAP(theme);
 
   const rendered = useMemo(() => items.map((item) => {
-    // Ensure icon sizing via sx override when an element is provided
-    const icon = item.icon && React.isValidElement(item.icon)
-      ? React.cloneElement(item.icon, { sx: { fontSize: 18, color: item.color, ...item.icon.props?.sx } })
-      : item.icon;
+    const statusKey = item.status;
+    const iconColor = item.color || colorMap[statusKey] || theme.palette.text.secondary;
+
+    let icon = item.icon;
+    if (icon && React.isValidElement(icon)) {
+      // Try htmlColor prop (many MUI icons honor this); also enforce via sx + wrapper
+      const mergedSx = { fontSize: 18, color: iconColor, ...(icon.props?.sx || {}) };
+      icon = React.cloneElement(icon, { htmlColor: iconColor, sx: mergedSx });
+      icon = <Box sx={{ lineHeight: 0, display: 'flex', alignItems: 'center', color: iconColor }}>{icon}</Box>;
+    }
 
     return (
       <Chip
@@ -29,7 +47,7 @@ export function TileLegend() {
         sx={{ borderRadius: 1, borderColor: 'divider', bgcolor: 'transparent', px: 0.75, py: 0.25 }}
       />
     );
-  }), [items]);
+  }), [items, colorMap, theme.palette.text.secondary]);
 
   return (
     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">

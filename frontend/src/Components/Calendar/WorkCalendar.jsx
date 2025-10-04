@@ -47,23 +47,52 @@ export function WorkCalendar({
   const tsCtx = (() => { try { return useTimesheetContext(); } catch { return null; } })();
   const stagedMap = tsCtx?.stagedMap || {};
 
-  const getStagedStatus = (employeeId, dateStr) => {
-    if (!employeeId) return null;
-    const days = stagedMap[employeeId];
-    if (!days) return null;
-    const recs = days[dateStr];
-    if (recs === undefined) return null;
-    if (recs === null) return 'staged-delete';
-    const orig = tsCtx?.dataMap?.[employeeId]?.[dateStr] || [];
-    const staged = Array.isArray(recs) ? recs : [];
-    if (!orig.length && staged.length) return 'staged-insert';
-    if (orig.length && !staged.length) return 'staged-delete';
-    const changed = staged.length !== orig.length || staged.some((r,i) => {
-      const o = orig[i];
+  // Determine active employee id: explicit selection or single staged employee.
+  const activeEmployeeId = useMemo(() => {
+    if (tsCtx?.selection?.employeeId) return tsCtx.selection.employeeId;
+    const ids = Object.keys(stagedMap);
+    if (ids.length === 1) return ids[0];
+    return null; // multi-employee view or unknown
+  }, [tsCtx?.selection?.employeeId, stagedMap]);
+
+  const classify = (orig, stagedVal) => {
+    if (stagedVal === undefined) return null;
+    if (stagedVal === null) return 'staged-delete';
+    const stagedArr = Array.isArray(stagedVal) ? stagedVal : [];
+    const origArr = Array.isArray(orig) ? orig : [];
+    if (!origArr.length && stagedArr.length) return 'staged-insert';
+    if (origArr.length && !stagedArr.length) return 'staged-delete';
+    const changed = stagedArr.length !== origArr.length || stagedArr.some((r,i) => {
+      const o = origArr[i];
       if (!o) return true;
       return String(r?.commessa||'') !== String(o?.commessa||'') || Number(r?.ore||0) !== Number(o?.ore||0);
     });
     return changed ? 'staged-update' : null;
+  };
+
+  const getStagedStatus = (dateStr) => {
+    // Prefer active employee.
+    if (activeEmployeeId) {
+      const days = stagedMap[activeEmployeeId] || {};
+      const stagedVal = days[dateStr];
+      const orig = tsCtx?.dataMap?.[activeEmployeeId]?.[dateStr] || [];
+      return classify(orig, stagedVal);
+    }
+    // Aggregate across all employees if no active selection.
+    // Precedence: delete > insert > update.
+    let found = null;
+    for (const empId of Object.keys(stagedMap)) {
+      const days = stagedMap[empId] || {};
+      const stagedVal = days[dateStr];
+      if (stagedVal === undefined) continue;
+      const orig = tsCtx?.dataMap?.[empId]?.[dateStr] || [];
+      const status = classify(orig, stagedVal);
+      if (!status) continue;
+      if (status === 'staged-delete') { return status; }
+      if (status === 'staged-insert' && found !== 'staged-delete') { found = status; }
+      if (status === 'staged-update' && !found) { found = status; }
+    }
+    return found;
   };
   const today = useMemo(() => new Date(), []);
   const { currentMonth, currentYear, setMonthYear } = useCalendarMonthYear(today);
@@ -128,7 +157,7 @@ export function WorkCalendar({
             isHoliday,
             today,
           });
-          const stagedStatus = getStagedStatus(item.employeeId || tsCtx?.selection?.employeeId, dateStr);
+          const stagedStatus = getStagedStatus(dateStr);
           // if highlightedDays includes this date, override status to a special flag
           const isHighlighted = highlightedDays && (highlightedDays.has ? highlightedDays.has(dateStr) : (Array.isArray(highlightedDays) && highlightedDays.includes(dateStr)));
           const isStaged = stagedDays && (stagedDays.has ? stagedDays.has(dateStr) : (Array.isArray(stagedDays) && stagedDays.includes(dateStr)));
@@ -136,15 +165,12 @@ export function WorkCalendar({
           const isOutOfMonth = false; // currently not rendering other-month days; keep API ready
 
           const tooltipContent = renderDayTooltip?.(dateStr, { dayData, dayOfWeek, isHoliday, segnalazione, totalHours });
-
           return (
             <DayEntryTile
               key={dateStr}
               dateStr={dateStr}
               day={day}
               isSelected={isSelected}
-              // propagate special status for highlighted previous-month incomplete days
-              // DayEntryTile will receive 'prev-incomplete' and tileStyles will map it to yellow-ish glow
               status={effectiveStatus}
               showHours={showHours}
               iconTopRight={iconTopRight}
@@ -153,7 +179,7 @@ export function WorkCalendar({
               tooltipContent={tooltipContent}
               variant={variant}
               isHoliday={isHoliday}
-              // isOutOfMonth intentionally omitted to allow DayEntryTile default handling
+              stagedStatus={stagedStatus}
             />
           );
         })}

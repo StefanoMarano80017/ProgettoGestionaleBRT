@@ -3,6 +3,7 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
+import customPlugin from './eslint-plugin-custom/index.js'
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -22,8 +23,12 @@ export default defineConfig([
         sourceType: 'module',
       },
     },
+    plugins: {
+      'custom': customPlugin,
+    },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+  'custom/jsx-single-line-box': ['warn', { elements: ['*'], maxProps: 10, maxChildLength: 140 }],
     },
   },
 ])

@@ -34,7 +34,7 @@ export function TimesheetProvider({
   };
 
   const stageHashesRef = useRef({}); // { employeeId: { dateKey: hash } }
-  const stageUpdate = useCallback((employeeId, dateKey, records) => {
+  const stageReplace = useCallback((employeeId, dateKey, records) => {
     if (!employeeId || !dateKey) return;
     setStagedMap(prev => {
       const prevEmp = prev?.[employeeId] || {};
@@ -74,6 +74,51 @@ export function TimesheetProvider({
       return next;
     });
   }, [dataMap]);
+  // Backward compatibility alias
+  const stageUpdate = stageReplace;
+  const stageDeleteDay = useCallback((employeeId, dateKey) => stageReplace(employeeId, dateKey, null), [stageReplace]);
+
+  const discardDay = useCallback((employeeId, dateKey) => {
+    if (!employeeId || !dateKey) return;
+    setStagedMap(prev => {
+      const emp = prev?.[employeeId];
+      if (!emp || !(dateKey in emp)) return prev;
+      const next = { ...prev };
+      const empCopy = { ...emp };
+      delete empCopy[dateKey];
+      if (Object.keys(empCopy).length === 0) delete next[employeeId]; else next[employeeId] = empCopy;
+      return next;
+    });
+  }, []);
+
+  const commitDay = useCallback(async (employeeId, dateKey, applyFn) => {
+    if (!employeeId || !dateKey) return;
+    const stagedEmp = stagedMap?.[employeeId];
+    if (!stagedEmp || !(dateKey in stagedEmp)) return;
+    const value = stagedEmp[dateKey];
+    const updates = [{ employeeId, dateKey, records: Array.isArray(value) ? [...value] : null }];
+    setDataMap(prev => batchUpdateEmployeeDays({ prev, updates }));
+    try {
+      if (typeof applyFn === 'function') {
+        await applyFn({ employeeId, updates: [{ dateKey, records: Array.isArray(value) ? [...value] : [] }] });
+      } else {
+        updateEmployeeDay({ prev: null, employeeId, dateKey, records: Array.isArray(value) ? value : [] });
+      }
+      setStagedMap(prev => {
+        const empDays = prev?.[employeeId];
+        if (!empDays) return prev;
+        const next = { ...prev };
+        const copy = { ...empDays };
+        delete copy[dateKey];
+        if (Object.keys(copy).length === 0) delete next[employeeId]; else next[employeeId] = copy;
+        return next;
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[timesheet] commitDay failed', e);
+      throw e;
+    }
+  }, [stagedMap, setDataMap]);
 
   // Discard staged edits (optionally for a specific employee or full)
   const discardStaged = useCallback((opts = {}) => {
@@ -185,6 +230,10 @@ export function TimesheetProvider({
     setEmployeeData,
     stagedMap,
     stageUpdate,
+    stageReplace,
+    stageDeleteDay,
+    discardDay,
+    commitDay,
     commitStaged,
   commitStagedFor,
     discardStaged,
@@ -200,7 +249,7 @@ export function TimesheetProvider({
     setSelection,
     setEmployeeDate,
     scope,
-  }), [currentMonth, currentYear, setMonthYear, shift, dataMap, stagedMap, employees, load, loading, error, companies, filters, selection, scope, setEmployeeData, stageUpdate, commitStaged, commitStagedFor, discardStaged]);
+  }), [currentMonth, currentYear, setMonthYear, shift, dataMap, stagedMap, employees, load, loading, error, companies, filters, selection, scope, setEmployeeData, stageUpdate, stageReplace, stageDeleteDay, discardDay, commitDay, commitStaged, commitStagedFor, discardStaged]);
 
   return <TimesheetContext.Provider value={value}>{children}</TimesheetContext.Provider>;
 }
