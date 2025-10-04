@@ -1,23 +1,27 @@
 import React from "react";
 import { Box, Stack, Typography, TextField, IconButton, Button, Chip, Alert, Autocomplete } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useTimesheetEntryEditor } from '@/Hooks/Timesheet';
+import { useTimesheetEntryEditor, useTimesheetContext } from '@/Hooks/Timesheet';
 
 export default function OperaioEditor({ opRow, dateKey, tsMap, commesse, onSaved }) {
   const dayEntries = (tsMap?.[opRow.id]?.[dateKey] || []);
   const work = dayEntries.filter(r => !['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa)));
   const personalInitial = dayEntries.filter(r => ['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa)));
+  const ctx = (() => { try { return useTimesheetContext(); } catch (_) { return null; } })();
   const editor = useTimesheetEntryEditor({
     entries: work,
     personalEntries: personalInitial,
     commesse,
     onSave: async ({ workEntries, personalEntries }) => {
-      // Persist back into tsMap in-place (mutating pattern depending on parent design is avoided—clone instead)
-      const next = { ...tsMap };
-      next[opRow.id] = { ...(next[opRow.id] || {}) };
-      next[opRow.id][dateKey] = [...workEntries, ...personalEntries];
-      // Naive: onSaved expected to update higher-level state externally
-      onSaved?.(next);
+      const nextRecords = [...workEntries, ...personalEntries];
+      // If provider staging available, stage the change so UI can show it and backend can be saved in batch
+      try {
+        if (ctx && typeof ctx.stageUpdate === 'function') {
+          ctx.stageUpdate(opRow.id, dateKey, nextRecords);
+        }
+      } catch (e) { /* ignore */ }
+      // Notify parent to refresh derived data
+      onSaved?.(nextRecords);
     }
   });
   return (
@@ -67,7 +71,7 @@ export default function OperaioEditor({ opRow, dateKey, tsMap, commesse, onSaved
         <Stack direction="row" alignItems="center" spacing={1}>
           <Button variant="outlined" size="small" onClick={editor.addPersonal}>Aggiungi voce personale</Button>
           <Chip size="small" label={`Totale personali: ${editor.totals.personalTotal}h`} />
-          <Chip size="small" color={editor.totals.grandTotal > 8 ? "error" : "default"} label={`Totale giorno: ${editor.totals.grandTotal}h / 8h`} />
+          <Chip size="small" color={editor.getDayUsed() > 8 ? "error" : "default"} label={`Totale giorno: ${editor.getDayUsed()}h / 8h`} />
         </Stack>
       </Stack>
     </Box>

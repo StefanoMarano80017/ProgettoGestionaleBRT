@@ -1,25 +1,43 @@
 import React, { useState } from "react";
-import { Box, Container, Alert } from "@mui/material";
+import { Box, Container, Alert, Button } from "@mui/material";
 import PageHeader from "@components/PageHeader";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import BadgeCard from "@components/BadgeCard/Badge";
+import StagedChangesPanel from '@components/Timesheet/StagedChangesPanel';
 import WorkCalendar from "@components/Calendar/WorkCalendar";
 import DayEntryPanel from "@components/Calendar/DayEntryPanel";
-import { projectsMock } from "@mocks/ProjectMock";
-import { useReferenceData } from '@/Hooks/Timesheet';
+import { projectsMock, OPERAI } from "@mocks/ProjectMock";
+import { useReferenceData, useTimesheetContext, TimesheetProvider } from '@/Hooks/Timesheet';
 import { useDipendenteTimesheetData } from '@/Hooks/Timesheet/DipendenteTimesheet/useDipendenteTimesheetData';
+import useMonthCompleteness from '@/Hooks/Timesheet/useMonthCompleteness';
 import CommesseDashboard from "@components/DipendenteHomePage/CommesseDashboard";
 export default function DipendenteTimesheet() {
   const [selectedDay, setSelectedDay] = useState(null);
   // Core timesheet data and handlers (mocked projects passed for now)
-  const { data, handleAddRecord, todayKey, isBadgiatoToday } = useDipendenteTimesheetData(projectsMock);
+  const ctx = (() => { try { return useTimesheetContext(); } catch (_) { return null; } })();
+  const { data, handleAddRecord, todayKey, isBadgiatoToday } = useDipendenteTimesheetData(projectsMock, { onStage: ctx ? (day, records) => ctx.stageUpdate('emp-001', day, records) : undefined });
 
   // Current employee id (replace with real id from auth/store when available)
   const currentEmployeeId = "emp-001";
+  // show previous month completeness warning for the current employee
+  const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
+  const { missingDates: missingPrev, missingSet: missingPrevSet } = useMonthCompleteness({ tsMap: { [currentEmployeeId]: projectsMock }, id: currentEmployeeId, year: prev.getFullYear(), month: prev.getMonth() });
   // Load active 'commesse' for the employee via unified reference data hook
   const { commesse: commesseList, loading: commesseLoading, error: commesseError } = useReferenceData({ commesse: true, personale: false, pmGroups: false, employeeId: currentEmployeeId });
 
+  const commitMyStaged = React.useCallback(() => {
+    if (ctx && typeof ctx.commitStagedFor === 'function') ctx.commitStagedFor(currentEmployeeId, async (payload) => {
+      const apply = (await import('@hooks/Timesheet/utils/applyStagedToMock')).default;
+      return apply(payload);
+    });
+  }, [ctx]);
+
+  const discardMyStaged = React.useCallback(() => {
+    if (ctx && typeof ctx.discardStaged === 'function') ctx.discardStaged({ employeeId: currentEmployeeId });
+  }, [ctx]);
+
   return (
+    <TimesheetProvider scope="single" employeeIds={[currentEmployeeId]}>
     <Box sx={{ bgcolor: "background.default", height: "100vh", overflow: "auto" }}>
       <Container maxWidth="xl" sx={{ mt: 4 }}>
         {/* Page header and status badge */}
@@ -34,6 +52,9 @@ export default function DipendenteTimesheet() {
             isBadgiato={isBadgiatoToday}
           />
         </Box>
+        {missingPrev.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>Attenzione: non hai completato il timesheet del mese precedente ({missingPrev.length} giorni mancanti). Compila i giorni mancanti.</Alert>
+        )}
         {/* Main layout: left = day detail, right = month calendar */}
         <Box sx={{
           boxShadow: 8,
@@ -64,6 +85,9 @@ export default function DipendenteTimesheet() {
                   onAddRecord={handleAddRecord}
                   commesse={commesseList}
                 />
+                <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                  <StagedChangesPanel showActions={false} />
+                </Box>
               </>
             ) : (
               <Alert
@@ -82,6 +106,8 @@ export default function DipendenteTimesheet() {
               selectedDay={selectedDay}
               onDaySelect={(d) => { setSelectedDay(d); }}
               variant="wide"
+              highlightedDays={missingPrevSet}
+              stagedDays={ctx && ctx.stagedMap && ctx.stagedMap[currentEmployeeId] ? new Set(Object.keys(ctx.stagedMap[currentEmployeeId] || {})) : undefined}
             />
           </Box>
         </Box>
@@ -92,5 +118,6 @@ export default function DipendenteTimesheet() {
         </Box>
       </Container>
     </Box>
+    </TimesheetProvider>
   );
 }

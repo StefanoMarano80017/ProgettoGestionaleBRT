@@ -5,6 +5,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EntryListPanel from "@components/Entries/EntryListPanel";
 import EditEntryDialog from "@components/Timesheet/EditEntryDialog";
 import SendIcon from '@mui/icons-material/Send';
+import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
 
 export default function DetailsPanel({
   selEmp,
@@ -160,17 +161,7 @@ export default function DetailsPanel({
           commesse={commesse}
           maxOre={8}
           dailyLimit={8}
-          dayUsed={(function(){
-            const all = dayRecords || [];
-            const current = editItem;
-            return all.reduce((acc, r, idx) => {
-              // exclude current editing item by reference or id
-              if (current && r === current) return acc;
-              if (current && r.id && current.id && r.id === current.id) return acc;
-              if (current && !r.id && !current.id && r.commessa === current.commessa && Number(r.ore) === Number(current.ore) && (r.descrizione || '') === (current.descrizione || '')) return acc;
-              return acc + (Number(r.ore) || 0);
-            }, 0);
-          })()}
+          dayUsed={computeDayUsed(dayRecords || [], editItem)}
           onClose={() => setEditOpen(false)}
           onSave={handleSaveEdit}
         />

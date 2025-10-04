@@ -9,6 +9,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import PropTypes from 'prop-types';
 import { AvatarInitials } from '@components/Avatar/AvatarInitials';
 
 /**
@@ -17,7 +18,12 @@ import { AvatarInitials } from '@components/Avatar/AvatarInitials';
  * Displays a task summary card with progress and a scrollable list of sub-items.
  * - props.task: the task object. Expected shape: { id, title, description, progress, items: [{ id?, name, status }] }
  */
-function TaskDetailCard({ task }) {
+/**
+ * TaskDetailCard
+ *
+ * Displays a task summary card with progress and a scrollable list of sub-items.
+ */
+export function TaskDetailCard({ task }) {
   if (!task) {
     return (
       <Card sx={{ maxWidth: 345, p: 2 }}>
@@ -86,5 +92,17 @@ function TaskDetailCard({ task }) {
     </Card>
   );
 }
+
+TaskDetailCard.propTypes = {
+  task: PropTypes.shape({
+    id: PropTypes.any,
+    title: PropTypes.string,
+    description: PropTypes.string,
+    progress: PropTypes.number,
+    items: PropTypes.array,
+  }),
+};
+
+TaskDetailCard.displayName = 'TaskDetailCard';
 
 export default React.memo(TaskDetailCard);

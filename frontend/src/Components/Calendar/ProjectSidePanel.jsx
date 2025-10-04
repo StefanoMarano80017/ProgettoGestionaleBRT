@@ -1,12 +1,13 @@
 import * as React from 'react';
+import PropTypes from 'prop-types';
 import { Box, Paper, Typography, Pagination } from '@mui/material';
-import TaskDetailCard from '@components/Calendar/TaskDetailCard';
+import { TaskDetailCard } from '@components/Calendar/TaskDetailCard';
 
 /**
  * ProjectSidePanel
  * Shows a paginated list of task cards for the selected day.
  */
-export default function ProjectSidePanel({ tasks }) {
+export function ProjectSidePanel({ tasks }) {
   const pageSize = 2; // two cards per page
   const safeTasks = Array.isArray(tasks) ? tasks : [];
 
@@ -41,3 +42,11 @@ export default function ProjectSidePanel({ tasks }) {
     </Box>
   );
 }
+
+ProjectSidePanel.propTypes = {
+  tasks: PropTypes.array,
+};
+
+ProjectSidePanel.displayName = 'ProjectSidePanel';
+
+export default React.memo(ProjectSidePanel);

@@ -25,6 +25,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PageHeader from "@components/PageHeader";
+import StagedChangesPanel from '@components/Timesheet/StagedChangesPanel';
 import ConfirmDialog from "@components/ConfirmDialog";
 import WorkCalendar from "@components/Calendar/WorkCalendar";
 import DayEntryPanel from "@components/Calendar/DayEntryPanel";
@@ -38,7 +39,11 @@ import {
   useOperaiTimesheet,
   useCalendarMonthYear,
 } from '@/Hooks/Timesheet';
+import { useTimesheetContext } from '@/Hooks/Timesheet';
+import { checkMonthCompletenessForId } from '@/Hooks/Timesheet/utils/checkMonthCompleteness';
+import useMultipleMonthCompleteness from '@/Hooks/Timesheet/useMultipleMonthCompleteness';
 import { usePmCampoEditing } from '@/Hooks/Timesheet/PMCampoTimesheet/usePmCampoEditing';
+import applyStagedToMock from '@hooks/Timesheet/utils/applyStagedToMock';
 
 export default function PMCampoTimesheet() {
   const [azienda, setAzienda] = useState("BRT");
@@ -59,6 +64,7 @@ export default function PMCampoTimesheet() {
     refreshGroups,
   } = usePmGroups(azienda);
   const { opPersonal, refreshPersonal } = useOpPersonal();
+  const ctx = (() => { try { return useTimesheetContext(); } catch (_) { return null; } })();
   const { currentYear: opYear, currentMonth: opMonth, shift, setMonthYear } = useCalendarMonthYear(new Date());
   const handlePrevMonth = () => shift(-1);
   const handleNextMonth = () => shift(1);
@@ -181,12 +187,29 @@ export default function PMCampoTimesheet() {
     .filter(r => (searchOperaio.trim() ? r.dipendente.toLowerCase().includes(searchOperaio.trim().toLowerCase()) : true)), [baseOperaiRows, filterCompany, searchOperaio]);
   const opMonthName = useMemo(() => ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"][opMonth], [opMonth]);
 
+  // PM check: find operai missing previous month entries (for PMs we alert for previous month completeness)
+  const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
+  const operaiWithMissing = useMemo(() => {
+    return baseOperaiRows.map(r => ({ id: r.id, missing: checkMonthCompletenessForId({ tsMap: operaiTsMap, id: r.id, year: prev.getFullYear(), month: prev.getMonth() }) })).filter(x => x.missing.length > 0);
+  }, [baseOperaiRows, operaiTsMap]);
+
+  // compute missing sets for the displayed operai so we can highlight names and cells
+  const visibleOpIds = useMemo(() => (operaiRows || []).map(r => r.id), [operaiRows]);
+  const { map: opMissingMap, idsWithMissing: opIdsWithMissing } = useMultipleMonthCompleteness({ tsMap: operaiTsMap, ids: visibleOpIds, year: prev.getFullYear(), month: prev.getMonth() });
+  const opHighlightedDaysMap = React.useMemo(() => { const o = {}; Object.entries(opMissingMap||{}).forEach(([id, v]) => { o[id] = v.missingSet; }); return o; }, [opMissingMap]);
+
   return (
     <Box sx={{ bgcolor: "background.default", minHeight: "100vh", overflow: 'auto' }}>
       <Container maxWidth="xl" sx={{ mt: 4 }}>
         <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-          <PageHeader title="Timesheet PM Campo" description="Gestione gruppi operai e assegnazione ore su commesse" icon={<AccessTimeIcon />} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <PageHeader title="Timesheet PM Campo" description="Gestione gruppi operai e assegnazione ore su commesse" icon={<AccessTimeIcon />} />
+          </Box>
+          <StagedChangesPanel compact />
         </Box>
+        {operaiWithMissing.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }} action={<Button size="small" onClick={() => setActiveTab(1)}>Vai a Operai</Button>}>Ci sono {operaiWithMissing.length} operai con il mese precedente incompleto. Controlla e completa i loro timesheet.</Alert>
+        )}
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}><Tab label="Squadre" /><Tab label="Operai" /></Tabs>
           <Box sx={{ flex: 1 }} />
@@ -318,10 +341,31 @@ export default function PMCampoTimesheet() {
                 <IconButton size="small" onClick={handleNextMonth}><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
               </Stack>
             </Stack>
-            <EmployeeMonthGrid year={opYear} month={opMonth} rows={operaiRows.filter(r => !searchCommessa.trim() || Object.entries(operaiTsMap[r.id] || {}).some(([key, recs]) => key.startsWith(`${opYear}-${String(opMonth + 1).padStart(2,'0')}`) && (recs || []).some(it => String(it.commessa).toLowerCase().includes(searchCommessa.trim().toLowerCase()))))} tsMap={operaiTsMap} onDayClick={(row, dateKey) => { setSelOpRow(row); setSelOpDate(dateKey); }} height={420} dayWidth={52} dayHeight={28} dipWidth={240} azWidth={130} />
+            <EmployeeMonthGrid
+              year={opYear}
+              month={opMonth}
+              rows={operaiRows.filter(r => !searchCommessa.trim() || Object.entries(operaiTsMap[r.id] || {}).some(([key, recs]) => key.startsWith(`${opYear}-${String(opMonth + 1).padStart(2,'0')}`) && (recs || []).some(it => String(it.commessa).toLowerCase().includes(searchCommessa.trim().toLowerCase()))))}
+              tsMap={operaiTsMap}
+              onDayClick={(row, dateKey) => { setSelOpRow(row); setSelOpDate(dateKey); }}
+              height={420}
+              dayWidth={52}
+              dayHeight={28}
+              dipWidth={240}
+              azWidth={130}
+              rowHighlights={opIdsWithMissing}
+              highlightedDaysMap={opHighlightedDaysMap}
+            />
             <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1, boxShadow: 1 }}>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>Dettaglio operaio: {selOpRow?.dipendente || '—'} — {selOpDate || 'seleziona un giorno'}</Typography>
-              {selOpRow && selOpDate ? <OperaioEditor opRow={selOpRow} dateKey={selOpDate} tsMap={operaiTsMap} commesse={commesse} onSaved={() => { refreshGroups(); refreshPersonal(); }} /> : <Alert severity="info">Seleziona una cella nella griglia per vedere il dettaglio giornaliero.</Alert>}
+                  {selOpRow && selOpDate ? (
+                <>
+                  <OperaioEditor opRow={selOpRow} dateKey={selOpDate} tsMap={operaiTsMap} commesse={commesse} onSaved={() => { refreshGroups(); refreshPersonal(); }} />
+                  <Box sx={{ mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                    <Button size="small" variant="outlined" onClick={() => { if (ctx) ctx.discardStaged({ employeeId: selOpRow.id }); }}>Annulla</Button>
+                    <Button size="small" variant="contained" onClick={async () => { if (ctx && typeof ctx.commitStagedFor === 'function') { try { await ctx.commitStagedFor(selOpRow.id, applyStagedToMock); refreshGroups(); refreshPersonal(); } catch (e) { console.error('Failed to save staged operaio edits', e); } } }}>Salva</Button>
+                  </Box>
+                </>
+              ) : <Alert severity="info">Seleziona una cella nella griglia per vedere il dettaglio giornaliero.</Alert>}
             </Box>
           </Box>
         )}

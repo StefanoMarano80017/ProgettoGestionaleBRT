@@ -104,6 +104,8 @@ I filtri DataGrid espongono spesso metodi `render()` e `renderChip()` per incaps
 const { data, handleAddRecord, isBadgiatoToday } = useDipendenteTimesheetData(projectsMock);
 const { commesse, loading } = useReferenceData({ commesse: true, personale: false, pmGroups: false, employeeId });
 const editor = useTimesheetEntryEditor({ entries: records, commesse, onSave: (next) => onAddRecord(selectedDay, next, true) });
+// You can obtain the current day's used hours (rows + personal) excluding a specific entry being edited:
+// const dayUsed = editor.getDayUsed(currentEntry, mode, editIndex);
 ```
 
 ### Aree di Miglioramento Future

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
+import PropTypes from 'prop-types';
 import DayEntryTile from '@components/Calendar/DayEntryTile';
 import MonthSelector from '@components/Calendar/MonthSelector';
 import TileLegend from '@components/Calendar/TileLegend';
@@ -24,11 +25,17 @@ const WEEK_DAYS = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
  * - selectorVariant?: forward to MonthSelector
  * - selectorLabels?: label density for MonthSelector
  */
-export default function WorkCalendar({
+/**
+ * WorkCalendar
+ * High-level month view calendar rendering 6 weeks worth of day tiles.
+ */
+export function WorkCalendar({
   data = {},
   selectedDay,
   onDaySelect,
   renderDayTooltip,
+  highlightedDays,
+  stagedDays,
   fixedDayWidth = false,
   gap = 1,
   distributeGaps = false,
@@ -99,6 +106,10 @@ export default function WorkCalendar({
             isHoliday,
             today,
           });
+          // if highlightedDays includes this date, override status to a special flag
+          const isHighlighted = highlightedDays && (highlightedDays.has ? highlightedDays.has(dateStr) : (Array.isArray(highlightedDays) && highlightedDays.includes(dateStr)));
+          const isStaged = stagedDays && (stagedDays.has ? stagedDays.has(dateStr) : (Array.isArray(stagedDays) && stagedDays.includes(dateStr)));
+          const effectiveStatus = isStaged ? 'staged' : (isHighlighted ? 'prev-incomplete' : status);
           const isOutOfMonth = false; // currently not rendering other-month days; keep API ready
 
           const tooltipContent = renderDayTooltip?.(dateStr, { dayData, dayOfWeek, isHoliday, segnalazione, totalHours });
@@ -109,7 +120,9 @@ export default function WorkCalendar({
               dateStr={dateStr}
               day={day}
               isSelected={isSelected}
-              status={status}
+              // propagate special status for highlighted previous-month incomplete days
+              // DayEntryTile will receive 'prev-incomplete' and tileStyles will map it to yellow-ish glow
+              status={effectiveStatus}
               showHours={showHours}
               iconTopRight={iconTopRight}
               totalHours={totalHours}
@@ -131,3 +144,22 @@ export default function WorkCalendar({
     </Box>
   );
 }
+
+WorkCalendar.displayName = 'WorkCalendar';
+
+WorkCalendar.propTypes = {
+  data: PropTypes.object,
+  selectedDay: PropTypes.string,
+  onDaySelect: PropTypes.func,
+  renderDayTooltip: PropTypes.func,
+  highlightedDays: PropTypes.oneOfType([PropTypes.instanceOf(Set), PropTypes.array]),
+  stagedDays: PropTypes.oneOfType([PropTypes.instanceOf(Set), PropTypes.array]),
+  fixedDayWidth: PropTypes.bool,
+  gap: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  distributeGaps: PropTypes.bool,
+  variant: PropTypes.string,
+  selectorVariant: PropTypes.string,
+  selectorLabels: PropTypes.string,
+};
+
+export default React.memo(WorkCalendar);

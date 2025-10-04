@@ -1,19 +1,21 @@
 import React, { useMemo, useCallback } from 'react';
-import { Box, Typography } from '@mui/material';
+import PropTypes from 'prop-types';
+import { Box, Typography, Checkbox, Tooltip } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import DayEntryTile from './DayEntryTile';
 import useEmployeeMonthGridRows from '@hooks/Timesheet/useEmployeeMonthGridRows';
 
-const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 const GAP = 4; // px, like WorkCalendarGrid (gap: 0.5)
 
-export default function EmployeeMonthGrid({
+export function EmployeeMonthGrid({
   year,
   month, // 0-based
-  rows = [], // [{ id, dipendente, azienda }]
-  tsMap = {}, // { [empId]: { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': {...} } }
-  onDayClick, // (row, dateKey) => void
-  onEmployeeClick, // (row) => void
-  // selection (optional) to support persistent highlighting
+  rows = [],
+  tsMap = {},
+  onDayClick,
+  onEmployeeClick,
+  statsSelection = null,
+  onToggleStats,
   selectedEmpId = null,
   selectedDate = null,
   height = 520,
@@ -22,6 +24,9 @@ export default function EmployeeMonthGrid({
   dipWidth = 240,
   azWidth = 130,
   sx = {},
+  rowHighlights = new Set(),
+  highlightedDaysMap = {},
+  stagedDaysMap = {},
 }) {
   const { daysInMonth, visualRows } = useEmployeeMonthGridRows({ rows, tsMap, year, month });
   const gridTemplateColumns = useMemo(
@@ -37,14 +42,8 @@ export default function EmployeeMonthGrid({
     position: 'sticky', left: dipWidth + GAP, zIndex: 3, width: azWidth, bgcolor: 'background.paper', display: 'flex', alignItems: 'center', fontWeight: 600, pl: 1,
   }), [dipWidth, azWidth]);
 
-  /**
-   * Precompute header day numbers for the month to avoid recreating arrays on each render.
-   */
   const headerDays = useMemo(() => Array.from({ length: daysInMonth }).map((_, i) => i + 1), [daysInMonth]);
 
-  /**
-   * A memoized row renderer to avoid recreating inline functions and improve perf when the parent re-renders.
-   */
   const EmployeeRow = React.memo(function EmployeeRow({ row }) {
     const variant = dayHeight < 44 ? 'compact' : 'default';
     const effectiveDayHeight = variant === 'compact' ? 44 : dayHeight;
@@ -56,6 +55,9 @@ export default function EmployeeMonthGrid({
     const onDayClickForRow = useCallback((dateStr) => {
       if (onDayClick) onDayClick(row, dateStr);
     }, [onDayClick, row]);
+
+    const displayName = row.name || row.dipendente || row.id;
+    const isRowHighlighted = rowHighlights && (rowHighlights.has ? rowHighlights.has(row.id) : Array.isArray(rowHighlights) && rowHighlights.includes(row.id));
 
     return (
       <Box
@@ -69,8 +71,18 @@ export default function EmployeeMonthGrid({
           mb: 0.75,
         }}
       >
-        <Box sx={{ ...leftCellSx, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1, py: 0.75, fontSize: 14, fontWeight: 500, cursor: onEmployeeClick ? 'pointer' : 'default', '&:hover': onEmployeeClick ? { backgroundColor: 'action.hover' } : {} }} title={row.dipendente} onClick={onEmployeeClick ? handleEmployeeClick : undefined}>
-          {row.dipendente}
+        <Box sx={{ ...leftCellSx, display:'flex', gap:0.5, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 0.5, py: 0.5, fontSize: 14, fontWeight: 500, alignItems:'center', ...(isRowHighlighted ? { boxShadow: (t) => `0 0 0 6px ${alpha(t.palette.warning.main, 0.12)}` } : {}) }} title={displayName}>
+          {onToggleStats && (
+            <Tooltip title={statsSelection && (statsSelection.has ? statsSelection.has(row.id) : statsSelection.includes(row.id)) ? 'Escludi dalle statistiche' : 'Includi nelle statistiche'}>
+              <Checkbox size="small" sx={{ p:0, mr:0.5 }}
+                checked={statsSelection ? (statsSelection.has ? statsSelection.has(row.id) : statsSelection.includes(row.id)) : true}
+                onChange={() => onToggleStats(row)}
+              />
+            </Tooltip>
+          )}
+          <Box sx={{ flex:1, cursor: onEmployeeClick ? 'pointer' : 'default', '&:hover': onEmployeeClick ? { textDecoration:'underline' } : {} }} onClick={onEmployeeClick ? handleEmployeeClick : undefined}>
+            {displayName}
+          </Box>
         </Box>
         <Box sx={{ ...aziendaCellSx, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1, py: 0.75, fontSize: 13, color: 'text.secondary' }}>
           {row.azienda || '—'}
@@ -78,20 +90,33 @@ export default function EmployeeMonthGrid({
 
         {row.cells.map((cell) => {
           const isSelected = selectedDate === cell.dateStr && selectedEmpId && String(selectedEmpId) === String(row.id);
-          // pass the raw tooltip string; DayEntryTile can render it suitably
+          const tooltipContent = cell.tooltipContent;
+          const rowHighlightedSet = highlightedDaysMap && highlightedDaysMap[row.id];
+          const cellHighlighted = rowHighlightedSet && (rowHighlightedSet.has ? rowHighlightedSet.has(cell.dateStr) : Array.isArray(rowHighlightedSet) && rowHighlightedSet.includes(cell.dateStr));
+          const rowStagedMap = stagedDaysMap && stagedDaysMap[row.id];
+          const cellAction = rowStagedMap ? rowStagedMap[cell.dateStr] : undefined;
+          // map action -> status name used by tileStyles
+          let stagedStatus = null;
+          if (cellAction === 'insert') stagedStatus = 'staged-insert';
+          else if (cellAction === 'update') stagedStatus = 'staged-update';
+          else if (cellAction === 'delete') stagedStatus = 'staged-delete';
+          const effectiveStatus = stagedStatus ? stagedStatus : (cellHighlighted ? 'prev-incomplete' : cell.status);
           return (
             <Box key={`c-${row.id}-${cell.dateStr}`} sx={{ height: effectiveDayHeight }}>
               <DayEntryTile
                 dateStr={cell.dateStr}
                 day={cell.day}
                 isSelected={isSelected}
-                status={cell.status}
+                status={effectiveStatus}
                 variant={variant}
                 iconTopRight={false}
                 showHours={cell.totalHours > 0}
                 totalHours={cell.totalHours}
-                onClick={onDayClick ? () => onDayClickForRow(cell.dateStr) : undefined}
-                tooltipContent={cell.tooltipContent}
+                onClick={onDayClick ? () => onDayClick(row, cell.dateStr) : undefined}
+                tooltipContent={tooltipContent}
+                // show day staged status if present
+                // DayEntryTile will map 'staged' status via tileStyles
+                
                 showDayNumber={true}
               />
             </Box>
@@ -109,7 +134,7 @@ export default function EmployeeMonthGrid({
         borderRadius: 2,
         border: "1px solid",
         borderColor: "divider",
-        bgcolor: "transparent",
+        bgcolor: "background.main",
         ...sx,
       }}
     >
@@ -164,76 +189,26 @@ export default function EmployeeMonthGrid({
         </Box>
 
         {/* Giorni */}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const d = i + 1;
-          return (
-            <Box
-              key={`h-${d}`}
-              sx={{
-                textAlign: "center",
-                fontWeight: 600,
-                color: "text.primary",
-                borderRadius: 1,
-                py: 0.5,
-              }}
-            >
-              {d}
-            </Box>
-          );
-        })}
-      </Box>
-
-  {/* Body righe */}
-  <Box sx={{ px: 1, py: 1, bgcolor: "background.paper", borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
-        {visualRows.map((row) => (
+        {headerDays.map((d) => (
           <Box
-            key={row.id}
+            key={`h-${d}`}
             sx={{
-              display: "grid",
-              gridTemplateColumns,
-              alignItems: "center",
-              columnGap: `${GAP}px`,
-              rowGap: `${GAP}px`,
-              mb: 0.75,
+              textAlign: "center",
+              fontWeight: 600,
+              color: "text.primary",
+              borderRadius: 1,
+              py: 0.5,
             }}
           >
-            {/* Celle sticky a sinistra */}
-            <Box sx={{ ...leftCellSx, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1, py: 0.75, fontSize: 14, fontWeight: 500, cursor: onEmployeeClick ? 'pointer' : 'default', '&:hover': onEmployeeClick ? { backgroundColor: 'action.hover' } : {} }} title={row.dipendente} onClick={onEmployeeClick ? () => onEmployeeClick(row) : undefined}>
-              {row.dipendente}
-            </Box>
-            <Box
-              sx={{ ...aziendaCellSx, bgcolor: 'customBackground.main', border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1, py: 0.75, fontSize: 13, color: 'text.secondary' }}
-            >
-              {row.azienda || "—"}
-            </Box>
-
-            {/* Giorni del mese */}
-            {row.cells.map(cell => {
-              const variant = dayHeight < 44 ? 'compact' : 'default';
-              const effectiveDayHeight = variant === 'compact' ? 44 : dayHeight;
-              const isSelected = selectedDate === cell.dateStr && selectedEmpId && String(selectedEmpId) === String(row.id);
-              const tooltipContent = (
-                <span style={{ whiteSpace: 'pre-line' }}>{cell.tooltipContent}</span>
-              );
-              return (
-                <Box key={`c-${row.id}-${cell.dateStr}`} sx={{ height: effectiveDayHeight }}>
-                  <DayEntryTile
-                    dateStr={cell.dateStr}
-                    day={cell.day}
-                    isSelected={isSelected}
-                    status={cell.status}
-                    variant={variant}
-                    iconTopRight={false}
-                    showHours={cell.totalHours > 0}
-                    totalHours={cell.totalHours}
-                    onClick={onDayClick ? () => onDayClick(row, cell.dateStr) : undefined}
-                    tooltipContent={tooltipContent}
-                    showDayNumber={true}
-                  />
-                </Box>
-              );
-            })}
+            {d}
           </Box>
+        ))}
+      </Box>
+
+      {/* Body righe */}
+      <Box sx={{ px: 1, py: 1, bgcolor: "background.main", borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
+        {visualRows.map((row) => (
+          <EmployeeRow key={row.id} row={row} />
         ))}
 
         {!rows.length && (
@@ -245,3 +220,27 @@ export default function EmployeeMonthGrid({
     </Box>
   );
 }
+
+EmployeeMonthGrid.propTypes = {
+  year: PropTypes.number.isRequired,
+  month: PropTypes.number.isRequired,
+  rows: PropTypes.array,
+  tsMap: PropTypes.object,
+  rowHighlights: PropTypes.oneOfType([PropTypes.instanceOf(Set), PropTypes.array]),
+  highlightedDaysMap: PropTypes.object,
+  stagedDaysMap: PropTypes.object,
+  onDayClick: PropTypes.func,
+  onEmployeeClick: PropTypes.func,
+  selectedEmpId: PropTypes.any,
+  selectedDate: PropTypes.string,
+  height: PropTypes.number,
+  dayWidth: PropTypes.number,
+  dayHeight: PropTypes.number,
+  dipWidth: PropTypes.number,
+  azWidth: PropTypes.number,
+  sx: PropTypes.object,
+};
+
+EmployeeMonthGrid.displayName = 'EmployeeMonthGrid';
+
+export default React.memo(EmployeeMonthGrid);

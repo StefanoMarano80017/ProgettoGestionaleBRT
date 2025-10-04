@@ -30,6 +30,6 @@ export function useDayAndMonthDetails({ tsMap, year, month }) {
     await loadFor(selEmp, selDate);
   }, [loadFor]);
 
-  return { dayRecords, daySegnalazione, monthSummary, detailsReady, loadFor, loadMonthSummary, refreshCurrent, setDayRecords, setDaySegnalazione };
+  return { dayRecords, daySegnalazione, monthSummary, detailsReady, loadFor, loadMonthSummary, refreshCurrent, setDayRecords, setDaySegnalazione, setMonthSummary };
 }
 export default useDayAndMonthDetails;

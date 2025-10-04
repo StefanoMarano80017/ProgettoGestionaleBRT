@@ -541,12 +541,21 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
         const key = toKey(d);
         if (isWeekend(d) || holidaySet.has(key)) continue;
         // Calcola ore disponibili per ogni membro tenendo conto delle voci personali
+        // e delle assegnazioni gia' presenti in altri gruppi (pmGroupsMock)
         const assegnazione = {};
         let oreTot = 0;
         members.forEach((opId) => {
           const personal = operaioPersonalMock?.[opId]?.[key] || [];
           const personalH = personal.reduce((s, r) => s + (Number(r.ore) || 0), 0);
-          const avail = Math.max(0, 8 - personalH);
+          // Somma ore già assegnate a questo operaio da gruppi seedati in precedenza
+          let existing = 0;
+          Object.values(pmGroupsMock).forEach((g) => {
+            const list = g.timesheet?.[key] || [];
+            list.forEach((entry) => {
+              existing += Number(entry.assegnazione?.[opId] || 0);
+            });
+          });
+          const avail = Math.max(0, 8 - personalH - existing);
           assegnazione[opId] = avail;
           oreTot += avail;
         });
@@ -571,8 +580,43 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
 
   const g1YearEntries = addDailyEntriesUntilToday(g1Members, 0);
     // aggiungi anche alcuni casi specifici già presenti
-    g1YearEntries[d1] = [{ commessa: "VS-25-01", oreTot: g1Members.length * 8 }];
-    g1YearEntries[d0] = [{ commessa: "VS-25-02", oreTot: g1Members.length * 5 }];
+    // Instead of forcing oreTot (which may ignore personal entries), compute per-op assignment
+    const makeAssignmentForDate = (dateKey, targetPerMember) => {
+      const assegn = {};
+      g1Members.forEach((opId) => {
+        const personal = operaioPersonalMock?.[opId]?.[dateKey] || [];
+        const personalH = personal.reduce((s, r) => s + (Number(r.ore) || 0), 0);
+        // existing hours from already-seeded groups on this date
+        let existing = 0;
+        Object.values(pmGroupsMock).forEach((g) => {
+          const list = g.timesheet?.[dateKey] || [];
+          list.forEach((entry) => {
+            existing += Number(entry.assegnazione?.[opId] || 0);
+          });
+        });
+        const allowed = Math.max(0, 8 - personalH - existing);
+        assegn[opId] = Math.min(allowed, Number(targetPerMember) || 0);
+      });
+      return { commessa: "VS-25-01", assegnazione: assegn };
+    };
+    g1YearEntries[d1] = [makeAssignmentForDate(d1, 8)];
+    // for d0 use target 5 hours per member (but still respect personal/other groups)
+    const makeAssignmentForDateD0 = (dateKey, targetPerMember) => {
+      const assegn = {};
+      g1Members.forEach((opId) => {
+        const personal = operaioPersonalMock?.[opId]?.[dateKey] || [];
+        const personalH = personal.reduce((s, r) => s + (Number(r.ore) || 0), 0);
+        let existing = 0;
+        Object.values(pmGroupsMock).forEach((g) => {
+          const list = g.timesheet?.[dateKey] || [];
+          list.forEach((entry) => { existing += Number(entry.assegnazione?.[opId] || 0); });
+        });
+        const allowed = Math.max(0, 8 - personalH - existing);
+        assegn[opId] = Math.min(allowed, Number(targetPerMember) || 0);
+      });
+      return { commessa: "VS-25-02", assegnazione: assegn };
+    };
+    g1YearEntries[d0] = [makeAssignmentForDateD0(d0, 5)];
     seedGroup(g1Id, "Squadra Alfa", g1Members, "BRT", g1YearEntries);
 
     // INWAVE - Squadra Beta (due membri se disponibili)
@@ -598,6 +642,41 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
     }
 
     // Allinea il contatore ID gruppi al prossimo disponibile
+    // Ensure previous month completeness: for each operaio, for each working day of the previous month,
+    // top-up with personal entries so total hours == 8 (respecting existing group and personal entries).
+    const fillPreviousMonthCompleteness = () => {
+      const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const y = prevMonthDate.getFullYear();
+      const m = prevMonthDate.getMonth();
+      const lastDay = new Date(y, m + 1, 0).getDate();
+      for (let day = 1; day <= lastDay; day++) {
+        const d = new Date(y, m, day);
+        const key = toKey(d);
+        if (isWeekend(d) || holidaySet.has(key)) continue;
+        OPERAI.forEach((op, idx) => {
+          const opId = op.id;
+          // compute existing total
+          let total = 0;
+          // personal
+          const personal = operaioPersonalMock?.[opId]?.[key] || [];
+          personal.forEach(p => { total += Number(p.ore) || 0; });
+          // groups
+          Object.values(pmGroupsMock).forEach(g => {
+            const list = g.timesheet?.[key] || [];
+            list.forEach(entry => { total += Number(entry.assegnazione?.[opId] || 0); });
+          });
+          if (total >= 8) return; // already satisfied
+          const needed = 8 - total;
+          // create personal top-up (use rotating commessa to vary)
+          const commessa = COMMESSE[(day + idx) % COMMESSE.length] || COMMESSE[0];
+          if (!operaioPersonalMock[opId]) operaioPersonalMock[opId] = {};
+          if (!operaioPersonalMock[opId][key]) operaioPersonalMock[opId][key] = [];
+          operaioPersonalMock[opId][key].push({ commessa, ore: needed, descrizione: 'Top-up mese precedente' });
+        });
+      }
+    };
+    fillPreviousMonthCompleteness();
+
     nextGroupId = Math.max(nextGroupId, 5);
   } catch (e) {
     // ignora errori

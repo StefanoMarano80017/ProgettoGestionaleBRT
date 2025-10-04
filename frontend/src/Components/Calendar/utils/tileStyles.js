@@ -52,6 +52,35 @@ export function getTileSx(theme, {
   // Status-based soft backgrounds
   if (!isSelected) {
     switch (status) {
+      case 'staged-insert':
+        border = `1px solid ${theme.palette.success.main}`;
+        backgroundColor = alpha(theme.palette.success.main, 0.06);
+        boxShadow = `0 0 0 6px ${alpha(theme.palette.success.main, 0.04)}`;
+        break;
+      case 'staged-update':
+        border = `1px solid ${theme.palette.warning.dark || '#ff9800'}`;
+        backgroundColor = alpha(theme.palette.warning.main || '#ffb74d', 0.12);
+        boxShadow = `0 0 0 6px ${alpha(theme.palette.warning.main || '#ffb74d', 0.06)}`;
+        break;
+      case 'staged-delete':
+        border = `1px solid ${theme.palette.error.main}`;
+        backgroundColor = alpha(theme.palette.error.main, 0.08);
+        boxShadow = `0 0 0 6px ${alpha(theme.palette.error.main, 0.04)}`;
+        break;
+      case 'staged':
+        // generic staged fallback: cool-blue outline/background
+        border = `1px solid ${theme.palette.info.main}`;
+        backgroundColor = alpha(theme.palette.info.main, 0.06);
+        boxShadow = `0 0 0 6px ${alpha(theme.palette.info.main, 0.04)}`;
+        break;
+      case 'prev-incomplete':
+        // Previous-month incomplete highlight: soft yellow background + stronger border
+        border = `1px solid ${theme.palette.warning.dark || '#ff9800'}`;
+        backgroundColor = alpha(theme.palette.warning.main || '#ffb74d', 0.14);
+        color = theme.palette.text.primary;
+        // subtle glow to draw attention
+        boxShadow = `0 0 0 6px ${alpha(theme.palette.warning.main || '#ffb74d', 0.06)}`;
+        break;
       case 'admin-warning':
         border = `1px solid ${theme.palette.error.main}`;
         backgroundColor = alpha(theme.palette.error.main, 0.12);

@@ -7,15 +7,27 @@ import ConfirmDialog from "@components/ConfirmDialog";
 // TileLegend is rendered in the calendar area; monthly summary chips are shown in this panel
 import Paper from '@mui/material/Paper';
 import { useDayEntryDerived, useConfirmDelete } from '@/Hooks/Timesheet/dayEntry';
+import PropTypes from 'prop-types';
+import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
 // NOTE: Il pannello ora gestisce un wrapper di dialog locale invece di affidarsi
 // a proprietà (dialog/startAdd/startEdit/commit) che non esistono più nell'API
 // di `useTimesheetEntryEditor`. L'hook unificato gestisce validazione e salvataggio
 // altrove (OperaioEditor, ecc). Qui manteniamo una semplice gestione modale inline.
 
-export default function DayEntryPanel({
+/**
+ * DayEntryPanel
+ *
+ * Presentational panel that shows the list of timesheet records for a single day
+ * and provides a local dialog wrapper for adding/editing entries. The component
+ * intentionally keeps dialog state local but uses provided callbacks to persist
+ * changes (onAddRecord).
+ *
+ * Export pattern: named export + memoized default export.
+ */
+export function DayEntryPanel({
   selectedDay,
   data = {},
-  onAddRecord,
+  onAddRecord = () => {},
   commesse = [],
   readOnly = false,
   mode: modeProp,
@@ -85,6 +97,8 @@ export default function DayEntryPanel({
     removeCurrent,
   }), [canAddMore, startAdd, startEdit, dialog, closeDialog, commit, removeCurrent]);
 
+  // use the shared computeDayUsed util (imported above)
+
   // Delete confirmation logic
   const deleteCtrl = useConfirmDelete(useCallback((i) => {
     const next = records.filter((_, k) => k !== i);
@@ -94,9 +108,22 @@ export default function DayEntryPanel({
   const ROW_HEIGHT = 53;
   const LIST_HEIGHT = 365;
 
-  const monthlySummary = useMemo(() => (
-    data.__monthlySummary || { ferie: { days: 0, hours: 0 }, malattia: { days: 0, hours: 0 }, permesso: { days: 0, hours: 0 } }
-  ), [data]);
+  const monthlySummary = useMemo(() => {
+    const base = data.__monthlySummary || { ferie: { days: 0, hours: 0 }, malattia: { days: 0, hours: 0 }, permesso: { days: 0, hours: 0 }, commesse: [], totalHours: 0 };
+    return {
+      ferie: base.ferie || { days:0, hours:0 },
+      malattia: base.malattia || { days:0, hours:0 },
+      permesso: base.permesso || { days:0, hours:0 },
+      commesse: Array.isArray(base.commesse) ? base.commesse : [],
+      totalHours: Number(base.totalHours||0),
+    };
+  }, [data]);
+
+  const pct = useCallback((hours) => {
+    const t = Number(monthlySummary.totalHours || 0);
+    if (!t) return '0%';
+    return `${((hours / t) * 100).toFixed(1)}%`;
+  }, [monthlySummary]);
 
   const renderRecords = useMemo(() => {
     if (!records || records.length === 0) return null;
@@ -152,13 +179,24 @@ export default function DayEntryPanel({
           </Box>
         </Box>
 
-        <Box sx={{ pb: 2, display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', sm: 'flex-end' } }}>
+        <Box sx={{ pb: 2, display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', sm: 'flex-end' }, minWidth: 360 }}>
           <Typography variant="body2">Riepilogo Mensile</Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 0.5 }}>
-            <Chip size="small" label={`Ferie: ${monthlySummary.ferie.days} gg (${monthlySummary.ferie.hours}h)`} sx={{ borderRadius: 1 }} />
-            <Chip size="small" label={`Malattia: ${monthlySummary.malattia.days} gg (${monthlySummary.malattia.hours}h)`} sx={{ borderRadius: 1 }} />
-            <Chip size="small" label={`Permessi: ${monthlySummary.permesso.days} gg (${monthlySummary.permesso.hours}h)`} sx={{ borderRadius: 1 }} />
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 0.5 }}>
+            <Chip size="small" label={`Totale: ${monthlySummary.totalHours}h`} sx={{ borderRadius: 1 }} />
+            <Chip size="small" label={`Ferie: ${monthlySummary.ferie.days}g (${monthlySummary.ferie.hours}h) ${pct(monthlySummary.ferie.hours)}`} sx={{ borderRadius: 1 }} />
+            <Chip size="small" label={`Malattia: ${monthlySummary.malattia.days}g (${monthlySummary.malattia.hours}h) ${pct(monthlySummary.malattia.hours)}`} sx={{ borderRadius: 1 }} />
+            <Chip size="small" label={`Permesso: ${monthlySummary.permesso.days}g (${monthlySummary.permesso.hours}h) ${pct(monthlySummary.permesso.hours)}`} sx={{ borderRadius: 1 }} />
           </Box>
+          {monthlySummary.commesse.length > 0 && (
+            <Box sx={{ display:'flex', gap:1, flexWrap:'wrap', mt: 1 }}>
+              {monthlySummary.commesse.slice(0,5).map(c => (
+                <Chip key={c.commessa} size="small" color="info" variant="outlined" label={`${c.commessa}: ${c.ore}h (${pct(c.ore)})`} sx={{ borderRadius:1 }} />
+              ))}
+              {monthlySummary.commesse.length > 5 && (
+                <Chip size="small" variant="outlined" label={`+${monthlySummary.commesse.length - 5} altre`} sx={{ borderRadius:1 }} />
+              )}
+            </Box>
+          )}
         </Box>
       </Stack>
 
@@ -177,20 +215,7 @@ export default function DayEntryPanel({
           maxOre={maxHoursPerDay}
           dailyLimit={maxHoursPerDay}
           // dayUsed: sum of other records (work + personal) excluding the entry being edited
-          dayUsed={(() => {
-            const all = records || [];
-            const current = editing.dialog.current;
-            return all.reduce((acc, r, idx) => {
-              // If we're editing and this is the same index, exclude it
-              if (editing.dialog.mode === 'edit' && idx === editing.dialog.index) return acc;
-              // If objects are the same reference, exclude
-              if (current && r === current) return acc;
-              if (current && r.id && current.id && r.id === current.id) return acc;
-              // fallback: compare key fields
-              if (current && !r.id && !current.id && r.commessa === current.commessa && Number(r.ore) === Number(current.ore) && (r.descrizione || '') === (current.descrizione || '')) return acc;
-              return acc + (Number(r.ore) || 0);
-            }, 0);
-          })()}
+          dayUsed={computeDayUsed(records, editing.dialog.current, editing.dialog.mode, editing.dialog.index)}
           onClose={editing.closeDialog}
           onSave={(entry) => editing.commit(entry)}
         />
@@ -198,3 +223,19 @@ export default function DayEntryPanel({
     </Box>
   );
 }
+
+DayEntryPanel.displayName = 'DayEntryPanel';
+
+DayEntryPanel.propTypes = {
+  selectedDay: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]).isRequired,
+  data: PropTypes.object,
+  onAddRecord: PropTypes.func,
+  commesse: PropTypes.array,
+  readOnly: PropTypes.bool,
+  mode: PropTypes.string,
+  maxHoursPerDay: PropTypes.number,
+};
+
+// (default props converted to parameter defaults above)
+
+export default React.memo(DayEntryPanel);

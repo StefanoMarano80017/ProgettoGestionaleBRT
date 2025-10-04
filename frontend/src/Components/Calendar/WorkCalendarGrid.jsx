@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from "react";
+import PropTypes from 'prop-types';
 import { Box, IconButton, Typography, Tooltip } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
@@ -32,7 +33,7 @@ function getDayStatus(dayData = [], segnalazione, dateStr, today) {
 
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 
-export default function WorkCalendarGrid({
+export function WorkCalendarGrid({
   data = {},         // { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': { descrizione } }
   year,
   month,             // 0-based
@@ -120,3 +121,15 @@ export default function WorkCalendarGrid({
     </Box>
   );
 }
+
+WorkCalendarGrid.propTypes = {
+  data: PropTypes.object,
+  year: PropTypes.number.isRequired,
+  month: PropTypes.number.isRequired,
+  compact: PropTypes.bool,
+  onDayClick: PropTypes.func,
+};
+
+WorkCalendarGrid.displayName = 'WorkCalendarGrid';
+
+export default React.memo(WorkCalendarGrid);

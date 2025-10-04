@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { updateGroupDayEntries as mockUpdateGroupDayEntries } from '../../../mocks/ProjectMock';
+import { updateGroupDayEntries as mockUpdateGroupDayEntries } from '@mocks/ProjectMock';
 
 // Gestisce le righe di edit per il giorno selezionato di un gruppo PM Campo
 export function usePmCampoEditing({ selectedGroup, selectedDay, commesse, groups, opPersonal, refreshGroups, refreshPersonal }) {

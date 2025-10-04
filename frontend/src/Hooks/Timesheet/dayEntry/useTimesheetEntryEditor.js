@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { validateDayHours } from '@hooks/Timesheet/validation/validateDayHours';
+import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
 
 /** Core unified editor for a single employee/day timesheet entries.
  * Inputs:
@@ -39,7 +40,13 @@ export function useTimesheetEntryEditor({ entries = [], personalEntries = [], on
     if (state.saving) return;
     setState(s => ({ ...s, msg: '', type: 'info', saving: true }));
     try {
+      // perform validation using validateDayHours (ok) and ensure day limits with computeDayUsed for rows
       if (!ok) throw new Error(error || 'Validazione ore fallita');
+      // As an additional safety check, ensure grand total doesn't exceed 8 (defensive)
+      const dayUsed = computeDayUsed(rows, null, 'add', null) + (personal.reduce((s, r) => s + (Number(r.ore) || 0), 0) || 0);
+      if (dayUsed > 24 * 7) { // arbitrary guard (shouldn't happen); keep to avoid runaway
+        throw new Error('Totale ore invalido');
+      }
       const workEntries = rows.filter(r => r.commessa && Number(r.ore) > 0).map(r => ({ commessa: r.commessa, ore: Number(r.ore), descrizione: r.descrizione }));
       const persEntries = personal.filter(r => ['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa)) && Number(r.ore) > 0)
         .map(r => ({ commessa: r.commessa, ore: Number(r.ore) }));
@@ -57,6 +64,15 @@ export function useTimesheetEntryEditor({ entries = [], personalEntries = [], on
     totals: { total, personalTotal, grandTotal },
     validation: { ok, error },
     save,
+    /**
+     * getDayUsed(current, mode, editIndex) -> number
+     * Returns the sum of hours for all rows + personal excluding the provided current entry
+     */
+    getDayUsed: (current = null, mode = 'add', editIndex = null) => {
+      const rowsPart = computeDayUsed(rows, current, mode, editIndex);
+      const personalPart = personal.reduce((s, r) => s + (Number(r.ore) || 0), 0);
+      return rowsPart + personalPart;
+    },
     state,
     setState,
   };

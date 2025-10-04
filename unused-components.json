@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2025-10-03T20:53:30.135Z",
+  "candidates": [
+    {
+      "file": "frontend/src/Components/Avatar/UserCard.jsx",
+      "basename": "UserCard"
+    },
+    {
+      "file": "frontend/src/Components/Buttons/CustomBreadcrumbs.jsx",
+      "basename": "CustomBreadcrumbs"
+    },
+    {
+      "file": "frontend/src/Components/Calendar/ProjectCalendar.jsx",
+      "basename": "ProjectCalendar"
+    },
+    {
+      "file": "frontend/src/Components/charts/CoordinatorTaskChart.jsx",
+      "basename": "CoordinatorTaskChart"
+    },
+    {
+      "file": "frontend/src/Components/charts/EmployeeTaskChart.jsx",
+      "basename": "EmployeeTaskChart"
+    },
+    {
+      "file": "frontend/src/Components/dashboardAmministrazione/CustomToolbar.jsx",
+      "basename": "CustomToolbar"
+    },
+    {
+      "file": "frontend/src/Components/dashboardAmministrazione/DynamicTabDataGrid.jsx",
+      "basename": "DynamicTabDataGrid"
+    },
+    {
+      "file": "frontend/src/Components/DataGridDashboard/Filters/DateFilter.jsx",
+      "basename": "DateFilter"
+    },
+    {
+      "file": "frontend/src/Hooks/DataGrid/Filters/useEmployeeFilter.jsx",
+      "basename": "useEmployeeFilter"
+    },
+    {
+      "file": "frontend/src/Hooks/DataGrid/Filters/useFilters.jsx",
+      "basename": "useFilters"
+    },
+    {
+      "file": "frontend/src/Components/DipendenteHomePage/ContatoreIngressi.jsx",
+      "basename": "ContatoreIngressi"
+    },
+    {
+      "file": "frontend/src/Components/DipendenteHomePage/DualButton.jsx",
+      "basename": "DualButton"
+    },
+    {
+      "file": "frontend/src/Components/DipendenteHomePage/LayoutDashboardDipendenti.jsx",
+      "basename": "LayoutDashboardDipendenti"
+    },
+    {
+      "file": "frontend/src/Components/DipendenteHomePage/TimeSheetDashboard.jsx",
+      "basename": "TimeSheetDashboard"
+    },
+    {
+      "file": "frontend/src/Components/Inputs/ContaOre.jsx",
+      "basename": "ContaOre"
+    },
+    {
+      "file": "frontend/src/Components/TaskManager/TaskList.jsx",
+      "basename": "TaskList"
+    },
+    {
+      "file": "frontend/src/components/DataGridDashboard/FiltersHooks/useFilters.jsx",
+      "basename": "useFilters"
+    }
+  ],
+  "scanned": 144
+}

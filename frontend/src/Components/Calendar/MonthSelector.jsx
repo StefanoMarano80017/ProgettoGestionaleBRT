@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { Box, Stack, Button, IconButton, Typography } from '@mui/material';
 import { ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
 import { shortMonth, fullMonth, formatMonthShortLabel } from './utils';
@@ -7,7 +8,7 @@ import { shortMonth, fullMonth, formatMonthShortLabel } from './utils';
  * MonthSelector
  * Compact month navigation control used across calendar views.
  */
-export default function MonthSelector({
+export function MonthSelector({
   year,
   month, // 0-based
   onChange, // (m, y)
@@ -85,3 +86,16 @@ export default function MonthSelector({
     </Box>
   );
 }
+
+MonthSelector.propTypes = {
+  year: PropTypes.number.isRequired,
+  month: PropTypes.number.isRequired,
+  onChange: PropTypes.func.isRequired,
+  variant: PropTypes.oneOf(['windowed', 'full']),
+  labels: PropTypes.oneOf(['short', 'full']),
+  sx: PropTypes.object,
+};
+
+MonthSelector.displayName = 'MonthSelector';
+
+export default React.memo(MonthSelector);

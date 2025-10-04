@@ -7,8 +7,11 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Typography,
   Alert,
   Paper,
+  Chip,
+  Button,
   Container,
 } from "@mui/material";
 // Logica estratta in hooks riusabili (Timesheet)
@@ -24,48 +27,170 @@ import {
   useSegnalazione,
   useSelection,
   useTimesheetFilters,
+  usePmGroups,
+  useOpPersonal,
+  useOperaiTimesheet,
 } from '@/Hooks/Timesheet';
 import EmployeeMonthGrid from "@components/Calendar/EmployeeMonthGrid";
+import { checkMonthCompletenessForId } from '@/Hooks/Timesheet/utils/checkMonthCompleteness';
+import useMultipleMonthCompleteness from '@/Hooks/Timesheet/useMultipleMonthCompleteness';
 import TileLegend from "@components/Calendar/TileLegend";
+import StagedChangesPanel from '@components/Timesheet/StagedChangesPanel';
 import FiltersBar from "@components/Timesheet/FiltersBar";
-import DetailsPanel from "@components/Timesheet/DetailsPanel";
+// Replaced old DetailsPanel usage with new admin panel
+import AdminDetailsPanel from "@components/Timesheet/AdminDetailsPanel";
 import SegnalazioneDialog from "@components/Timesheet/SegnalazioneDialog";
 import EditEntryDialog from "@components/Timesheet/EditEntryDialog";
 import ConfirmDialog from "@components/ConfirmDialog";
+import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
+import updateEmployeeDay from '@hooks/Timesheet/utils/updateEmployeeDay';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 
-// Helper: sum of hours for the day excluding the currently edited entry
-function computeDayUsed(allEntries = [], currentEntry = null) {
-  if (!Array.isArray(allEntries) || allEntries.length === 0) return 0;
-  return allEntries.reduce((acc, r) => {
-    if (!r) return acc;
-    if (currentEntry) {
-      if (r === currentEntry) return acc; // same reference
-      if (r.id && currentEntry.id && r.id === currentEntry.id) return acc;
-      if (!r.id && !currentEntry.id && r.commessa === currentEntry.commessa && r.ore === currentEntry.ore && r.descrizione === currentEntry.descrizione) return acc;
-    }
-    return acc + (Number(r.ore) || 0);
-  }, 0);
-}
+// use shared computeDayUsed (imported above)
 
 function InnerDashboard() {
-  const { month, year, setMonthYear, employees, dataMap: tsMap, loading: dataLoading, error: dataError } = useTimesheetContext();
+  const { month, year, setMonthYear, employees, dataMap: tsMap, setDataMap, stagedMap, stageUpdate, commitStaged, discardStaged, loading: dataLoading, error: dataError } = useTimesheetContext();
   const today = new Date();
   const setYear = React.useCallback((y) => setMonthYear(month, y), [month, setMonthYear]);
   const setMonth = React.useCallback((m) => setMonthYear(m, year), [year, setMonthYear]);
-  const filters = useTimesheetFilters({ tsMap, year, month });
   const { selEmp, selDate, setSelEmp, setSelDate } = useSelection();
-  const details = useDayAndMonthDetails({ tsMap, year, month });
 
-  // rows: filtered set of employees
-  const rows = React.useMemo(() => filters.applyFilters(employees), [filters, employees]);
+  // rows: filtered set of employees + individual 'operai' (single-worker) rows
+  // load operai/groups/personal and derive per-operaio timesheet map
+  const { groups, allOperai } = usePmGroups();
+  const { opPersonal } = useOpPersonal();
+  const { operaiRows: operaiRowsRaw, operaiTsMap } = useOperaiTimesheet({ groups, allOperai, azienda: undefined, opPersonal });
+  // Merge operai timesheet map into the main tsMap (prefer preserving existing emp data)
+  const mergedDataMap = React.useMemo(() => {
+    const merged = { ...tsMap };
+    try {
+      Object.entries(operaiTsMap || {}).forEach(([opId, days]) => {
+        if (!merged[opId]) merged[opId] = {};
+        Object.entries(days || {}).forEach(([dateKey, recs]) => {
+          merged[opId][dateKey] = (merged[opId][dateKey] || []).concat((recs || []).map(r => ({ ...r })));
+        });
+      });
+    } catch (e) {
+      // ignore merge errors
+    }
+    return merged;
+  }, [tsMap, operaiTsMap]);
 
-  // filteredDataMap: keeps only the rows currently visible (stable by id)
+  // Filters should run against merged data (so operai commesse are included in search)
+  const filters = useTimesheetFilters({ tsMap: mergedDataMap, year, month });
+
+  // Normalize operai rows (they come as { id, dipendente, azienda }) to match employee shape { id, name, azienda }
+  const operaiRows = React.useMemo(() => (operaiRowsRaw || []).map(r => ({ id: r.id, name: r.dipendente || r.name || r.id, azienda: r.azienda })), [operaiRowsRaw]);
+
+  // Combine employees and operai rows and run the same filters so operai show up in the grid.
+  const rows = React.useMemo(() => {
+    const combined = (employees || []).concat(operaiRows || []);
+    const filtered = filters.applyFilters(combined);
+    // annotate rows with missing previous month flag
+    const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
+    return filtered.map(r => ({ ...r, incompletePrevMonth: checkMonthCompletenessForId({ tsMap: mergedDataMap, id: r.id, year: prev.getFullYear(), month: prev.getMonth() }).length > 0 }));
+  }, [filters, employees, operaiRows, mergedDataMap]);
+
+  // Prepare data for highlighting: compute missing dates for currently visible rows
+  const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
+  const visibleIds = React.useMemo(() => rows.map(r => r.id), [rows]);
+  const { map: missingMap, idsWithMissing } = useMultipleMonthCompleteness({ tsMap: mergedDataMap, ids: visibleIds, year: prev.getFullYear(), month: prev.getMonth() });
+  // Prepare convenient maps/sets for passing to components
+  const rowsWithMissingSet = React.useMemo(() => idsWithMissing, [idsWithMissing]);
+  const highlightedDaysMap = React.useMemo(() => {
+    const out = {};
+    Object.entries(missingMap || {}).forEach(([id, v]) => { out[id] = v.missingSet; });
+    return out;
+  }, [missingMap]);
+
+  // stagedDaysMap: for UI feedback, map employeeId -> Set(dateStr) of staged edits
+  const stagedDaysMap = React.useMemo(() => {
+    const out = {};
+    Object.entries(stagedMap || {}).forEach(([empId, days]) => {
+      const map = {};
+      Object.entries(days || {}).forEach(([dk, recs]) => {
+        if (recs === null) { map[dk] = 'delete'; return; }
+        const stagedArr = Array.isArray(recs) ? recs : [];
+        const origArr = (mergedDataMap && mergedDataMap[empId] && mergedDataMap[empId][dk]) || [];
+        if ((!origArr || origArr.length === 0) && stagedArr.length > 0) { map[dk] = 'insert'; return; }
+        if (stagedArr.length === 0 && origArr && origArr.length > 0) { map[dk] = 'delete'; return; }
+        let isUpdate = false;
+        if (stagedArr.length !== origArr.length) isUpdate = true;
+        else {
+          for (let i = 0; i < stagedArr.length; i++) {
+            const a = stagedArr[i] || {};
+            const b = origArr[i] || {};
+            if ((String(a.commessa || '') !== String(b.commessa || '')) || (Number(a.ore || 0) !== Number(b.ore || 0))) { isUpdate = true; break; }
+          }
+        }
+        map[dk] = isUpdate ? 'update' : 'none';
+      });
+      out[empId] = map;
+    });
+    return out;
+  }, [stagedMap, mergedDataMap]);
+
+  // details should use merged data map so operaio single-employee entries are visible
+  const details = useDayAndMonthDetails({ tsMap: mergedDataMap, year, month });
+
+  // Gestione selezione dipendenti per statistiche (dichiarata dopo che rows esiste)
+  // statsSelected: null => no explicit selection (interpret as all),
+  // Set() (empty) => explicitly deselected (show none), non-empty Set => selected employees
+  const [statsSelected, setStatsSelected] = React.useState(() => null);
+  React.useEffect(() => {
+    setStatsSelected(prev => {
+      if (prev === null) return null; // no explicit selection, keep as-is (means all)
+      // prev is a Set -> intersect with new rows to keep order
+      const next = new Set();
+      rows.forEach(r => { if (prev.has(r.id)) next.add(r.id); });
+      // if nothing changed (same members) return prev to avoid state churn
+      if (next.size === prev.size) {
+        let same = true;
+        for (const v of next) { if (!prev.has(v)) { same = false; break; } }
+        if (same) return prev;
+      }
+      return next;
+    });
+  }, [rows]);
+  const toggleStatsEmployee = React.useCallback((empRow) => {
+    setStatsSelected(prev => {
+      if (prev === null) {
+        // move from implicit-all to explicit selection of this one
+        return new Set([empRow.id]);
+      }
+      const next = new Set(prev);
+      if (next.has(empRow.id)) next.delete(empRow.id); else next.add(empRow.id);
+      return next;
+    });
+  }, []);
+  const selectAllStats = React.useCallback(() => {
+    setStatsSelected(new Set(rows.map(r => r.id)));
+  }, [rows]);
+  const deselectAllStats = React.useCallback(() => {
+    setStatsSelected(new Set());
+  }, []);
+
+
+
+  // filteredDataMap: keeps only the rows currently visible (stable by id) e filtrati per stats
   const filteredDataMap = React.useMemo(() => {
-    const entries = rows.map((r) => [r.id, tsMap[r.id]]);
+    let active;
+    if (statsSelected === null) {
+      // implicit all
+      active = rows;
+    } else if (statsSelected.size === 0) {
+      // explicitly none
+      active = [];
+    } else {
+      active = rows.filter(r => statsSelected.has(r.id));
+    }
+    const entries = active.map(r => [r.id, mergedDataMap[r.id]]);
     return Object.fromEntries(entries);
-  }, [rows, tsMap]);
+  }, [rows, mergedDataMap, statsSelected]);
 
   const aggregates = useTimesheetAggregates({ dataMap: filteredDataMap, year, month, options: { includeGlobalCommessa: true } });
   const seg = useSegnalazione({ selEmp, selDate });
@@ -73,7 +198,7 @@ function InnerDashboard() {
   // distinctCommesse derived from filtered data for the selected employee
   const distinctCommesse = React.useMemo(() => {
     if (!selEmp) return [];
-    const empTs = tsMap[selEmp.id] || {};
+    const empTs = mergedDataMap[selEmp.id] || {};
     const set = new Set();
     Object.entries(empTs).forEach(([k, list]) => {
       if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(k)) return;
@@ -82,7 +207,7 @@ function InnerDashboard() {
       });
     });
     return Array.from(set).sort();
-  }, [selEmp, tsMap]);
+  }, [selEmp, mergedDataMap]);
 
   // split current day records into work vs personal
   const workEntries = React.useMemo(() => (details.dayRecords || []).filter((r) => !['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa))), [details.dayRecords]);
@@ -114,24 +239,41 @@ function InnerDashboard() {
       } else if (dialog.index >= 0) {
         editor.updateRow(dialog.index, { commessa: entry.commessa, ore: entry.ore, descrizione: entry.descrizione });
       }
-      // save may be sync or return a promise; await to keep flow consistent
       await (editor.save ? editor.save() : Promise.resolve());
+      // Persist updated day records into global timesheet map so calendar cells rerender
+      if (selEmp && selDate) {
+        // Build merged records from editor state (authoritative post-save)
+        const merged = [
+          ...editor.rows.map(r => ({ commessa: r.commessa, ore: r.ore, descrizione: r.descrizione })),
+          ...editor.personal.map(r => ({ commessa: r.commessa, ore: r.ore }))
+        ];
+        details.setDayRecords(merged); // keep local detail panel in sync
+      // stage instead of immediate persist
+      stageUpdate(selEmp.id, selDate, merged);
+      }
     } catch (err) {
-      // keep UX consistent: close the dialog but rethrow/log if necessary in future
-      // console.error('Failed to save editor changes', err);
+      // swallow for now; could surface snackbar
     } finally {
       closeDialog();
     }
-  }, [dialog, editor, closeDialog]);
+  }, [dialog, editor, closeDialog, selEmp, selDate, setDataMap, details]);
 
   // remove an edited entry
   const removeCurrent = React.useCallback(async () => {
     if (dialog.mode === 'edit' && dialog.index >= 0) {
       editor.removeRow(dialog.index);
       await (editor.save ? editor.save() : Promise.resolve());
+      if (selEmp && selDate) {
+        const merged = [
+          ...editor.rows.map(r => ({ commessa: r.commessa, ore: r.ore, descrizione: r.descrizione })),
+          ...editor.personal.map(r => ({ commessa: r.commessa, ore: r.ore }))
+        ];
+        details.setDayRecords(merged);
+  stageUpdate(selEmp.id, selDate, merged);
+      }
     }
     closeDialog();
-  }, [dialog, editor, closeDialog]);
+  }, [dialog, editor, closeDialog, selEmp, selDate, setDataMap, details]);
 
   // Delete flow: confirm dialog
   const [confirmDel, setConfirmDel] = React.useState({ open: false, entry: null });
@@ -142,10 +284,40 @@ function InnerDashboard() {
     if (idx >= 0) {
       editor.removeRow(idx);
       await (editor.save ? editor.save() : Promise.resolve());
+      if (selEmp && selDate) {
+        const merged = [
+          ...editor.rows.map(r => ({ commessa: r.commessa, ore: r.ore, descrizione: r.descrizione })),
+          ...editor.personal.map(r => ({ commessa: r.commessa, ore: r.ore }))
+        ];
+        details.setDayRecords(merged);
+  stageUpdate(selEmp.id, selDate, merged);
+      }
     }
     setConfirmDel({ open:false, entry:null });
     if (dialog.open) closeDialog();
-  }, [confirmDel, workEntries, editor, dialog.open, closeDialog]);
+  }, [confirmDel, workEntries, editor, dialog.open, closeDialog, selEmp, selDate, setDataMap, details]);
+
+  // Synchronization effect (debounced & signature‑guarded) per evitare loop infiniti
+  const lastSyncRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!selEmp || !selDate) return;
+    const current = tsMap?.[selEmp.id]?.[selDate] || [];
+    const local = details.dayRecords || [];
+    // Se puntano allo stesso array o stessa lunghezza+contenuto => niente update
+    if (current === local) return;
+    if (current.length === local.length) {
+      let equal = true;
+      for (let i=0;i<current.length;i++) {
+        const a=current[i], b=local[i];
+        if (a.commessa!==b.commessa || Number(a.ore)!==Number(b.ore)) { equal=false; break; }
+      }
+      if (equal) return;
+    }
+    const signature = local.map(r => `${r.commessa}:${r.ore}`).join('|');
+    if (lastSyncRef.current === signature) return; // già sincronizzato
+    lastSyncRef.current = signature;
+  stageUpdate(selEmp.id, selDate, local);
+  }, [selEmp, selDate, details.dayRecords, tsMap, setDataMap]);
 
   const entryEditing = React.useMemo(() => ({
     openAdd,
@@ -237,12 +409,39 @@ function InnerDashboard() {
           {dataError.toString?.() || dataError}
         </Alert>
       )}
+      {rows.filter(r => r.incompletePrevMonth).length > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>Ci sono {rows.filter(r => r.incompletePrevMonth).length} utenti con il mese precedente incompleto.</Alert>
+      )}
+      {/* Relocated staged changes panel */}
+      <Paper sx={{ mb: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main', display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Modifiche in attesa di conferma</Typography>
+            <Typography variant="caption" color="text.secondary">Le modifiche agli orari vengono applicate solo dopo la conferma.</Typography>
+            {/* Permanent legend under the title */}
+            <Box sx={{ mt: 1 }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Chip icon={<AddCircleOutlineIcon fontSize="small" />} label="Inserimento" size="small" color="success" variant="outlined" />
+                <Chip icon={<EditIcon fontSize="small" />} label="Modifica" size="small" color="warning" variant="outlined" />
+                <Chip icon={<DeleteOutlineIcon fontSize="small" />} label="Cancellazione" size="small" color="error" variant="outlined" />
+              </Stack>
+            </Box>
+          </Box>
+          <StagedChangesPanel />
+        </Box>
+      </Paper>
       <Paper sx={{ p: 1, boxShadow: 8, borderRadius: 2, bgcolor: "customBackground.main" }}>
         <EmployeeMonthGrid
           year={year}
           month={month}
           rows={rows}
-          tsMap={tsMap}
+          tsMap={mergedDataMap}
+        // rowHighlights: highlight names for users missing previous-month days
+        rowHighlights={rowsWithMissingSet}
+        highlightedDaysMap={highlightedDaysMap}
+        stagedDaysMap={stagedDaysMap}
+          statsSelection={statsSelected}
+          onToggleStats={toggleStatsEmployee}
           onDayClick={handleDayClick}
           onEmployeeClick={handleEmployeeClick}
           selectedEmpId={selEmp?.id}
@@ -254,28 +453,20 @@ function InnerDashboard() {
           azWidth={130}
         />
       </Paper>
-      <DetailsPanel
+      <AdminDetailsPanel
         selEmp={selEmp}
         selDate={selDate}
-        detailsReady={details.detailsReady}
-        dayRecords={details.dayRecords}
-        daySegnalazione={details.daySegnalazione}
-        monthSummary={details.monthSummary}
-  globalMonthAgg={aggregates.globalByCommessa}
-  aggLoading={false}
-        onRefresh={() => details.refreshCurrent(selEmp, selDate)}
-        onOpenSegnalazione={seg.openSeg}
-        // handle edit: if parent calls with {__adminAdd:true} then open add dialog
-        onEditEntry={(arg) => {
-          if (arg && arg.__adminAdd) {
-            entryEditing.openAdd();
-          } else {
-            entryEditing.openEdit(arg);
-          }
-        }}
-  onDeleteEntry={entryEditing.confirmDelete}
-        commesse={distinctCommesse}
-        externalEditing={true}
+        year={year}
+        month={month}
+        employees={rows}
+        tsMap={mergedDataMap}
+        details={details}
+        entryEditing={entryEditing}
+        distinctCommesse={distinctCommesse}
+        globalMonthAgg={aggregates.globalByCommessa}
+        onSelectAllStats={selectAllStats}
+        onDeselectAllStats={deselectAllStats}
+        statsSelected={statsSelected}
       />
       <SegnalazioneDialog
         open={seg.sigOpen}
@@ -293,7 +484,8 @@ function InnerDashboard() {
           commesse={distinctCommesse}
           maxOre={8}
           dailyLimit={8}
-          dayUsed={computeDayUsed(details.dayRecords || [], entryEditing.editDialog.item)}
+          // prefer the editor helper when available — it sums work+personal and excludes current entry
+          dayUsed={typeof editor?.getDayUsed === 'function' ? editor.getDayUsed(entryEditing.editDialog.item, entryEditing.editDialog.mode, entryEditing.editDialog.index) : computeDayUsed(details.dayRecords || [], entryEditing.editDialog.item)}
           onClose={entryEditing.closeEdit}
           onSave={entryEditing.saveEdited}
         />
