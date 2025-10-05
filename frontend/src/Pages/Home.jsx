@@ -34,9 +34,7 @@ export default function Home() {
           p: { xs: 2, md: 4 },
         }}
       >
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Servizi
-        </Typography>
+        <Typography variant="h6" sx={{ mb: 2 }}> Servizi </Typography>
 
         {/* Griglia responsive a capo */}
         <Box

@@ -9,13 +9,14 @@ import { useTimesheetContext } from '@/Hooks/Timesheet';
  */
 export default function useAutoStageDay({ employeeId, selectedDay, draft, onDelete, onError }) {
   const ctx = useTimesheetContext();
+  const { dataMap, stagedMap, stageDeleteDay, discardDay, stageReplace } = ctx;
   const debounceRef = useRef();
   const lastHashRef = useRef({});
 
   useEffect(() => {
     if (!employeeId || !selectedDay) return;
-    const baseArr = ctx.dataMap?.[employeeId]?.[selectedDay] || [];
-    const stagedVal = ctx.stagedMap?.[employeeId]?.[selectedDay];
+  const baseArr = dataMap?.[employeeId]?.[selectedDay] || [];
+  const stagedVal = stagedMap?.[employeeId]?.[selectedDay];
     const stagedArr = stagedVal === null ? null : (Array.isArray(stagedVal) ? stagedVal : undefined);
     const draftArr = Array.isArray(draft) ? draft : [];
 
@@ -30,9 +31,9 @@ export default function useAutoStageDay({ employeeId, selectedDay, draft, onDele
     if (draftEmpty) {
       if (!baseEmpty) {
         if (stagedVal === null) return; // already deletion
-        schedule(() => { try { ctx.stageDeleteDay(employeeId, selectedDay); onDelete && onDelete(selectedDay); } catch (e) { onError && onError('delete'); } });
+  schedule(() => { try { stageDeleteDay(employeeId, selectedDay); onDelete && onDelete(selectedDay); } catch { onError && onError('delete'); } });
       } else if (stagedVal !== undefined) {
-        schedule(() => { try { ctx.discardDay(employeeId, selectedDay); } catch (_) { /* ignore */ } });
+  schedule(() => { try { discardDay(employeeId, selectedDay); } catch { /* ignore */ } });
       }
       return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
     }
@@ -45,11 +46,11 @@ export default function useAutoStageDay({ employeeId, selectedDay, draft, onDele
 
     schedule(() => {
       try {
-        ctx.stageReplace(employeeId, selectedDay, draftArr);
+        stageReplace(employeeId, selectedDay, draftArr);
         lastHashRef.current[selectedDay] = hash;
-      } catch (e) { onError && onError('replace'); }
+  } catch { onError && onError('replace'); }
     });
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [employeeId, selectedDay, draft, ctx.dataMap, ctx.stagedMap]);
+  }, [employeeId, selectedDay, draft, dataMap, stagedMap, onDelete, onError, stageDeleteDay, discardDay, stageReplace]);
 }

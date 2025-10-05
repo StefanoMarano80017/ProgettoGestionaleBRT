@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 
 export function useTimesheetFilters({ tsMap, year, month }) {
   const [filterCompany, setFilterCompany] = useState('ALL');

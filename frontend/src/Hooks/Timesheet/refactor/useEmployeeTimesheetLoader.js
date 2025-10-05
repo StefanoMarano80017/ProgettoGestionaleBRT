@@ -8,6 +8,7 @@ import { useTimesheetContext } from '@/Hooks/Timesheet';
  */
 export default function useEmployeeTimesheetLoader(employeeId) {
   const ctx = useTimesheetContext();
+  const { setEmployeeData } = ctx;
   const loadedRef = useRef(false);
   useEffect(() => {
     if (!employeeId || loadedRef.current) return; // already loaded
@@ -16,14 +17,14 @@ export default function useEmployeeTimesheetLoader(employeeId) {
       try {
         const ts = await getTimesheetForEmployee(employeeId);
         if (!cancelled) {
-          ctx.setEmployeeData(employeeId, ts);
+          setEmployeeData(employeeId, ts);
           loadedRef.current = true;
         }
-      } catch (e) {
+  } catch {
         // silent; could expose error state if needed
         // console.error('Failed to load timesheet', e);
       }
     })();
     return () => { cancelled = true; };
-  }, [employeeId, ctx.setEmployeeData]);
+  }, [employeeId, setEmployeeData]);
 }

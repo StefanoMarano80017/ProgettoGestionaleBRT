@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTimesheetApi } from '@hooks/Timesheet/useTimesheetApi';
 
 /**
@@ -20,8 +20,7 @@ export function useTimesheetData({ month, year, scope = 'all', employeeIds = [],
   const normalizedScope = scope;
   // Create a stable string key from employeeIds so identity changes of the array
   // (e.g. default [] re-created each render) don't retrigger callbacks.
-  const keyIdsDep = (employeeIds || []).join(',');
-  const keyIds = useMemo(() => (employeeIds || []).slice().sort().join(','), [keyIdsDep]);
+  const keyIds = useMemo(() => (employeeIds || []).slice().sort().join(','), [employeeIds]);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -68,8 +67,8 @@ export function useTimesheetData({ month, year, scope = 'all', employeeIds = [],
   }, [api, normalizedScope, keyIds]);
 
   // Guard against re-entrant/rapid auto-load triggers which can cause render loops
-  const loadInFlightRef = { current: false };
-  const lastLoadRef = { current: 0 };
+  const loadInFlightRef = useRef(false);
+  const lastLoadRef = useRef(0);
   useEffect(() => {
     if (!autoLoad) return;
     // prevent repeated calls within 300ms and while a load is in flight
@@ -86,8 +85,7 @@ export function useTimesheetData({ month, year, scope = 'all', employeeIds = [],
         lastLoadRef.current = Date.now();
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLoad, keyIds, normalizedScope]);
+  }, [autoLoad, keyIds, normalizedScope, load]);
 
   // Derived convenience: companies & flat records count
   const companies = useMemo(() => Array.from(new Set((employees||[]).map(e => e.azienda).filter(Boolean))).sort(), [employees]);

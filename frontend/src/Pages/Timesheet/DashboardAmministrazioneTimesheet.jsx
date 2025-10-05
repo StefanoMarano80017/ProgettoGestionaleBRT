@@ -16,13 +16,10 @@ import {
 } from "@mui/material";
 // Logica estratta in hooks riusabili (Timesheet)
 import {
-  useTimesheetApi,
   TimesheetProvider,
   useTimesheetContext,
   useTimesheetAggregates,
   useTimesheetEntryEditor,
-  useReferenceData,
-  useCalendarMonthYear,
   useDayAndMonthDetails,
   useSegnalazione,
   useSelection,
@@ -43,7 +40,6 @@ import SegnalazioneDialog from "@components/Timesheet/SegnalazioneDialog";
 import EditEntryDialog from "@components/Timesheet/EditEntryDialog";
 import ConfirmDialog from "@components/ConfirmDialog";
 import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
-import updateEmployeeDay from '@hooks/Timesheet/utils/updateEmployeeDay';
 // legend icons moved into StagedChangesPanel
 
 const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
@@ -51,7 +47,7 @@ const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio"
 // use shared computeDayUsed (imported above)
 
 function InnerDashboard() {
-  const { month, year, setMonthYear, employees, dataMap: tsMap, setDataMap, stagedMap, stageUpdate, commitStaged, discardStaged, loading: dataLoading, error: dataError } = useTimesheetContext();
+  const { month, year, setMonthYear, employees, dataMap: tsMap, stagedMap, stageUpdate, error: dataError } = useTimesheetContext();
   const today = new Date();
   const setYear = React.useCallback((y) => setMonthYear(month, y), [month, setMonthYear]);
   const setMonth = React.useCallback((m) => setMonthYear(m, year), [year, setMonthYear]);
@@ -72,7 +68,7 @@ function InnerDashboard() {
           merged[opId][dateKey] = (merged[opId][dateKey] || []).concat((recs || []).map(r => ({ ...r })));
         });
       });
-    } catch (e) {
+    } catch {
       // ignore merge errors
     }
     return merged;
@@ -249,12 +245,12 @@ function InnerDashboard() {
       // stage instead of immediate persist
       stageUpdate(selEmp.id, selDate, merged);
       }
-    } catch (err) {
+    } catch {
       // swallow for now; could surface snackbar
     } finally {
       closeDialog();
     }
-  }, [dialog, editor, closeDialog, selEmp, selDate, setDataMap, details]);
+  }, [dialog, editor, closeDialog, selEmp, selDate, details, stageUpdate]);
 
   // remove an edited entry
   const removeCurrent = React.useCallback(async () => {
@@ -271,7 +267,7 @@ function InnerDashboard() {
       }
     }
     closeDialog();
-  }, [dialog, editor, closeDialog, selEmp, selDate, setDataMap, details]);
+  }, [dialog, editor, closeDialog, selEmp, selDate, details, stageUpdate]);
 
   // Delete flow: confirm dialog
   const [confirmDel, setConfirmDel] = React.useState({ open: false, entry: null });
@@ -293,7 +289,7 @@ function InnerDashboard() {
     }
     setConfirmDel({ open:false, entry:null });
     if (dialog.open) closeDialog();
-  }, [confirmDel, workEntries, editor, dialog.open, closeDialog, selEmp, selDate, setDataMap, details]);
+  }, [confirmDel, workEntries, editor, dialog.open, closeDialog, selEmp, selDate, details, stageUpdate]);
 
   // Synchronization effect (debounced & signature‑guarded) per evitare loop infiniti
   const lastSyncRef = React.useRef(null);
@@ -314,8 +310,8 @@ function InnerDashboard() {
     const signature = local.map(r => `${r.commessa}:${r.ore}`).join('|');
     if (lastSyncRef.current === signature) return; // già sincronizzato
     lastSyncRef.current = signature;
-  stageUpdate(selEmp.id, selDate, local);
-  }, [selEmp, selDate, details.dayRecords, tsMap, setDataMap]);
+    stageUpdate(selEmp.id, selDate, local);
+  }, [selEmp, selDate, details.dayRecords, tsMap, stageUpdate]);
 
   const entryEditing = React.useMemo(() => ({
     openAdd,

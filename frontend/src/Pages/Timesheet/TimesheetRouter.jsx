@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@layouts/AuthContext";
+import useAuth from "@hooks/useAuth";
 import { ROLES } from "@mocks/UsersMock";
 import DipendenteTimesheet from "@pages/Timesheet/DipendenteTimesheet";
 import DashboardAmministrazioneTimesheet from "@pages/Timesheet/DashboardAmministrazioneTimesheet";

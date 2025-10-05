@@ -56,9 +56,7 @@ export default function CalendarioCard({
   return (
     <Card sx={{ width: "100%", height: "100%" }}>
       <CardContent>
-        <Typography variant="subtitle1" align="center" gutterBottom>
-          Calendario
-        </Typography>
+        <Typography variant="subtitle1" align="center" gutterBottom> Calendario </Typography>
 
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DateCalendar

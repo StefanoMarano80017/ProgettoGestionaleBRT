@@ -1,27 +1,10 @@
 import React from 'react';
-import {
-  WarningAmber,
-  Celebration,
-  BeachAccess,
-  LocalHospital,
-  EventAvailable,
-  CheckCircle,
-  AccessTime,
-} from '@mui/icons-material';
+import { WarningAmber, Celebration, BeachAccess, LocalHospital, EventAvailable, CheckCircle, AccessTime } from '@mui/icons-material';
+import { DayStatus } from './statusConstants';
 
 /**
  * Canonical day status keys used across the calendar UI.
  */
-export const DayStatus = Object.freeze({
-  AdminWarning: 'admin-warning',
-  Holiday: 'holiday',
-  Ferie: 'ferie',
-  Malattia: 'malattia',
-  Permesso: 'permesso',
-  Complete: 'complete',
-  Partial: 'partial',
-  Future: 'future',
-});
 
 /**
  * Calendar status icons
@@ -79,3 +62,7 @@ export const statusIconComponents = Object.freeze({
   [DayStatus.Complete]: CheckCircle,
   [DayStatus.Partial]: AccessTime,
 });
+
+// Re-export DayStatus for convenience (some modules import it from this file)
+export { DayStatus } from './statusConstants';
+

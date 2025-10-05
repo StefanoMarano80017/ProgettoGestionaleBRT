@@ -153,17 +153,8 @@ export default function NotificationsMenu() {
 
         {/* Footer con azioni */}
         <Box sx={{ display: "flex", justifyContent: "space-between", p: 1 }}>
-          <Button size="small" onClick={markAllAsRead}>
-            Segna tutte come lette
-          </Button>
-          <Button
-            size="small"
-            component={Link}
-            to="/notifications"
-            onClick={handleClose}
-          >
-            Vedi tutto
-          </Button>
+          <Button size="small" onClick={markAllAsRead}> Segna tutte come lette </Button>
+          <Button size="small" component={Link} to="/notifications" onClick={handleClose} > Vedi tutto </Button>
         </Box>
       </Menu>
     </Box>

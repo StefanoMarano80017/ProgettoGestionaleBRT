@@ -17,7 +17,7 @@ export function useMultipleMonthCompleteness({ tsMap = {}, ids = [], year, month
       if (missingDates.length > 0) idsWithMissing.add(id);
     }
     return { map, idsWithMissing };
-  }, [tsMap, JSON.stringify(ids || []), year, month, isHoliday]);
+  }, [tsMap, ids, year, month, isHoliday]);
 
   return payload;
 }

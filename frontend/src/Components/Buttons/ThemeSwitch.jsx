@@ -8,7 +8,7 @@ const WIDTH = 48;
 const HEIGHT = 24;
 const THUMB = 20;
 
-const StyledSwitch = styled(Switch)(({ theme }) => ({
+const StyledSwitch = styled(Switch)(() => ({
   width: WIDTH,
   height: HEIGHT,
   padding: 0,

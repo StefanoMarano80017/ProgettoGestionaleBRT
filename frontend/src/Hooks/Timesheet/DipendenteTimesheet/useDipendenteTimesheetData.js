@@ -12,7 +12,7 @@ export function useDipendenteTimesheetData(initialData = {}, opts = {}) {
       const newRecords = replace ? toArray(recordOrRecords) : [...prevDayRecords, ...toArray(recordOrRecords)];
       const next = ( !newRecords || newRecords.length === 0 ) ? ( () => { const { [day]: _omit, ...rest } = prev; return rest; } )() : { ...prev, [day]: newRecords };
       // If caller provided staging callback, call it so global provider can show staged edits
-      try { if (typeof onStage === 'function') onStage(day, Array.isArray(newRecords) ? newRecords : [newRecords]); } catch (e) { /* ignore */ }
+  try { if (typeof onStage === 'function') onStage(day, Array.isArray(newRecords) ? newRecords : [newRecords]); } catch { /* ignore */ }
       return next;
     });
   }, [onStage]);

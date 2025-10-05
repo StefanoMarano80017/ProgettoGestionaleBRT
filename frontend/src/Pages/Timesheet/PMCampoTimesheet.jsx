@@ -45,6 +45,10 @@ import useMultipleMonthCompleteness from '@/Hooks/Timesheet/useMultipleMonthComp
 import { usePmCampoEditing } from '@/Hooks/Timesheet/PMCampoTimesheet/usePmCampoEditing';
 import applyStagedToMock from '@hooks/Timesheet/utils/applyStagedToMock';
 
+function useOptionalTimesheetContext() {
+  try { return useTimesheetContext(); } catch { return null; }
+}
+
 export default function PMCampoTimesheet() {
   const [azienda, setAzienda] = useState("BRT");
   const {
@@ -64,7 +68,7 @@ export default function PMCampoTimesheet() {
     refreshGroups,
   } = usePmGroups(azienda);
   const { opPersonal, refreshPersonal } = useOpPersonal();
-  const ctx = (() => { try { return useTimesheetContext(); } catch (_) { return null; } })();
+  const ctx = useOptionalTimesheetContext();
   const { currentYear: opYear, currentMonth: opMonth, shift, setMonthYear } = useCalendarMonthYear(new Date());
   const handlePrevMonth = () => shift(-1);
   const handleNextMonth = () => shift(1);
@@ -107,7 +111,7 @@ export default function PMCampoTimesheet() {
       const fc = sp.get("fc"); if (fc) setFilterCompany(fc);
       const so = sp.get("so"); if (so) setSearchOperaio(so);
       const sc = sp.get("sc"); if (sc) setSearchCommessa(sc);
-    } catch {}
+    } catch { /* silent */ }
   }, []);
   useEffect(() => {
     try {
@@ -117,7 +121,7 @@ export default function PMCampoTimesheet() {
       sp.set("so", searchOperaio);
       sp.set("sc", searchCommessa);
       window.history.replaceState({}, "", `${window.location.pathname}?${sp.toString()}`);
-    } catch {}
+    } catch { /* silent */ }
   }, [activeTab, filterCompany, searchOperaio, searchCommessa]);
 
   // Readonly panel data (aggiornato al giorno selezionato)
@@ -189,9 +193,11 @@ export default function PMCampoTimesheet() {
 
   // PM check: find operai missing previous month entries (for PMs we alert for previous month completeness)
   const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
+  const prevYear = prev.getFullYear();
+  const prevMonth = prev.getMonth();
   const operaiWithMissing = useMemo(() => {
-    return baseOperaiRows.map(r => ({ id: r.id, missing: checkMonthCompletenessForId({ tsMap: operaiTsMap, id: r.id, year: prev.getFullYear(), month: prev.getMonth() }) })).filter(x => x.missing.length > 0);
-  }, [baseOperaiRows, operaiTsMap]);
+    return baseOperaiRows.map(r => ({ id: r.id, missing: checkMonthCompletenessForId({ tsMap: operaiTsMap, id: r.id, year: prevYear, month: prevMonth }) })).filter(x => x.missing.length > 0);
+  }, [baseOperaiRows, operaiTsMap, prevYear, prevMonth]);
 
   // compute missing sets for the displayed operai so we can highlight names and cells
   const visibleOpIds = useMemo(() => (operaiRows || []).map(r => r.id), [operaiRows]);

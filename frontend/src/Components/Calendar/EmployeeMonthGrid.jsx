@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Typography, Checkbox, Tooltip } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -48,13 +48,14 @@ export function EmployeeMonthGrid({
     const variant = dayHeight < 44 ? 'compact' : 'default';
     const effectiveDayHeight = variant === 'compact' ? 44 : dayHeight;
 
+    const onEmployeeClickRef = useRef(onEmployeeClick);
+    // keep ref in sync synchronously to avoid an effect dependency on the function
+    onEmployeeClickRef.current = onEmployeeClick;
     const handleEmployeeClick = useCallback(() => {
-      if (onEmployeeClick) onEmployeeClick(row);
-    }, [onEmployeeClick, row]);
+      if (onEmployeeClickRef.current) onEmployeeClickRef.current(row);
+    }, [row]);
 
-    const onDayClickForRow = useCallback((dateStr) => {
-      if (onDayClick) onDayClick(row, dateStr);
-    }, [onDayClick, row]);
+    // removed unused onDayClickForRow (direct inline handler used)
 
     const displayName = row.name || row.dipendente || row.id;
     const isRowHighlighted = rowHighlights && (rowHighlights.has ? rowHighlights.has(row.id) : Array.isArray(rowHighlights) && rowHighlights.includes(row.id));
@@ -109,7 +110,6 @@ export function EmployeeMonthGrid({
                 isSelected={isSelected}
                 status={effectiveStatus}
                 variant={variant}
-                iconTopRight={false}
                 showHours={cell.totalHours > 0}
                 totalHours={cell.totalHours}
                 onClick={onDayClick ? () => onDayClick(row, cell.dateStr) : undefined}
@@ -157,36 +157,8 @@ export function EmployeeMonthGrid({
         }}
       >
         {/* Intestazioni fisse a sinistra */}
-        <Box
-          sx={{
-            position: "sticky",
-            left: 0,
-            zIndex: 3,
-            width: dipWidth,
-            bgcolor: "background.paper",
-            display: "flex",
-            alignItems: "center",
-            fontWeight: 600,
-            pl: 1,
-          }}
-        >
-          Dipendente
-        </Box>
-        <Box
-          sx={{
-            position: "sticky",
-            left: dipWidth + GAP,
-            zIndex: 3,
-            width: azWidth,
-            bgcolor: "background.paper",
-            display: "flex",
-            alignItems: "center",
-            fontWeight: 600,
-            pl: 1,
-          }}
-        >
-          Azienda
-        </Box>
+        <Box sx={{ position: "sticky", left: 0, zIndex: 3, width: dipWidth, bgcolor: "background.paper", display: "flex", alignItems: "center", fontWeight: 600, pl: 1, }} > Dipendente </Box>
+        <Box sx={{ position: "sticky", left: dipWidth + GAP, zIndex: 3, width: azWidth, bgcolor: "background.paper", display: "flex", alignItems: "center", fontWeight: 600, pl: 1, }} > Azienda </Box>
 
         {/* Giorni */}
         {headerDays.map((d) => (

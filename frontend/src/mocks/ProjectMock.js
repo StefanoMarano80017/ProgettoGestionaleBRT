@@ -319,7 +319,7 @@ export function assignHoursToGroup({ groupId, dateKey, commessa, oreTot }) {
       Object.entries(proposed).forEach(([opId, ore]) => {
         sumByOp[opId] = (sumByOp[opId] || 0) + (Number(ore) || 0);
       });
-      const violator = Object.entries(sumByOp).find(([_, h]) => Number(h) > 8);
+  const violator = Object.entries(sumByOp).find(([, h]) => Number(h) > 8);
       if (violator) return reject(new Error("Superato il limite di 8h considerando le voci personali. Ridurre le ore totali o riassegnare."));
 
       grp.timesheet[dateKey].push({ commessa, oreTot: tot, assegnazione: proposed });
@@ -377,7 +377,7 @@ export function updateGroupDayEntries({ groupId, dateKey, entries }) {
         });
       });
       // Verifica limite 8h
-      const violator = Object.entries(sumByOp).find(([_, h]) => Number(h) > 8);
+  const violator = Object.entries(sumByOp).find(([, h]) => Number(h) > 8);
       if (violator) return reject(new Error("Superato il limite di 8h (considerando personale e altri gruppi). Ridurre le ore."));
 
       // Applica
@@ -477,9 +477,7 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
     const stepOps = OPERAI.filter((o) => o.azienda === "STEP").map((o) => o.id);
 
     const today = new Date();
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const twoDaysAgo = new Date(today); twoDaysAgo.setDate(today.getDate() - 2);
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
 
     const seedGroup = (id, name, members, azienda, entriesByDate) => {
       pmGroupsMock[id] = { id, name, members: members.slice(0), azienda, timesheet: {} };
@@ -569,8 +567,6 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
 
     const d1 = toKey(today);
     const d0 = toKey(yesterday);
-  const dF = toKey(firstOfMonth);
-  const d2 = toKey(twoDaysAgo);
 
     // BRT - Squadra Alfa (usa primi 2 BRT)
     const g1Id = "grp-1";
@@ -678,7 +674,7 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
     fillPreviousMonthCompleteness();
 
     nextGroupId = Math.max(nextGroupId, 5);
-  } catch (e) {
+  } catch {
     // ignora errori
   }
 })();

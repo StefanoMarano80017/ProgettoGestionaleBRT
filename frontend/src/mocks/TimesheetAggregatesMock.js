@@ -1,7 +1,6 @@
 import { getAllEmployeeTimesheets } from "@mocks/ProjectMock";
 
 const isWorkCode = (c) => c && !["FERIE", "MALATTIA", "PERMESSO"].includes(String(c).toUpperCase());
-const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 const sameMonth = (dateKey, year, month0) => {
   const [yy, mm] = dateKey.split("-").map(Number);
   return yy === year && mm === month0 + 1;

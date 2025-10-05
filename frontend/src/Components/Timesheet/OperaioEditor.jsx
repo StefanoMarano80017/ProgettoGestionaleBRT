@@ -3,11 +3,15 @@ import { Box, Stack, Typography, TextField, IconButton, Button, Chip, Alert, Aut
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useTimesheetEntryEditor, useTimesheetContext } from '@/Hooks/Timesheet';
 
+function useOptionalTimesheetContext() {
+  try { return useTimesheetContext(); } catch { return null; }
+}
+
 export default function OperaioEditor({ opRow, dateKey, tsMap, commesse, onSaved }) {
   const dayEntries = (tsMap?.[opRow.id]?.[dateKey] || []);
   const work = dayEntries.filter(r => !['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa)));
   const personalInitial = dayEntries.filter(r => ['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa)));
-  const ctx = (() => { try { return useTimesheetContext(); } catch (_) { return null; } })();
+  const ctx = useOptionalTimesheetContext();
   const editor = useTimesheetEntryEditor({
     entries: work,
     personalEntries: personalInitial,
@@ -19,7 +23,7 @@ export default function OperaioEditor({ opRow, dateKey, tsMap, commesse, onSaved
         if (ctx && typeof ctx.stageUpdate === 'function') {
           ctx.stageUpdate(opRow.id, dateKey, nextRecords);
         }
-      } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
       // Notify parent to refresh derived data
       onSaved?.(nextRecords);
     }

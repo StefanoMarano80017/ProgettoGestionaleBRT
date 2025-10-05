@@ -17,6 +17,12 @@ export function MonthSelector({
   sx = {},
 }) {
   const labelArr = useMemo(() => (labels === 'full' ? fullMonth : shortMonth), [labels]);
+  // Pre-compute windowed date objects unconditionally to avoid hook order issues.
+  const prev2Date = useMemo(() => new Date(year, month - 2, 1), [year, month]);
+  const prev1Date = useMemo(() => new Date(year, month - 1, 1), [year, month]);
+  const currDate  = useMemo(() => new Date(year, month, 1), [year, month]);
+  const next1Date = useMemo(() => new Date(year, month + 1, 1), [year, month]);
+  const next2Date = useMemo(() => new Date(year, month + 2, 1), [year, month]);
 
   const shiftMonth = (delta) => {
     const d = new Date(year, month + delta, 1);
@@ -52,11 +58,6 @@ export function MonthSelector({
   }
 
   // windowed: show prev/next arrows with 5 month buttons around current
-  const prev2Date = useMemo(() => new Date(year, month - 2, 1), [year, month]);
-  const prev1Date = useMemo(() => new Date(year, month - 1, 1), [year, month]);
-  const currDate  = useMemo(() => new Date(year, month, 1), [year, month]);
-  const next1Date = useMemo(() => new Date(year, month + 1, 1), [year, month]);
-  const next2Date = useMemo(() => new Date(year, month + 2, 1), [year, month]);
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1, ...sx }}>

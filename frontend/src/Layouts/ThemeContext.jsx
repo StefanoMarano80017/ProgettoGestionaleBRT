@@ -9,7 +9,6 @@ import {
 import appTheme from "@theme/MainTheme";
 
 const ThemeCtx = React.createContext(null);
-export const useThemeContext = () => React.useContext(ThemeCtx);
 
 export function AppThemeProvider({ children }) {
   const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
@@ -42,4 +41,5 @@ export function AppThemeProvider({ children }) {
   );
 }
 
+export { ThemeCtx };
 export default AppThemeProvider;

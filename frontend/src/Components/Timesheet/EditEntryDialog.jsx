@@ -56,7 +56,7 @@ export default function EditEntryDialog({
   const handleChangeOre = (e) => {
     const val = e.target.value.trim();
     // Regex: numeri interi o decimali (2 decimali max) con . o , come separatore
-    if (/^[0-9]*[\.,]?[0-9]{0,2}$/.test(val) || val === '') {
+  if (/^[0-9]*[.,]?[0-9]{0,2}$/.test(val) || val === '') {
       setForm(f => ({ ...f, oreInput: val }));
     }
   };

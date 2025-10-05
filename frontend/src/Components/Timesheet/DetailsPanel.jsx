@@ -16,7 +16,6 @@ export default function DetailsPanel({
   monthSummary,
   globalMonthAgg,
   aggLoading,
-  onRefresh,
   onOpenSegnalazione,
   onEditEntry,
   onDeleteEntry,
@@ -39,10 +38,7 @@ export default function DetailsPanel({
     setEditOpen(false);
   };
 
-  const handleDelete = (it) => {
-    onDeleteEntry && onDeleteEntry(it);
-    setEditOpen(false);
-  };
+  // delete handled inline via onDeleteEntry passed to EntryListPanel
   return (
   <Paper sx={{ mt: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: (theme) => theme.palette.background.paper }}>
       <Stack

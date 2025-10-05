@@ -9,7 +9,7 @@ import { TaskDetailCard } from '@components/Calendar/TaskDetailCard';
  */
 export function ProjectSidePanel({ tasks }) {
   const pageSize = 2; // two cards per page
-  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const safeTasks = React.useMemo(() => Array.isArray(tasks) ? tasks : [], [tasks]);
 
   const totalPages = Math.max(1, Math.ceil(safeTasks.length / pageSize));
   const [page, setPage] = React.useState(1); // Pagination is 1-based

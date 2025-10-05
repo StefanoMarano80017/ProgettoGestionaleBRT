@@ -9,11 +9,14 @@ import { computeDayDiff, summarizeDayDiff } from '@hooks/Timesheet/utils/timeshe
 import { useTimesheetContext } from '@hooks/Timesheet';
 import applyStagedToMock from '@hooks/Timesheet/utils/applyStagedToMock';
 
+function useOptionalTimesheetContext() {
+  try { return useTimesheetContext(); } catch { return null; }
+}
+
 export default function StagedChangesPanel({ compact = false, showActions = true, maxVisible = 8, showLegend = true }) {
-  const ctx = (() => { try { return useTimesheetContext(); } catch (_) { return null; } })();
-  const stagedMap = ctx?.stagedMap || {};
+  const ctx = useOptionalTimesheetContext();
+  const stagedMap = useMemo(() => ctx?.stagedMap || {}, [ctx?.stagedMap]);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [undoStack, setUndoStack] = useState([]);
   const [snack, setSnack] = useState({ open: false, msg: '', action: null, kind: null });
 
   const flat = useMemo(() => {
@@ -55,7 +58,7 @@ export default function StagedChangesPanel({ compact = false, showActions = true
         openSnack('Nessuna modifica da confermare', 'commit');
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.error('Global commit failed', e);
     }
   };
@@ -68,7 +71,6 @@ export default function StagedChangesPanel({ compact = false, showActions = true
   const handleRemoveEntry = (item) => {
     if (!ctx) return;
     const { employeeId, date, diff } = item;
-    const current = stagedMap?.[employeeId]?.[date];
     const origArr = ctx.dataMap?.[employeeId]?.[date] || [];
     if (diff.type === 'day-delete') {
       ctx.stageReplace(employeeId, date, origArr.slice());
@@ -170,10 +172,10 @@ export default function StagedChangesPanel({ compact = false, showActions = true
             <Menu anchorEl={anchorEl} open={open} onClose={handleCloseOverflow} onClick={(e) => e.stopPropagation()}>
               {flat.slice(maxVisible).map((item, idx) => {
                 const { diff } = item;
-                let IconComp = EditIcon; let chipColor = 'warning';
-                if (diff.type === 'day-delete') { IconComp = DeleteOutlineIcon; chipColor = 'error'; }
-                else if (diff.type === 'new-day' || diff.type === 'insert-only') { IconComp = AddCircleOutlineIcon; chipColor = 'success'; }
-                else if (diff.type === 'delete-only') { IconComp = DeleteOutlineIcon; chipColor = 'error'; }
+                let IconComp = EditIcon;
+                if (diff.type === 'day-delete') { IconComp = DeleteOutlineIcon; }
+                else if (diff.type === 'new-day' || diff.type === 'insert-only') { IconComp = AddCircleOutlineIcon; }
+                else if (diff.type === 'delete-only') { IconComp = DeleteOutlineIcon; }
                 const key = `overflow-${item.employeeId}-${item.date}-${idx}`;
                 return (
                   <MenuItem key={key}>
@@ -210,13 +212,7 @@ export default function StagedChangesPanel({ compact = false, showActions = true
         message={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {snack.kind === 'commit' && <CheckCircleOutlineIcon fontSize="small" color="success" />}
-            <Typography
-              variant="body2"
-              sx={{
-                color: snack.kind === 'commit' ? 'success.main' : 'text.primary',
-                fontWeight: 500
-              }}
-            >{snack.msg}</Typography>
+            <Typography variant="body2" sx={{ color: snack.kind === 'commit' ? 'success.main' : 'text.primary', fontWeight: 500 }} >{snack.msg}</Typography>
           </Box>
         }
         ContentProps={{

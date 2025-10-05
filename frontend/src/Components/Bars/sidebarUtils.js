@@ -37,7 +37,7 @@ export function renderIcon(IconOrElement, sx) {
   }
   // Otherwise assume it's a component (e.g. imported MUI icon component)
   try {
-    const Comp = IconOrElement; // eslint-disable-line react/display-name
+    const Comp = IconOrElement;
     return React.createElement(Comp, { sx });
   } catch {
     return null;

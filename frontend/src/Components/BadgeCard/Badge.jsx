@@ -2,7 +2,7 @@ import React, { useMemo, memo } from 'react';
 import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import { useAuth } from '@layouts/AuthContext';
+import useAuth from '@hooks/useAuth';
 import LogoGestionale from '@assets/LogoGestionale.png';
 import { resolveBadgeData } from './utils/badgeUtils';
 import PropTypes from 'prop-types';
@@ -74,16 +74,12 @@ export function BadgeCard({
         {isBadgiato ? (
           <>
             <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
-            <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
-              Marcato
-            </Typography>
+            <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}> Marcato </Typography>
           </>
         ) : (
           <>
             <RadioButtonUncheckedIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-            <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600 }}>
-              Non marcato
-            </Typography>
+            <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600 }}> Non marcato </Typography>
           </>
         )}
       </Box>
@@ -115,13 +111,7 @@ export function BadgeCard({
       )}
 
       {/* Title */}
-      <Typography
-        variant="subtitle2"
-        color="customBlack.main"
-        sx={{ position: 'absolute', top: 14, left: 14 }}
-      >
-        Badge Dipendente
-      </Typography>
+      <Typography variant="subtitle2" color="customBlack.main" sx={{ position: 'absolute', top: 14, left: 14 }} > Badge Dipendente </Typography>
 
       <CardContent
         sx={{

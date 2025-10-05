@@ -3,13 +3,9 @@ import { Outlet } from "react-router-dom";
 import { Box } from "@mui/material";
 import Sidebar from "@components/Bars/Sidebar";
 import Header from "@components/Bars/Header";
-import { useState } from "react";
 
 export default function MainLayout() {
-  const [collapsed, setCollapsed] = useState(false);
-  const handleToggleSidebar = () => {
-    setCollapsed((prev) => !prev);
-  };
+  // Removed unused collapsed state/handler (sidebar currently handles its own internal state)
 
   return (
     <Box sx={{ display: "flex", height: "100vh", width: "100vw" }}>

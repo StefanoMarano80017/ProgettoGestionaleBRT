@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Box } from "@mui/material";
 
 export default function ResizableLayout({ topComponent, bottomComponent, defaultSize = 300, minSize = 100 }) {
@@ -6,15 +6,9 @@ export default function ResizableLayout({ topComponent, bottomComponent, default
   const containerRef = useRef(null);
   const dragging = useRef(false);
 
-  const handleMouseDown = () => {
-    dragging.current = true;
-  };
-
-  const handleMouseUp = () => {
-    dragging.current = false;
-  };
-
-  const handleMouseMove = (e) => {
+  const handleMouseDown = useCallback(() => { dragging.current = true; }, []);
+  const handleMouseUp = useCallback(() => { dragging.current = false; }, []);
+  const handleMouseMove = useCallback((e) => {
     if (!dragging.current) return;
     const containerTop = containerRef.current.getBoundingClientRect().top;
     let newHeight = e.clientY - containerTop;
@@ -22,7 +16,7 @@ export default function ResizableLayout({ topComponent, bottomComponent, default
     if (newHeight > containerRef.current.clientHeight - minSize)
       newHeight = containerRef.current.clientHeight - minSize;
     setTopHeight(newHeight);
-  };
+  }, [minSize]);
 
   useEffect(() => {
     window.addEventListener("mousemove", handleMouseMove);
@@ -31,7 +25,7 @@ export default function ResizableLayout({ topComponent, bottomComponent, default
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, []);
+  }, [handleMouseMove, handleMouseUp]);
 
   return (
     <Box ref={containerRef} sx={{ height: "100vh", width: "100%", display: "flex", flexDirection: "column", userSelect: "none" }}>

@@ -2,7 +2,7 @@ import React from "react";
 import { authenticate } from "@mocks/UsersMock";
 
 const AuthContext = React.createContext(null);
-export const useAuth = () => React.useContext(AuthContext);
+export default AuthContext;
 
 export function AuthProvider({ children }) {
   // Start with no logged-in user by default (do not auto-read localStorage)

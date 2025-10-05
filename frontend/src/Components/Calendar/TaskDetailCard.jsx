@@ -24,6 +24,15 @@ import { AvatarInitials } from '@components/Avatar/AvatarInitials';
  * Displays a task summary card with progress and a scrollable list of sub-items.
  */
 export function TaskDetailCard({ task }) {
+  // Hooks before conditional return; use the task value inside.
+  const handleNavigate = React.useCallback(() => {
+    if (task?.id) console.log('Naviga al task', task.id);
+  }, [task?.id]);
+
+  const handleItemClick = React.useCallback((item) => {
+    if (item) console.log('Clicked:', item?.name, item?.id);
+  }, []);
+
   if (!task) {
     return (
       <Card sx={{ maxWidth: 345, p: 2 }}>
@@ -33,17 +42,6 @@ export function TaskDetailCard({ task }) {
       </Card>
     );
   }
-
-  const handleNavigate = React.useCallback(() => {
-    // TODO: wire up router/navigation
-    // Keep the callback stable to avoid re-renders in IconButton
-    console.log('Naviga al task', task?.id);
-  }, [task?.id]);
-
-  const handleItemClick = React.useCallback((item) => {
-    // small, stable handler for item clicks
-    console.log('Clicked:', item?.name, item?.id);
-  }, []);
 
   const progressValue = typeof task.progress === 'number' ? Math.max(0, Math.min(100, task.progress)) : null;
 

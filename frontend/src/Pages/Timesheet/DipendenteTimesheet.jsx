@@ -100,10 +100,6 @@ function InnerDipendente({ employeeId }) {
 
   // Toast state (kept for potential errors / info)
   const [toast, setToast] = useState({ open: false, msg: '', severity: 'info' });
-  const showToast = useCallback(
-    (msg, severity = 'info') => setToast({ open: true, msg, severity }),
-    []
-  );
 
   return (
     <Box sx={{ bgcolor: 'background.default', height: '100vh', overflow: 'auto' }}>
@@ -124,15 +120,7 @@ function InnerDipendente({ employeeId }) {
           />
           <BadgeCard isBadgiato={isBadgiatoToday} />
         </Box>
-        <Box
-          sx={{
-            mb: 3,
-            boxShadow: 8,
-            borderRadius: 2,
-            bgcolor: 'customBackground.main',
-            p: 2
-          }}
-        ><StagedChangesPanel compact maxVisible={5} showLegend /></Box>
+        <Box sx={{ mb: 3, boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main', p: 2 }} ><StagedChangesPanel compact maxVisible={5} showLegend /></Box>
         {missingPrev.length > 0 && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             Attenzione: non hai completato il mese precedente ({missingPrev.length}{' '}
@@ -157,9 +145,7 @@ function InnerDipendente({ employeeId }) {
             {selectedDay ? (
               <>
                 {commesseLoading && (
-                  <Alert severity="info" sx={{ mb: 1 }}>
-                    Caricamento commesse...
-                  </Alert>
+                  <Alert severity="info" sx={{ mb: 1 }}> Caricamento commesse... </Alert>
                 )}
                 <DayEntryPanel
                   selectedDay={selectedDay}
@@ -174,44 +160,15 @@ function InnerDipendente({ employeeId }) {
                   onAddRecord={handleAddRecord}
                   commesse={commesseList}
                 />
-                <Typography variant="caption" sx={{ mt: 2, opacity: 0.7 }}>
-                  Le modifiche vengono salvate in staging automaticamente. Usa il
-                  pannello in alto per Annullare o Confermare.
-                </Typography>
+                <Typography variant="caption" sx={{ mt: 2, opacity: 0.7 }}> Le modifiche vengono salvate in staging automaticamente. Usa il pannello in alto per Annullare o Confermare. </Typography>
               </>
             ) : (
-              <Alert
-                severity="info"
-                sx={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                Seleziona un giorno.
-              </Alert>
+              <Alert severity="info" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} > Seleziona un giorno. </Alert>
             )}
           </Box>
-          <Box
-            sx={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-            }}
-          ><WorkCalendar data={mergedData} selectedDay={selectedDay} onDaySelect={setSelectedDay} variant="wide" highlightedDays={missingPrevSet} stagedDays={ctx.stagedMap?.[employeeId] ? new Set(Object.keys(ctx.stagedMap[employeeId])) : undefined} /></Box>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }} ><WorkCalendar data={mergedData} selectedDay={selectedDay} onDaySelect={setSelectedDay} variant="wide" highlightedDays={missingPrevSet} stagedDays={ctx.stagedMap?.[employeeId] ? new Set(Object.keys(ctx.stagedMap[employeeId])) : undefined} /></Box>
         </Box>
-        <Box
-          sx={{
-            boxShadow: 8,
-            borderRadius: 2,
-            bgcolor: 'customBackground.main',
-            py: 3,
-            px: 4,
-            mb: 4
-          }}
-        ><CommesseDashboard employeeId={employeeId} assignedCommesse={commesseList} data={mergedData} /></Box>
+        <Box sx={{ boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main', py: 3, px: 4, mb: 4 }} ><CommesseDashboard employeeId={employeeId} assignedCommesse={commesseList} data={mergedData} /></Box>
       </Container>
       <Snackbar
         open={toast.open}

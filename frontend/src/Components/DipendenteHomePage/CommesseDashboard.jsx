@@ -79,7 +79,7 @@ function formatIt(date) {
   return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
 }
 
-export default function CommesseDashboard({ employeeId, assignedCommesse = [], data = {} }) {
+export default function CommesseDashboard({ assignedCommesse = [], data = {} }) {
   const [tab, setTab] = useState(0);
   const [period, setPeriod] = useState("month"); // week | month | year
   const [refDate, setRefDate] = useState(new Date());

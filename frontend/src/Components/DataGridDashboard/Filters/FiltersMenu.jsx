@@ -13,13 +13,6 @@ import StatusFilter from "@components/DataGridDashboard/Filters/StatusFilter";
 import DeadlineFilter from "@components/DataGridDashboard/Filters/DeadlineFilter";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 
-const colorMap = {
-  Dipendenti: "secondary.main",
-  Stato: "success.main",
-  "Creati da": "warning.main",
-  "Chiusi entro": "warning.main",
-};
-
 const FiltersMenu = ({ activeFilters = [], filtersState }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);

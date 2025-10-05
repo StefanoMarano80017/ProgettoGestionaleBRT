@@ -1,7 +1,6 @@
 // Utility: check completeness of timesheet for a given id in a given month/year
 export function getMonthDays(year, month) {
   const arr = [];
-  const first = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0).getDate();
   for (let d = 1; d <= lastDay; d++) {
     const dt = new Date(year, month, d);

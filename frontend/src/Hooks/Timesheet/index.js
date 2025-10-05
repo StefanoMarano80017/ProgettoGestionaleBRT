@@ -4,6 +4,7 @@ export * from './data/useTimesheetData.js';
 export * from './aggregation/useTimesheetAggregates.js';
 export * from './dayEntry/useTimesheetEntryEditor.js';
 export * from './context/TimesheetProvider.jsx';
+export * from './context/useOptionalTimesheetContext.js';
 export * from './useReferenceData.js';
 export * from './calendar/useCalendarModel.js';
 export * from './useOperaiTimesheet.js';

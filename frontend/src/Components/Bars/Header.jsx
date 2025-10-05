@@ -8,7 +8,7 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import ThemeSwitchComponent from "@components/Buttons/ThemeSwitch";
-import { useThemeContext } from "@layouts/ThemeContext";
+import { useThemeContext } from "@hooks/useThemeContext";
 import { PAGES } from "@routes/pagesConfig"; // <-- usa la stessa config della Sidebar
 
 // Helper per render icone sia come componente che come elemento JSX
@@ -25,7 +25,7 @@ const renderIcon = (IconOrElement, sx = {}) => {
   return IconComp ? <IconComp sx={merged} /> : null;
 };
 
-export default function PageHeader({ onToggleSidebar }) {
+export default function PageHeader() {
   const location = useLocation();
   const { mode, toggleTheme } = useThemeContext();
 
@@ -71,7 +71,7 @@ export default function PageHeader({ onToggleSidebar }) {
     return items;
   }, [location.pathname, pageMeta]);
 
-  const currentTitle = React.useMemo(() => crumbs[crumbs.length - 1]?.label || "", [crumbs]);
+  // Removed unused currentTitle
 
   return (
     <Box

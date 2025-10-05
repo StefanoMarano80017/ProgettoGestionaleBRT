@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
  */
 export default function useDayEditBuffer({ employeeId, dayKey, dataMap, stagedMap }) {
   const stagedForEmp = stagedMap?.[employeeId] || {};
-  const committedDay = (dataMap?.[employeeId] && dataMap[employeeId][dayKey]) || [];
+  const committedDay = useMemo(() => (dataMap?.[employeeId] && dataMap[employeeId][dayKey]) || [], [dataMap, employeeId, dayKey]);
   const stagedDay = stagedForEmp[dayKey]; // array | null (delete) | undefined
   const merged = useMemo(() => {
     if (stagedDay === null) return []; // deletion marker
@@ -36,7 +36,7 @@ export default function useDayEditBuffer({ employeeId, dayKey, dataMap, stagedMa
     if (equal && lastMergedSigRef.current === sig) return; // nothing changed
     lastMergedSigRef.current = sig;
     if (!equal) setDraft(merged);
-  }, [merged, employeeId, dayKey]);
+  }, [merged, employeeId, dayKey, draft]);
 
   const dirty = useMemo(() => {
     if (draft === merged) return false;

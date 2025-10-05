@@ -27,7 +27,7 @@ export function updateEmployeeDay({ prev, employeeId, dateKey, records }) {
       const detail = { employeeId, dateKey, recordsCount: Array.isArray(records) ? records.length : 0, timestamp: Date.now() };
       window.dispatchEvent(new CustomEvent('timesheet:dayUpdated', { detail }));
       // Use console.debug so it can be filtered easily
-      // eslint-disable-next-line no-console
+       
       console.debug('[timesheet] dayUpdated', detail);
     }
   } catch {/* ignore dispatch errors */}
@@ -42,7 +42,7 @@ export function updateEmployeeDay({ prev, employeeId, dateKey, records }) {
         ts: Date.now(),
       };
     }
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
   
   return next;
 }
@@ -66,7 +66,7 @@ export function batchUpdateEmployeeDays({ prev, updates = [] }) {
     if (typeof window !== 'undefined' && updates.length) {
       const summary = updates.map(u => ({ employeeId: u.employeeId, dateKey: u.dateKey, count: Array.isArray(u.records) ? u.records.length : 0 }));
       window.dispatchEvent(new CustomEvent('timesheet:batchDayUpdated', { detail: { updates: summary, total: updates.length, timestamp: Date.now() } }));
-      // eslint-disable-next-line no-console
+       
       console.debug('[timesheet] batchDayUpdated', summary);
     }
   } catch {/* ignore dispatch errors */}

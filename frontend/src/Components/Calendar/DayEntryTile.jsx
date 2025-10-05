@@ -57,7 +57,6 @@ export function DayEntryTile({
   bgcolor = 'transparent',
   totalHours = 0,
   icon = null,
-  iconTopRight = false,
   status = undefined,
   showHours = false,
   showDayNumber = true,

@@ -41,7 +41,7 @@ export function usePmCampoEditing({ selectedGroup, selectedDay, commesse, groups
       personal.forEach(p => { sumByOp[opId] = (sumByOp[opId] || 0) + (Number(p.ore) || 0); });
     });
     Object.entries(perHeadTotals).forEach(([opId, ore]) => { sumByOp[opId] = (sumByOp[opId] || 0) + (Number(ore) || 0); });
-    const viol = Object.entries(sumByOp).find(([_, h]) => Number(h) > 8);
+  const viol = Object.entries(sumByOp).find(([, h]) => Number(h) > 8);
     if (viol) throw new Error('Questa modifica supera le 8h per alcuni operai (considerando voci personali). Riduci il totale.');
   }, [groups, opPersonal]);
 

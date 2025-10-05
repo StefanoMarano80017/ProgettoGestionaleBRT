@@ -10,7 +10,7 @@ import EntryListItem from "@components/Entries/EntryListItem";
  * - renderItem?: (item) => ReactNode (optional)
  * - actions?: (item) => ReactNode (optional) // slot for edit/delete
  */
-export default function EntryListPanel({ title, items = [], renderItem, actions }) {
+export default function EntryListPanel({ title, items = [], actions }) {
   return (
     <Box>
       <Typography variant="subtitle2" gutterBottom>{title}</Typography>

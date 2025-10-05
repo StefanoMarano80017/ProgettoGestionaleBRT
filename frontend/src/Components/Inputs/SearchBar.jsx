@@ -71,9 +71,7 @@ export default function SearchBar() {
               <InputAdornment position="end">
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   <KeyboardIcon fontSize="small" />
-                  <Typography variant="caption" color="textSecondary">
-                    Ctrl + K
-                  </Typography>
+                  <Typography variant="caption" color="textSecondary"> Ctrl + K </Typography>
                 </Box>
               </InputAdornment>
             ),

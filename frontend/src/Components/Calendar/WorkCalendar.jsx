@@ -8,6 +8,11 @@ import { useCalendarMonthYear, useItalianHolidays, useCalendarDays } from '@hook
 import { computeDayStatus } from '@components/Calendar/utils';
 import { useTimesheetContext } from '@hooks/Timesheet';
 
+// Safe wrapper: returns context or null when provider not mounted (avoids IIFE pattern triggering rules-of-hooks).
+function useOptionalTimesheetContext() {
+  try { return useTimesheetContext(); } catch { return null; }
+}
+
 const WEEK_DAYS = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
 
 /**
@@ -36,7 +41,6 @@ export function WorkCalendar({
   onDaySelect,
   renderDayTooltip,
   highlightedDays,
-  stagedDays,
   fixedDayWidth = false,
   gap = 1,
   distributeGaps = false,
@@ -44,8 +48,8 @@ export function WorkCalendar({
   selectorVariant = 'windowed',
   selectorLabels = 'short'
 }) {
-  const tsCtx = (() => { try { return useTimesheetContext(); } catch { return null; } })();
-  const stagedMap = tsCtx?.stagedMap || {};
+  const tsCtx = useOptionalTimesheetContext();
+  const stagedMap = React.useMemo(() => tsCtx?.stagedMap || {}, [tsCtx?.stagedMap]);
 
   // Determine active employee id: explicit selection or single staged employee.
   const activeEmployeeId = useMemo(() => {
@@ -149,7 +153,7 @@ export function WorkCalendar({
           const { day, dateStr, dayData, dayOfWeek, segnalazione, isHoliday } = item;
           const isSelected = selectedDay === dateStr;
           const totalHours = dayData?.reduce((s, r) => s + (Number(r?.ore) || 0), 0) || 0;
-          const { status, showHours, iconTopRight } = computeDayStatus({
+          const { status, showHours } = computeDayStatus({
             dayData,
             dayOfWeek,
             segnalazione,
@@ -160,9 +164,7 @@ export function WorkCalendar({
           const stagedStatus = getStagedStatus(dateStr);
           // if highlightedDays includes this date, override status to a special flag
           const isHighlighted = highlightedDays && (highlightedDays.has ? highlightedDays.has(dateStr) : (Array.isArray(highlightedDays) && highlightedDays.includes(dateStr)));
-          const isStaged = stagedDays && (stagedDays.has ? stagedDays.has(dateStr) : (Array.isArray(stagedDays) && stagedDays.includes(dateStr)));
           const effectiveStatus = stagedStatus || (isHighlighted ? 'prev-incomplete' : status);
-          const isOutOfMonth = false; // currently not rendering other-month days; keep API ready
 
           const tooltipContent = renderDayTooltip?.(dateStr, { dayData, dayOfWeek, isHoliday, segnalazione, totalHours });
           return (
@@ -173,7 +175,6 @@ export function WorkCalendar({
               isSelected={isSelected}
               status={effectiveStatus}
               showHours={showHours}
-              iconTopRight={iconTopRight}
               totalHours={totalHours}
               onClick={onDaySelect}
               tooltipContent={tooltipContent}

@@ -3,8 +3,8 @@ import { useMemo } from 'react';
 // Costruisce la mappa timesheet per singolo operaio a partire dai gruppi e dalle voci personali
 export function useOperaiTimesheet({ groups, allOperai, azienda, opPersonal }) {
   const operaiRows = useMemo(() => (allOperai || [])
-    .filter(o => true) // filtraggio azienda a monte se necessario
-    .map(o => ({ id: o.id, dipendente: o.name, azienda: o.azienda })), [allOperai]);
+    // filtraggio azienda eventuale già applicato a monte
+    .map(op => ({ id: op.id, dipendente: op.name, azienda: op.azienda })), [allOperai]);
 
   const operaiTsMap = useMemo(() => {
     const map = {};

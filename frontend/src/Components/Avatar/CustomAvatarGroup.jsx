@@ -78,9 +78,7 @@ export function CustomAvatarGroup({ data = [], max = 3 }) {
         transformOrigin={{ vertical: "top", horizontal: "left" }}
         TransitionComponent={Fade}
       >
-        <Typography variant="subtitle1" sx={{ p: 1 }}>
-          Persone assegnate
-        </Typography>
+        <Typography variant="subtitle1" sx={{ p: 1 }}> Persone assegnate </Typography>
         <List sx={{ p: 1 }}>
           {(data || []).map((emp) => {
             const parts = (emp?.name || '').split(/\s+/);

@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useContext, useMemo, useState, useCallback, useRef } from 'react';
 import { semanticEqual, semanticHash } from '@hooks/Timesheet/utils/semanticTimesheet';
 import { useCalendarMonthYear } from '@hooks/Timesheet/calendar/useCalendarMonthYear';
 import { useTimesheetData } from '@hooks/Timesheet/data/useTimesheetData';
 import updateEmployeeDay, { batchUpdateEmployeeDays } from '@hooks/Timesheet/utils/updateEmployeeDay';
+import TimesheetContext from './_TimesheetContext.js';
 
-const TimesheetContext = createContext(null);
+// Context moved to separate module (_TimesheetContext.js) for cleaner fast-refresh boundaries.
 
 export function TimesheetProvider({
   children,
@@ -45,7 +46,7 @@ export function TimesheetProvider({
       // Hashes for quick short-circuit (null represented distinctly)
       const prevHash = prevVal === null ? 'NULL' : semanticHash(prevVal);
       const nextHash = nextVal === null ? 'NULL' : semanticHash(nextVal);
-      const baseHash = semanticHash(baseRecords);
+  // baseHash previously used for diagnostics; removed to suppress unused var lint
 
       if (prevHash === nextHash && semanticEqual(prevVal, nextVal)) return prev; // identical to current staged
 
@@ -113,10 +114,9 @@ export function TimesheetProvider({
         if (Object.keys(copy).length === 0) delete next[employeeId]; else next[employeeId] = copy;
         return next;
       });
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('[timesheet] commitDay failed', e);
-      throw e;
+    } catch (err) {
+      console.error('[timesheet] commitDay failed', err);
+      throw err;
     }
   }, [stagedMap, setDataMap]);
 
@@ -158,16 +158,14 @@ export function TimesheetProvider({
             try {
               // updateEmployeeDay writes window.__tsOverrides and dispatches events
               updateEmployeeDay({ prev: null, employeeId: p.employeeId, dateKey: u.dateKey, records: Array.isArray(u.records) ? u.records : [] });
-            } catch (e) { /* ignore per-update errors */ }
+            } catch { /* ignore per-update errors */ }
           });
         });
       }
       // only clear staged map after successful apply (or default local apply)
       setStagedMap({});
     } catch (err) {
-      // preserve stagedMap so user can retry; surface error to caller
-      // eslint-disable-next-line no-console
-      console.error('[timesheet] commitStaged failed', err);
+      console.error('[timesheet] commitStaged failed', err); // keep staged for retry
       throw err;
     }
   }, [stagedMap, setDataMap]);
@@ -190,15 +188,13 @@ export function TimesheetProvider({
         updates.forEach(u => {
           try {
             updateEmployeeDay({ prev: null, employeeId: u.employeeId, dateKey: u.dateKey, records: Array.isArray(u.records) ? u.records : [] });
-          } catch (e) { /* ignore */ }
+          } catch { /* ignore */ }
         });
       }
       // only remove staged entries after success
       setStagedMap(prev => { const next = { ...(prev || {}) }; delete next[employeeId]; return next; });
     } catch (err) {
-      // preserve staged and bubble up
-      // eslint-disable-next-line no-console
-      console.error('[timesheet] commitStagedFor failed', err);
+      console.error('[timesheet] commitStagedFor failed', err); // preserve staged
       throw err;
     }
   }, [stagedMap, setDataMap]);
@@ -249,11 +245,12 @@ export function TimesheetProvider({
     setSelection,
     setEmployeeDate,
     scope,
-  }), [currentMonth, currentYear, setMonthYear, shift, dataMap, stagedMap, employees, load, loading, error, companies, filters, selection, scope, setEmployeeData, stageUpdate, stageReplace, stageDeleteDay, discardDay, commitDay, commitStaged, commitStagedFor, discardStaged]);
+  }), [currentMonth, currentYear, setMonthYear, shift, dataMap, stagedMap, employees, load, loading, error, companies, filters, selection, scope, setEmployeeData, setDataMap, updateFilter, setEmployeeDate, stageUpdate, stageReplace, stageDeleteDay, discardDay, commitDay, commitStaged, commitStagedFor, discardStaged]);
 
   return <TimesheetContext.Provider value={value}>{children}</TimesheetContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- exporting a hook intentionally
 export function useTimesheetContext() {
   const ctx = useContext(TimesheetContext);
   if (!ctx) throw new Error('useTimesheetContext must be used within <TimesheetProvider>');
@@ -261,10 +258,4 @@ export function useTimesheetContext() {
 }
 
 // safe optional hook that returns context value or null if provider is not present
-export function useOptionalTimesheetContext() {
-  try {
-    return useContext(TimesheetContext);
-  } catch (e) {
-    return null;
-  }
-}
+// Optional hook relocated to its own file to avoid extra exports here.

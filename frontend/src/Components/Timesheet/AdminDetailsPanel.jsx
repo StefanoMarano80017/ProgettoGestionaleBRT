@@ -1,13 +1,11 @@
 import React from 'react';
-import { Box, Paper, Tabs, Tab, Typography, Divider, ToggleButtonGroup, ToggleButton, IconButton, Stack, Alert, Button } from '@mui/material';
+import { Box, Paper, Tabs, Tab, Typography, Divider, ToggleButtonGroup, ToggleButton, IconButton, Stack, Alert } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import aggregatePeriod from '@hooks/Timesheet/aggregation/aggregatePeriod';
 // New: prefer the single‑day focused DayEntryPanel for the "Voci" tab
 import DayEntryPanel from '@components/Calendar/DayEntryPanel';
 import { useTimesheetContext } from '@hooks/Timesheet';
-import updateEmployeeDay from '@hooks/Timesheet/utils/updateEmployeeDay';
-import applyStagedToMock from '@hooks/Timesheet/utils/applyStagedToMock';
 import AggregationTable from '@components/Timesheet/AggregationTable';
 
 /**
@@ -24,15 +22,14 @@ export default function AdminDetailsPanel({
   employees = [], // filtered rows currently displayed in grid
   tsMap = {},
   details, // object from useDayAndMonthDetails
-  entryEditing, // (legacy) editing helpers – no longer used in DayEntryPanel mode
+  // entryEditing removed (legacy editing helpers no longer used)
   distinctCommesse = [],
-  globalMonthAgg, // existing global by commessa (optional)
   onSelectAllStats, // forwarded from Dashboard
   onDeselectAllStats,
   statsSelected,
 }) {
   // Access global timesheet context to persist inline edits from DayEntryPanel
-  const { setDataMap, stageUpdate, commitStaged, commitStagedFor, discardStaged, stagedMap } = useTimesheetContext();
+  const { stageUpdate } = useTimesheetContext();
   const [tab, setTab] = React.useState('entries');
   const handleTab = (_, v) => v && setTab(v);
 
@@ -118,7 +115,7 @@ export default function AdminDetailsPanel({
     return { ...empTs, __monthlySummary: { ...absenceSummary, commesse: commesseSummary, totalHours: totalMonthHours } };
   }, [selEmp, selDate, tsMap, details.dayRecords, year, month]);
 
-  const handleAddRecord = React.useCallback((day, records/* , persist */) => {
+  const handleAddRecord = React.useCallback((day, records) => {
     if (!selEmp || !day) return;
     // 1. Update day records in details hook (local)
     if (day === selDate) {
@@ -158,27 +155,9 @@ export default function AdminDetailsPanel({
       details.setMonthSummary && details.setMonthSummary({ ...(details.monthSummary||{}), __monthlySummary: { ...absenceSummary, commesse: commesseSummary, totalHours: totalMonthHours } });
     }
     // TODO: integrate remote save API if required
-  }, [selEmp, selDate, details, setDataMap, year, month, tsMap]);
+  }, [selEmp, selDate, details, year, month, tsMap, stageUpdate]);
 
-  const hasStagedForSel = React.useMemo(() => {
-    if (!selEmp) return false;
-    return Boolean(stagedMap && stagedMap[selEmp.id] && Object.keys(stagedMap[selEmp.id]).length);
-  }, [stagedMap, selEmp]);
-
-  const handleSaveStaged = React.useCallback(async () => {
-    if (!selEmp) return;
-    try {
-      await commitStagedFor ? commitStagedFor(selEmp.id, applyStagedToMock) : commitStaged(applyStagedToMock);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to persist staged edits for employee', selEmp && selEmp.id, e);
-    }
-  }, [commitStaged, commitStagedFor, selEmp]);
-
-  const handleDiscardStaged = React.useCallback(() => {
-    // discard staged edits for the currently selected employee only
-    if (selEmp) discardStaged({ employeeId: selEmp.id });
-  }, [discardStaged, selEmp]);
+  // staged save actions handled globally (StagedChangesPanel); local staged presence no longer needed
 
   return (
     <Paper sx={{ mt: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main' }}>

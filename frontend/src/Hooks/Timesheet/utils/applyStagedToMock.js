@@ -11,15 +11,10 @@ export default async function applyStagedToMock(payload) {
     if (String(employeeId).startsWith('op-')) {
       for (const u of updates) {
         const dateKey = u.dateKey;
-        // sanitize entries: keep only personal codes
-        const entries = (u.records || []).filter(r => r && ['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa).toUpperCase())).map(r => ({ commessa: r.commessa, ore: Number(r.ore) || 0 }));
-        try {
-          // if entries is empty => delete
-          await updateOperaioPersonalDay({ opId: employeeId, dateKey, entries });
-        } catch (e) {
-          // bubble up to allow retry
-          throw e;
-        }
+        const entries = (u.records || [])
+          .filter(r => r && ['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa).toUpperCase()))
+          .map(r => ({ commessa: r.commessa, ore: Number(r.ore) || 0 }));
+        await updateOperaioPersonalDay({ opId: employeeId, dateKey, entries });
       }
       continue;
     }

@@ -1,6 +1,6 @@
 import { Box, Button, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
-import React, { useMemo } from 'react';
+import React from 'react';
 import { computeSidebarItemColors } from './sidebarUtils';
 
 /**
@@ -15,11 +15,6 @@ import { computeSidebarItemColors } from './sidebarUtils';
  * - size?: numeric icon box edge (default 40)
  */
 const SidebarItem = ({ icon, text, path, selected, size = 40 }) => {
-  const { color, hoverColor } = useMemo(
-    () => ({ color: undefined, hoverColor: undefined }),
-    []
-  );
-
   return (
     <Button
       component={Link}

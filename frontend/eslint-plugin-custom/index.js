@@ -65,11 +65,9 @@ export const rules = {
           if (loc.start.line === loc.end.line) return;
 
           // Only allow props: sx or simple literal/identifier props
-          let sxAttr = null;
           for (const attr of opening.attributes) {
             if (attr.type !== 'JSXAttribute') return; // no spreads
             if (attr.name.name === 'sx') {
-              sxAttr = attr;
               if (!isSimpleSx(attr.value)) return;
             } else {
               // allow boolean shorthand or literal values

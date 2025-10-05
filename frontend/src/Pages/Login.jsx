@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box, Paper, Stack, Typography, TextField, Button, Alert,
 } from "@mui/material";
-import { useAuth } from "@layouts/AuthContext";
+import useAuth from "@hooks/useAuth";
 import LogoGestionale from "@assets/LogoGestionale.png";
 
 export default function Login() {
@@ -18,7 +18,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-      const next = await login(form.username, form.password);
+      await login(form.username, form.password);
       // Dopo il login, se veniamo da RequireAuth naviga alla destinazione originale
       const dest = location?.state?.from?.pathname || "/Home";
       nav(dest, { replace: true });
@@ -52,9 +52,7 @@ export default function Login() {
         <Stack spacing={3} alignItems="center">
           <Box component="img" src={LogoGestionale} alt="Logo applicazione" sx={{ height: 56, objectFit: "contain" }} />
           <Paper sx={{ p: 3, width: "100%" }}>
-            <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
-              Accedi
-            </Typography>
+            <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}> Accedi </Typography>
             <form onSubmit={onSubmit}>
               <Stack spacing={2}>
                 <TextField
@@ -72,9 +70,7 @@ export default function Login() {
                   fullWidth
                 />
                 {error && <Alert severity="error">{error}</Alert>}
-                <Button type="submit" variant="contained" fullWidth>
-                  Entra
-                </Button>
+                <Button type="submit" variant="contained" fullWidth> Entra </Button>
               </Stack>
             </form>
           </Paper>
