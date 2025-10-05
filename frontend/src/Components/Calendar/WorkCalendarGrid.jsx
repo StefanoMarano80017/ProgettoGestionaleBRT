@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import PropTypes from 'prop-types';
 import { Box, IconButton, Typography, Paper } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
@@ -32,6 +32,8 @@ export function WorkCalendarGrid({
   const startOffset = useMemo(() => (firstDow + 6) % 7, [firstDow]); // lun=0
 
   const headers = useMemo(() => ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"], []);
+
+  const containerRef = useRef(null);
 
   return (
     <Box sx={{ width: "100%", position: 'relative' }}>

@@ -10,7 +10,6 @@ import { useOptionalTimesheetContext } from '../context/useOptionalTimesheetCont
 export function useTimesheetStaging() {
   // Use optional context so the hook can be imported in modules that might render outside provider (returns empty map gracefully)
   const tsCtx = useOptionalTimesheetContext();
-  const dataMap = tsCtx?.dataMap || {};
   const ctxOpt = useOptionalTimesheetStaging(); // may be null
   // Memoize to provide stable references for callbacks & avoid hook exhaustive-deps noise
   const entries = useMemo(() => ctxOpt?.entries || {}, [ctxOpt?.entries]);
@@ -23,7 +22,10 @@ export function useTimesheetStaging() {
   const buildBatchPayload = ctxOpt?.buildBatchPayload || (() => []);
   const order = useMemo(() => ctxOpt?.order || [], [ctxOpt?.order]);
 
-  const getBaseDay = useCallback((employeeId, dateKey) => (dataMap?.[employeeId]?.[dateKey]) || [], [dataMap]);
+  const getBaseDay = useCallback((employeeId, dateKey) => {
+    const dm = tsCtx?.dataMap || {};
+    return (dm?.[employeeId]?.[dateKey]) || [];
+  }, [tsCtx]);
   const getStagedEntry = useCallback((employeeId, dateKey) => entries?.[employeeId]?.[dateKey], [entries]);
   const getMergedDay = useCallback((employeeId, dateKey) => {
     const entry = getStagedEntry(employeeId, dateKey);

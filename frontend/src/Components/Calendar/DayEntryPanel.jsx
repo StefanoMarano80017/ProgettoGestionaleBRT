@@ -69,7 +69,7 @@ export function DayEntryPanel({
   if (modeProp === 'readonly') readOnly = true;
 
   // Derived data from hooks (already memoized in hook implementation)
-  const { records: baseRecords, segnalazione, totalHours, itDate } = useDayEntryDerived(selectedDay, data, maxHoursPerDay);
+  const { records: baseRecords, segnalazione, totalHours } = useDayEntryDerived(selectedDay, data, maxHoursPerDay);
   const staging = useTimesheetStaging();
   const effectiveDate = dateKey || selectedDay;
 
@@ -199,7 +199,7 @@ export function DayEntryPanel({
   const ROW_HEIGHT = 53;
   const LIST_HEIGHT = 365;
 
-  const monthlySummary = useMemo(() => {
+  const _monthlySummary = useMemo(() => {
     const base = data.__monthlySummary || { ferie: { days: 0, hours: 0 }, malattia: { days: 0, hours: 0 }, permesso: { days: 0, hours: 0 }, commesse: [], totalHours: 0 };
     return {
       ferie: base.ferie || { days:0, hours:0 },
@@ -210,11 +210,7 @@ export function DayEntryPanel({
     };
   }, [data]);
 
-  const pct = useCallback((hours) => {
-    const t = Number(monthlySummary.totalHours || 0);
-    if (!t) return '0%';
-    return `${((hours / t) * 100).toFixed(1)}%`;
-  }, [monthlySummary]);
+  // percentage helper not currently used; keep implementation for future use
 
   const renderRecords = useMemo(() => {
     if (!records || records.length === 0) return null;

@@ -64,7 +64,7 @@ function InnerDipendente({ employeeId }) {
 
   // Period selection moved from CommesseDashboard to this page (calendar-driven)
   const [period, setPeriod] = useState('month'); // 'week' | 'month' | 'year'
-  const [refDateLocal, setRefDateLocal] = useState(new Date());
+  const [refDateLocal] = useState(new Date());
   // if selectedDay exists, use it as refDate; otherwise use local refDate
   const refDate = selectedDay ? new Date(selectedDay) : refDateLocal;
 
