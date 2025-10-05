@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Container, Alert, Typography, Snackbar, Paper } from '@mui/material';
+import { Box, Container, Alert, Typography, Snackbar, Paper, ButtonGroup, Button } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import PageHeader from '@components/PageHeader';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+// navigation icons removed — period controls live inside the dashboard now
 import BadgeCard from '@components/BadgeCard/Badge';
 import TimesheetStagingBar from '@components/Timesheet/TimesheetStagingBar';
 import WorkCalendar from '@components/Calendar/WorkCalendar';
 import DayEntryDialog from '@components/Calendar/DayEntryDialog';
 import CommesseDashboard from '@components/DipendenteHomePage/CommesseDashboard';
 import { TimesheetProvider, useTimesheetContext, useReferenceData, useTimesheetStaging } from '@/Hooks/Timesheet';
+import { findUserById } from '@mocks/UsersMock';
+import useAuth from '@hooks/useAuth';
 import useDayEditor from '@hooks/Timesheet/useDayEditor';
 import useMonthCompleteness from '@/Hooks/Timesheet/useMonthCompleteness';
 import useEmployeeTimesheetLoader from '@/Hooks/Timesheet/useEmployeeTimesheetLoader';
@@ -59,6 +62,12 @@ function InnerDipendente({ employeeId }) {
     [mergedData, todayKey]
   );
 
+  // Period selection moved from CommesseDashboard to this page (calendar-driven)
+  const [period, setPeriod] = useState('month'); // 'week' | 'month' | 'year'
+  const [refDateLocal, setRefDateLocal] = useState(new Date());
+  // if selectedDay exists, use it as refDate; otherwise use local refDate
+  const refDate = selectedDay ? new Date(selectedDay) : refDateLocal;
+
   // Legacy handleAddRecord removed; DayEntryPanel manages staging internally
 
   // Toast state (kept for potential errors / info)
@@ -80,6 +89,7 @@ function InnerDipendente({ employeeId }) {
             title="Timesheet"
             description="Riepilogo e inserimento ore"
             icon={<AccessTimeIcon />}
+            helperText={"Fai doppio click su un giorno per aprire l'editor dettagliato. Le modifiche vengono salvate in staging automaticamente dal dialog."}
           />
           <BadgeCard isBadgiato={isBadgiatoToday} />
         </Box>
@@ -90,13 +100,19 @@ function InnerDipendente({ employeeId }) {
             giorni mancanti).
           </Alert>
         )}
+        {/* Move: show 'Seleziona un giorno' immediately under the previous-month warning */}
+        { !selectedDay && (
+          <Box sx={{ mb: 2 }}>
+            <Alert severity="info" sx={{ textAlign: 'left' }}> Seleziona un giorno. </Alert>
+          </Box>
+        )}
         <Box
           sx={{
             boxShadow: 8,
             borderRadius: 2,
             bgcolor: 'customBackground.main',
-            py: 4,
-            px: { xs: 3, md: 8 },
+            py: 3,
+            px: { xs: 2, md: 6 },
             mb: 4,
             display: 'flex',
             flexDirection: 'row',
@@ -105,21 +121,31 @@ function InnerDipendente({ employeeId }) {
             alignItems: 'flex-start'
           }}
         >
-          <Box sx={{ flex: '1 1 600px', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ flex: '1 1 600px', minWidth: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
             {selectedDay ? (
               <>
                 {commesseLoading && (
                   <Alert severity="info" sx={{ mb: 1 }}> Caricamento commesse... </Alert>
                 )}
-                <Typography variant="body2" sx={{ mb: 1 }}>Fai doppio click su un giorno per aprire l'editor dettagliato in una finestra.</Typography>
-                <Typography variant="caption" sx={{ opacity: 0.7 }}>Le modifiche vengono salvate in staging automaticamente dal dialog.</Typography>
               </>
-            ) : (
-              <Alert severity="info" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} > Seleziona un giorno. </Alert>
-            )}
+            ) : null}
+
+            {/* Commesse dashboard moved to the left column so Histogram + Summary + List appear left of the calendar */}
+            <Box sx={{ height: '100%' }}>
+              <CommesseDashboard
+                employeeId={employeeId}
+                assignedCommesse={commesseList}
+                data={mergedData}
+                period={period}
+                refDate={refDate}
+                onPeriodChange={(p) => setPeriod(p)}
+              />
+            </Box>
           </Box>
           {/* Right calendar column */}
-          <Box sx={{ flex: '0 0 auto', width: { xs: '100%', md: 420 }, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ flex: '0 0 auto', width: { xs: '100%', md: 420 }, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
+            {/* Period controls (moved from dashboard) */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }} />
             <WorkCalendar
               data={baseData}
               selectedDay={selectedDay}
@@ -130,29 +156,13 @@ function InnerDipendente({ employeeId }) {
               stagedMeta={stagedMeta}
             />
           </Box>
-        </Box>
-  <Box sx={{ boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main', py: 3, px: 4, mb: 4 }}><CommesseDashboard employeeId={employeeId} assignedCommesse={commesseList} data={mergedData} /></Box>
-              {/* Monthly summary moved here from DayEntryPanel */}
-              {mergedData && mergedData.__monthlySummary && (
-                <Box sx={{ boxShadow: 4, borderRadius: 2, bgcolor: 'background.paper', py: 2, px: 3, mb: 4 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1 }}>Riepilogo Mensile</Typography>
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Chip size="small" label={`Totale: ${mergedData.__monthlySummary.totalHours || 0}h`} sx={{ borderRadius: 1 }} />
-                    <Chip size="small" label={`Ferie: ${(mergedData.__monthlySummary.ferie?.days)||0}g (${(mergedData.__monthlySummary.ferie?.hours)||0}h)`} sx={{ borderRadius: 1 }} />
-                    <Chip size="small" label={`Malattia: ${(mergedData.__monthlySummary.malattia?.days)||0}g (${(mergedData.__monthlySummary.malattia?.hours)||0}h)`} sx={{ borderRadius: 1 }} />
-                    <Chip size="small" label={`Permesso: ${(mergedData.__monthlySummary.permesso?.days)||0}g (${(mergedData.__monthlySummary.permesso?.hours)||0}h)`} sx={{ borderRadius: 1 }} />
-                    {(mergedData.__monthlySummary.commesse || []).slice(0,5).map(c => (
-                      <Chip key={c.commessa} size="small" color="info" variant="outlined" label={`${c.commessa}: ${c.ore}h`} sx={{ borderRadius:1 }} />
-                    ))}
-                  </Box>
-                </Box>
-              )}
+    </Box>
         <DayEntryDialog
           open={dayEditor.isOpen}
           onClose={dayEditor.closeEditor}
             date={dayEditor.date}
             employeeId={dayEditor.employeeId}
-            employeeName={employeeId}
+            employeeName={(function(){ const m = findUserById(dayEditor.employeeId || employeeId); return m ? `${m.nome} ${m.cognome}` : (dayEditor.employeeId || employeeId); })()}
             data={mergedData}
             commesse={commesseList}
           />
@@ -178,7 +188,8 @@ function InnerDipendente({ employeeId }) {
 
 export default function DipendenteTimesheet({ employeeId: propEmployeeId }) {
   // Fallback: if no prop provided, rely on first id passed to provider (here we still pass single array)
-  const effectiveId = propEmployeeId || 'emp-001';
+  const { user } = useAuth() || {};
+  const effectiveId = propEmployeeId || user?.id || 'emp-001';
   return (
     <TimesheetProvider scope="single" employeeIds={[effectiveId]}>
       <InnerDipendente employeeId={effectiveId} />
