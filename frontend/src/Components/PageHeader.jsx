@@ -13,7 +13,7 @@ const renderIcon = (IconOrElement, sx) => {
   return IconComp ? <IconComp sx={sx} /> : null;
 };
 
-const PageHeader = ({ title, description, icon, extraContent }) => {
+const PageHeader = ({ title, description, icon, extraContent, helperText }) => {
   // defer color decisions to the theme
 
   return (
@@ -34,6 +34,13 @@ const PageHeader = ({ title, description, icon, extraContent }) => {
       {description && (
         <Typography variant="body2" sx={{ mt: 0.5 }}>
           {description}
+        </Typography>
+      )}
+
+      {/* Helper text - small caption under the title */}
+      {helperText && (
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}>
+          {helperText}
         </Typography>
       )}
 

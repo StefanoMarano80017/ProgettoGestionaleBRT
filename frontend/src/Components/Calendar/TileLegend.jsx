@@ -32,7 +32,7 @@ export function TileLegend() {
     let icon = item.icon;
     if (icon && React.isValidElement(icon)) {
       // Try htmlColor prop (many MUI icons honor this); also enforce via sx + wrapper
-      const mergedSx = { fontSize: 18, color: iconColor, ...(icon.props?.sx || {}) };
+      const mergedSx = { fontSize: 14, color: iconColor, ...(icon.props?.sx || {}) };
       icon = React.cloneElement(icon, { htmlColor: iconColor, sx: mergedSx });
       icon = <Box sx={{ lineHeight: 0, display: 'flex', alignItems: 'center', color: iconColor }}>{icon}</Box>;
     }

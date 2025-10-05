@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { getDayStatus } from './useDayStatus';
+import formatDayTooltip from '@components/Calendar/formatDayTooltip';
 
 // Hook generico per costruire le righe (array di giorni) per un calendario mensile semplice.
 // data: { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': {...} }
@@ -17,12 +18,8 @@ export default function useCalendarGridRows({ data = {}, year, month, today = ne
       const malattia = dayData.some(r => r.commessa === 'MALATTIA');
       const permesso = dayData.some(r => r.commessa === 'PERMESSO');
   const statusObj = getDayStatus(dayData, segnalazione, dateStr, today);
-      const tooltipLines = [
-        dayData.length ? `Ore totali: ${totalHours}h` : 'Nessun inserimento',
-        ...dayData.map(r => `${r.commessa}: ${r.ore}h${r.descrizione ? ` — ${r.descrizione}` : ''}`),
-        segnalazione ? `Segnalazione: ${segnalazione.descrizione}` : null,
-      ].filter(Boolean);
-      const tooltipContent = tooltipLines.join('\n');
+      // Use shared formatter to produce a React node for tooltip content
+      const tooltipContent = formatDayTooltip(dayData, segnalazione, totalHours);
       out.push({
         day: d,
         dateStr,

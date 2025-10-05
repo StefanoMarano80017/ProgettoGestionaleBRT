@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { getDayStatus } from './calendar/useDayStatus';
+import formatDayTooltip from '@components/Calendar/formatDayTooltip';
 
 // rows: elenco dipendenti [{ id, dipendente, azienda }]
 // tsMap: { [empId]: { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': {...} } }
@@ -19,11 +20,7 @@ export default function useEmployeeMonthGridRows({ rows = [], tsMap = {}, year, 
         const malattia = dayData.some(e => e.commessa === 'MALATTIA');
         const permesso = dayData.some(e => e.commessa === 'PERMESSO');
   const statusObj = getDayStatus(dayData, segnalazione, dateStr, today);
-        const tooltipLines = [
-          dayData.length ? `Ore totali: ${totalHours}h` : 'Nessun inserimento',
-          ...dayData.map(e => `${e.commessa}: ${e.ore}h${e.descrizione ? ` — ${e.descrizione}` : ''}`),
-          segnalazione ? `Segnalazione: ${segnalazione.descrizione}` : null,
-        ].filter(Boolean);
+        const tooltipNode = formatDayTooltip(dayData, segnalazione, totalHours);
         cells.push({
           dateStr,
             day: d,
@@ -32,7 +29,7 @@ export default function useEmployeeMonthGridRows({ rows = [], tsMap = {}, year, 
           segnalazione,
           status: statusObj.status,
           statusLabel: statusObj.label,
-          tooltipContent: tooltipLines.join('\n'),
+          tooltipContent: tooltipNode,
         });
       }
       return { ...r, cells };

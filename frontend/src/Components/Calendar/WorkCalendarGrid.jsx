@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import PropTypes from 'prop-types';
-import { Box, IconButton, Typography } from "@mui/material";
+import { Box, IconButton, Typography, Paper } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import DayEntryTile from "@components/Calendar/DayEntryTile";
@@ -34,7 +34,7 @@ export function WorkCalendarGrid({
   const headers = useMemo(() => ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"], []);
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box sx={{ width: "100%", position: 'relative' }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
         <IconButton onClick={handlePrev}><ArrowBackIosIcon /></IconButton>
   <Typography variant="h6">{monthNames[currentMonth]} {currentYear}</Typography>
@@ -65,6 +65,7 @@ export function WorkCalendarGrid({
           gridTemplateColumns: "repeat(7, 1fr)",
           gap: 0.5,
         }}
+        ref={containerRef}
       >
         {/* Celle vuote prima del primo giorno */}
         {Array.from({ length: startOffset }).map((_, i) => (
@@ -73,9 +74,6 @@ export function WorkCalendarGrid({
 
         {/* Giorni del mese */}
         {rows.map(r => {
-          const tooltipContent = (
-            <span style={{ whiteSpace: 'pre-line' }}>{r.tooltipContent}</span>
-          );
           return (
             <Box key={r.dateStr} sx={{ height }}>
               <DayEntryTile
@@ -88,13 +86,15 @@ export function WorkCalendarGrid({
                 showHours={r.totalHours > 0}
                 totalHours={r.totalHours}
                 onClick={onDayClick ? () => onDayClick(r.dateStr) : undefined}
-                tooltipContent={tooltipContent}
+                tooltipContent={r.tooltipContent}
                 showDayNumber={false}
+                iconSize={height < 44 ? 10 : 14}
               />
             </Box>
           );
         })}
       </Box>
+      
     </Box>
   );
 }
