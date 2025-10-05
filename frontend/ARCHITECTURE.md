@@ -314,3 +314,20 @@ This section clarifies the different responsibilities and expectations for the t
 7) Migration & maintenance
 - Reuse `DayEntryPanel` inside `DayEntryDialog` across roles instead of duplicating logic. Any change that would cause the calendar to render merged drafts for all employees should require a performance justification and tests.
 
+---
+
+## PM Campo (pmcampo) — current status
+
+The PM Campo page and utilities received a conservative cleanup to avoid heavy rework interrupting timesheet fixes:
+
+- `Pages/Timesheet/PMCampoTimesheet.jsx` is intentionally stubbed with a lightweight placeholder. Routing still returns this page for users with the `PM_CAMPO` role (see `TimesheetRouter.jsx`).
+- PM-specific hooks such as `usePmCampoEditing` remain in `src/Hooks/Timesheet/PMCampoTimesheet/` and are left intact to preserve internal utilities and mocks used by the page during rework.
+- Mock data in `src/mocks/ProjectMock.js` includes seeded groups and operai used by PM Campo flows; these mocks are safe to keep for local testing.
+
+Guidance:
+- If you want to fully remove PM Campo for now, either archive the PM folder (`src/Pages/Timesheet/PMCampoTimesheet.jsx`) to an `archive/` directory or keep the stub to make future restoration trivial.
+- To re-enable PM Campo later, restore the original page implementation or incrementally reintroduce features using `usePmCampoEditing` + the existing mocks, ensuring that heavy computations are deferred and that staging semantics are preserved (base vs draft separation).
+
+Action taken (2025-10-05): the page `Pages/Timesheet/PMCampoTimesheet.jsx` and its hook implementation were moved to `frontend/archive/pmcampo/` to remove them from active routes while preserving the sources for future restoration. `TimesheetRouter.jsx` was updated to stop routing PM_CAMPO users to the archived page.
+
+
