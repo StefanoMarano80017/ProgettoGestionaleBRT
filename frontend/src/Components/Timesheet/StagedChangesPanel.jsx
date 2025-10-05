@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Box, Chip, Stack, Button, Typography, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, IconButton, Snackbar, CircularProgress } from '@mui/material';
+import { Box, Chip, Stack, Button, Typography, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, IconButton, Snackbar } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import UndoIcon from '@mui/icons-material/Undo';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -9,8 +9,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { computeDayDiff, summarizeDayDiff } from '@hooks/Timesheet/utils/timesheetModel';
 import { useTimesheetContext, useTimesheetStaging } from '@hooks/Timesheet';
-import useBatchTimesheetCommit from '@hooks/Timesheet/useBatchTimesheetCommit';
-import applyStagedToMock from '@hooks/Timesheet/utils/applyStagedToMock';
+// Batch commit removed from UI (admin-only control stripped)
 
 function useOptionalTimesheetContext() {
   try { return useTimesheetContext(); } catch { return null; }
@@ -43,18 +42,8 @@ export default function StagedChangesPanel({ compact = false, showActions = true
   }, [staging.order, staging.entries, ctx?.employees]);
   const [anchorEl, setAnchorEl] = useState(null);
   const [snack, setSnack] = useState({ open: false, msg: '', action: null, kind: null });
-  const batchCommit = useBatchTimesheetCommit({
-    remoteApplyFn: async (pl) => applyStagedToMock(pl),
-    onSuccess: (meta) => {
-      const detailParts = [];
-      if (meta.inserted) detailParts.push(`${meta.inserted} nuovi`);
-      if (meta.updated) detailParts.push(`${meta.updated} modificati`);
-      if (meta.deleted) detailParts.push(`${meta.deleted} eliminati`);
-      const detail = detailParts.length ? ` (${detailParts.join(', ')})` : '';
-      openSnack(`Confermati ${meta.total} giorni${detail}`, 'commit');
-    },
-    onError: () => openSnack('Errore nel salvataggio. Modifiche ripristinate.', 'error')
-  });
+  // NOTE: batch commit flow removed from this shared component to avoid exposing
+  // admin-only global commit UI. Per-item rollback (staging.rollbackEntry) remains available.
 
   const total = flat.length;
   const totalLabel = total === 1 ? `${total} giorno` : `${total} giorni`;
@@ -65,15 +54,7 @@ export default function StagedChangesPanel({ compact = false, showActions = true
   const openSnack = (msg, kind) => setSnack({ open: true, msg, action: null, kind });
   const closeSnack = () => setSnack(s => ({ ...s, open: false }));
 
-  const handleGlobalSave = async () => {
-    if (!ctx) return; // commit path still relies on higher-level context for remoteApply payload composition
-    const res = await batchCommit.commit({ flatItems: flat });
-    if (res?.empty) openSnack('Nessuna modifica da confermare', 'commit');
-  };
-
-  const handleGlobalDiscard = () => {
-  staging.discardAll();
-  };
+  // global save/discard removed — admin-only
 
   const handleRemoveEntry = (item, { rollback = false } = {}) => {
     const { employeeId, date } = item;
@@ -94,6 +75,25 @@ export default function StagedChangesPanel({ compact = false, showActions = true
   const open = Boolean(anchorEl);
   const isEmpty = total === 0;
   if (isEmpty && !showLegend) return null;
+
+  const currentEmployeeId = ctx?.selection?.employeeId || (ctx?.employees && ctx.employees[0] && ctx.employees[0].id) || null;
+
+  const hasStagedForCurrent = Boolean(currentEmployeeId && staging.entries?.[currentEmployeeId] && Object.keys(staging.entries[currentEmployeeId]).length > 0);
+
+  const handleConfirmAll = async () => {
+    try {
+      await staging.confirmAll();
+      openSnack('Modifiche confermate', 'commit');
+    } catch (e) {
+      console.error('confirmAll failed', e);
+      openSnack('Errore durante il salvataggio', 'error');
+    }
+  };
+
+  const handleDiscardAll = () => {
+    staging.discardAll();
+    openSnack('Tutte le modifiche locali annullate', 'rollback');
+  };
 
   return (
     <Box
@@ -214,17 +214,32 @@ export default function StagedChangesPanel({ compact = false, showActions = true
         )}
       </Box>
 
-      {showActions ? (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Typography variant="body2" color="text.secondary">{totalLabel}</Typography>
-          <Button size="small" variant="outlined" disabled={batchCommit.isRunning || total===0} onClick={handleGlobalDiscard}>Annulla</Button>
-          <Button size="small" variant="contained" disabled={batchCommit.isRunning || total===0} onClick={handleGlobalSave} startIcon={batchCommit.isRunning ? <CircularProgress size={14} /> : null}>{batchCommit.isRunning ? 'Salvo...' : 'Conferma'}</Button>
-        </Box>
-      ) : (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Typography variant="body2" color="text.secondary">{totalLabel}</Typography>
-        </Box>
-      )}
+      {/* Per-employee commit/discard controls */}
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Typography variant="body2" color="text.secondary">{totalLabel}</Typography>
+        {showActions && (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              color="inherit"
+              onClick={handleDiscardAll}
+              disabled={!hasStagedForCurrent}
+            >
+              Annulla
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              onClick={handleConfirmAll}
+              disabled={!hasStagedForCurrent}
+            >
+              Conferma
+            </Button>
+          </Box>
+        )}
+      </Box>
 
       <Snackbar
         open={snack.open}

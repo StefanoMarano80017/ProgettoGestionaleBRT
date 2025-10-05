@@ -5,7 +5,7 @@ import SearchIcon from "@mui/icons-material/Search";
 export default function FiltersBar({
   filterCompany,
   setFilterCompany,
-  companies,
+  companies = [],
   searchEmployee,
   setSearchEmployee,
   searchCommessa,

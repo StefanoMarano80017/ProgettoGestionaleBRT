@@ -250,7 +250,6 @@ Both employee and admin timesheet pages now use a unified modal dialog (`DayEntr
 | DipendenteTimesheet | Inline `DayEntryPanel` beside calendar after selecting a day; double‑click unused | Single click selects day (context hints); double‑click opens `DayEntryDialog` wrapping `DayEntryPanel` (auto staging) |
 | DashboardAmministrazioneTimesheet | Selection + inline `AdminDetailsPanel` editing with embedded entry editor dialogs | Single click selects (emp, day) for context; double‑click opens modal `DayEntryDialog` (for focused editing) while `AdminDetailsPanel` remains for summaries |
 
-### Rationale
 1. Reduces layout shift and vertical scroll when editing many days in sequence.
 2. Provides consistent editing affordance across roles (employee vs admin).
 3. Improves isolation of edit state (dialog lifecycle controls staging debounce cleanly).
@@ -258,26 +257,60 @@ Both employee and admin timesheet pages now use a unified modal dialog (`DayEntr
 
 ### Technical Notes
 * `DayEntryTile` gained `onDoubleClick` prop; both `WorkCalendar` and `EmployeeMonthGrid` plumb this up as `onDayDoubleClick`.
-* Admin grid (`EmployeeMonthGrid`) now accepts `onDayDoubleClick` and triggers dialog after performing the usual selection & detail load.
 * `DayEntryDialog` lazy‑renders `DayEntryPanel` only while open to minimize background effect work.
 * Data passed to the dialog:
   - Employee page: merged data map (base + potential staging overlay logic internal to panel via context selectors).
   - Admin page: per‑employee slice of `mergedDataMap`; staging overlay still resolved inside `DayEntryPanel` through `useTimesheetStaging` with provided `employeeId` + `date`.
-* Staging behavior inside the dialog remains identical—debounced `stageDraft` calls with phantom deletion guard.
 
 ### Accessibility & TODO
 Planned incremental improvements (not yet implemented):
-* Focus trap & initial focus (set to first actionable button in dialog header or first entry row add button).
 * Return focus to originating tile after dialog close for keyboard users.
 * ARIA labels: enrich dialog title to include employee name (admin view) and localized date long-form.
 
 ### Migration Considerations
 Existing external references to inline `DayEntryPanel` (if any in future branches) should be updated to use the dialog pattern for consistency. `AdminDetailsPanel` remains for broader monthly stats & multi‑day context; its embedded ad‑hoc editing flows can be gradually deprecated in favor of the modal once parity is confirmed.
-
-### Shared Hook: useDayEditor (2025-10-05)
 `useDayEditor` centralizes the `(employeeId, date, open)` state for `DayEntryDialog`. Both `DipendenteTimesheet` and `DashboardAmministrazioneTimesheet` invoke `openEditor(empId, date)` on double‑click and pass the returned state into `DayEntryDialog`. Benefits:
-* Removes duplicated dialogDay state logic across pages.
 * Eases future enhancements (keyboard shortcuts, deep link to a specific day) by adding logic once.
 * Simplifies accessibility focus return handling in a single place (future improvement).
 
 ---
+
+## Dipendente vs Dashboard Amministrazione — distinction and guidance
+
+This section clarifies the different responsibilities and expectations for the two timesheet pages so role‑specific logic doesn't leak into shared components.
+
+1) High level intent
+- DipendenteTimesheet: single‑user, inline-friendly, merged editing surface for the authenticated employee. Prioritizes immediate inline feedback and minimal navigation when editing multiple days.
+- DashboardAmministrazioneTimesheet: multi‑employee administrative surface. Prioritizes overview, virtualization, and non‑blocking modal edits for focused changes without reflowing the grid.
+
+2) Responsibilities & data scope
+- DipendenteTimesheet
+  - Scope: `TimesheetProvider(scope='single')` — loads only the current employee's timesheet and may present a merged view (base + draft) in the editor.
+  - Reads: `useStableMergedDataMap` for the editor; calendar tiles display base values but editors show merged drafts for accurate editing.
+  - Writes: `DayEntryPanel` may call `staging.stageDraft` directly; edits are expected to be immediate and visible in the editor.
+
+- DashboardAmministrazioneTimesheet
+  - Scope: `TimesheetProvider(scope='all')` — loads many employees; editing flows must slice data per selected employee to avoid broad recomputation.
+  - Reads: calendar and grid components must read committed base (`tsCtx.dataMap`) and a compact staged meta (`useStagedMetaMap`) for glow indicators. Avoid computing merged maps for all employees.
+  - Writes: edits from `AdminDetailsPanel` or `DayEntryDialog` update staging, but the main grid should not apply merged drafts to all tiles; only the selected employee's dialog/panel should render merged overlays.
+
+3) Staging semantics
+- Keep the invariant: base (committed) data must never be mutated by staging flows; staging reducer maintains drafts separately.
+- Employee page editors can present merged views; admin pages must compute merged overlays lazily and only for the selected context to minimize CPU and memory usage.
+
+4) Performance & rendering guidance
+- Virtualize long lists (already implemented in `EmployeeMonthGrid`) and avoid computing merged data for non‑visible rows.
+- Expose `useStagedMetaMap` as a compact, memoized selector (employeeId -> dateKey -> op) to minimize per‑tile re-renders.
+- Defer expensive aggregations to background effects or memoized hooks and prefer skeletons in modals so the dialog opens instantly while details load.
+
+5) UX & Accessibility expectations
+- DipendenteTimesheet: inline panel should focus the first input on open and support keyboard flows for speedy edits.
+- DashboardAmministrazioneTimesheet: modal editing should focus close/cancel quickly, provide clear aria labels including employee name and date, and return focus to the originating tile when closed.
+
+6) Testing & QA notes
+- Unit test the staging reducer and `useStagedMetaMap` shape to guarantee stable invariants across pages.
+- Add integration/perf tests that emulate large grids to ensure admin flows avoid full merged map computation (smoke test perf targets).
+
+7) Migration & maintenance
+- Reuse `DayEntryPanel` inside `DayEntryDialog` across roles instead of duplicating logic. Any change that would cause the calendar to render merged drafts for all employees should require a performance justification and tests.
+

@@ -6,7 +6,6 @@ export * from './Timesheet/useTimesheetApi.js';
 export * from './Timesheet/useTimesheetFilters.js';
 export * from './Timesheet/staging/useTimesheetStaging.js';
 export { TimesheetStagingProvider } from './Timesheet/staging/TimesheetStagingContext.jsx';
-export { default as useBatchTimesheetCommit } from './Timesheet/useBatchTimesheetCommit.js';
 
 // Sub-barrels
 export * from './Timesheet/dayEntry';

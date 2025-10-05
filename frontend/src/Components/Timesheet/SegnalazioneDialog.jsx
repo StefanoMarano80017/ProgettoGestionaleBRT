@@ -1,44 +1,27 @@
-import React from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Stack, TextField, Alert } from "@mui/material";
-import SendIcon from "@mui/icons-material/Send";
+import React from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography } from '@mui/material';
 
-export default function SegnalazioneDialog({ open, onClose, selEmp, selDate, onSend, sendingOk }) {
-  const [msg, setMsg] = React.useState("");
-
-  React.useEffect(() => {
-    if (!open) setMsg("");
-  }, [open]);
-
+// Minimal stub: preserve props API but avoid any admin-only side effects.
+export default function SegnalazioneDialog({ open, onClose, selEmp, selDate, onSend }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {selEmp && selDate ? `Invia segnalazione a ${selEmp.dipendente} — ${selDate}` : "Invia segnalazione"}
-      </DialogTitle>
+    <Dialog open={Boolean(open)} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Segnalazione (STUB)</DialogTitle>
       <DialogContent dividers>
-        <Stack spacing={2}>
-          <TextField label="Data (YYYY-MM-DD)" value={selDate || ""} size="small" InputProps={{ readOnly: true }} />
-          <TextField
-            label="Messaggio"
-            value={msg}
-            onChange={(e) => setMsg(e.target.value)}
-            multiline
-            minRows={3}
-            placeholder="Descrivi l'irregolarità negli inserimenti..."
-          />
-          {sendingOk && <Alert severity="success">{sendingOk}</Alert>}
-        </Stack>
+        <Typography variant="body2" color="text.secondary">
+          This dialog has been stubbed. It preserves the same props but does not perform any network actions.
+        </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Annulla</Button>
+        <Button onClick={onClose}>Chiudi</Button>
         <Button
           variant="contained"
-          startIcon={<SendIcon />}
-          disabled={!selEmp || !selDate || !msg.trim()}
           onClick={async () => {
-            await onSend(msg.trim());
+            // Keep API shape: call onSend if provided so callers expecting a promise won't break.
+            if (onSend) await Promise.resolve(onSend('STUB'));
+            if (onClose) onClose();
           }}
         >
-          Invia
+          Invia (stub)
         </Button>
       </DialogActions>
     </Dialog>

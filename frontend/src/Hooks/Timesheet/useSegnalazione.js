@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTimesheetApi } from './useTimesheetApi';
 
-export function useSegnalazione({ selEmp, selDate }) {
+export function useSegnalazione({ selEmp, selDate } = {}) {
   const { api } = useTimesheetApi();
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);

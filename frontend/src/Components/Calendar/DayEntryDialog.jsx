@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, IconButton, Typography } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Skeleton, Box } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DayEntryPanel from './DayEntryPanel';
 
@@ -55,7 +55,14 @@ export default function DayEntryDialog({
         <Typography id={descId} variant="caption" sx={{ display:'block', mb:1, opacity:0.75 }}>
           {longDate}{empLabel}. Le modifiche vengono salvate nello staging automaticamente.
         </Typography>
-        {open && (
+        {open && (!data || Object.keys(data).length === 0) && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Skeleton variant="text" width="60%" />
+            <Skeleton variant="rectangular" height={160} />
+            <Skeleton variant="text" width="40%" />
+          </Box>
+        )}
+        {open && data && Object.keys(data).length > 0 && (
           <DayEntryPanel
             selectedDay={date}
             employeeId={employeeId}

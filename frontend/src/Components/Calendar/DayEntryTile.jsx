@@ -101,6 +101,7 @@ export function DayEntryTile({
     <Box
       onClick={() => onClick?.(dateStr)}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick?.(dateStr); }}
+      {...(effectiveStagedStatus ? { 'data-staged-op': effectiveStagedStatus } : {})}
       sx={(t) => ({
         ...getTileSx(t, {
           isSelected,
@@ -113,7 +114,6 @@ export function DayEntryTile({
           isWide,
         }),
         ...(glowShadow ? { boxShadow: glowShadow, position: 'relative', zIndex: 1, transition: 'box-shadow 160ms ease-in-out' } : { transition: 'box-shadow 160ms ease-in-out' }),
-        ...(effectiveStagedStatus ? { ['data-staged-op']: effectiveStagedStatus } : {})
       })}
     >
       {/* Day number chip */}
@@ -165,7 +165,7 @@ export function DayEntryTile({
   // Use default MUI Tooltip always (placement top)
 
   return tooltipContent ? (
-    <Tooltip title={tooltipContent} arrow placement="top">
+    <Tooltip title={tooltipContent} arrow placement="top" disableInteractive>
       <Box sx={{ height: "100%" }}>{tile}</Box>
     </Tooltip>
   ) : (

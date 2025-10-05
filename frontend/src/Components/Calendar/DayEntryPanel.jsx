@@ -293,7 +293,7 @@ export function DayEntryPanel({
       </Stack>
 
       {segnalazione && (
-        <Alert severity={segnalazione.livello || "warning"} sx={{ mt: 1 }}>{segnalazione.descrizione || "Segnalazione dall'amministrazione."}</Alert>
+        <Alert severity={segnalazione.livello || "warning"} sx={{ mt: 1 }}>{segnalazione.descrizione || "Segnalazione"}</Alert>
       )}
 
       <ConfirmDialog open={deleteCtrl.open} title="Conferma eliminazione" message="Sei sicuro di voler eliminare questa voce?" onClose={deleteCtrl.cancel} onConfirm={deleteCtrl.confirm} />
