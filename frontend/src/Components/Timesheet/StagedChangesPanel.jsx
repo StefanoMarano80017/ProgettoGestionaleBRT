@@ -1,39 +1,60 @@
 import React, { useMemo, useState } from 'react';
-import { Box, Chip, Stack, Button, Typography, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, IconButton, Snackbar } from '@mui/material';
+import { Box, Chip, Stack, Button, Typography, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, IconButton, Snackbar, CircularProgress } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import UndoIcon from '@mui/icons-material/Undo';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { computeDayDiff, summarizeDayDiff } from '@hooks/Timesheet/utils/timesheetModel';
-import { useTimesheetContext } from '@hooks/Timesheet';
+import { useTimesheetContext, useTimesheetStaging } from '@hooks/Timesheet';
+import useBatchTimesheetCommit from '@hooks/Timesheet/useBatchTimesheetCommit';
 import applyStagedToMock from '@hooks/Timesheet/utils/applyStagedToMock';
 
 function useOptionalTimesheetContext() {
   try { return useTimesheetContext(); } catch { return null; }
 }
 
-export default function StagedChangesPanel({ compact = false, showActions = true, maxVisible = 8, showLegend = true }) {
+export default function StagedChangesPanel({ compact = false, showActions = true, maxVisible = 8, showLegend = true, fullWidth = true }) {
   const ctx = useOptionalTimesheetContext();
-  const stagedMap = useMemo(() => ctx?.stagedMap || {}, [ctx?.stagedMap]);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [snack, setSnack] = useState({ open: false, msg: '', action: null, kind: null });
+  const staging = useTimesheetStaging(); // facade always returns an object
 
+  // Build a flat, ordered list of staged day diffs using ONLY the staging entries (base snapshot + draft)
+  // This makes the component behavior deterministic & independent of how/when outer pages refresh dataMap.
   const flat = useMemo(() => {
     const items = [];
-    const employees = ctx?.employees || [];
     const nameById = {};
-    employees.forEach(e => { if (e && e.id) nameById[e.id] = e.name || e.dipendente || e.id; });
-    Object.entries(stagedMap).forEach(([empId, days]) => {
-      Object.entries(days || {}).forEach(([dk, val]) => {
-        const orig = ctx?.dataMap?.[empId]?.[dk] || [];
-        const diff = computeDayDiff(orig, val);
-        items.push({ employeeId: empId, label: nameById[empId] || empId, date: dk, diff });
-      });
+    (ctx?.employees || []).forEach(e => { if (e && e.id) nameById[e.id] = e.name || e.dipendente || e.id; });
+
+    (staging.order || []).forEach(key => {
+      const [empId, dateKey] = key.split('|');
+      const entry = staging.entries?.[empId]?.[dateKey];
+      if (!entry) return; // safety
+      if (entry.op === 'noop') return; // filtered out
+      const base = entry.base || [];
+      const draft = entry.draft === null ? null : (entry.draft || []);
+      const diff = computeDayDiff(base, draft);
+      items.push({ employeeId: empId, label: nameById[empId] || empId, date: dateKey, diff, entry });
     });
+    // Keep chronological order by date inside existing staging.order grouping
     items.sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     return items;
-  }, [stagedMap, ctx]);
+  }, [staging.order, staging.entries, ctx?.employees]);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [snack, setSnack] = useState({ open: false, msg: '', action: null, kind: null });
+  const batchCommit = useBatchTimesheetCommit({
+    remoteApplyFn: async (pl) => applyStagedToMock(pl),
+    onSuccess: (meta) => {
+      const detailParts = [];
+      if (meta.inserted) detailParts.push(`${meta.inserted} nuovi`);
+      if (meta.updated) detailParts.push(`${meta.updated} modificati`);
+      if (meta.deleted) detailParts.push(`${meta.deleted} eliminati`);
+      const detail = detailParts.length ? ` (${detailParts.join(', ')})` : '';
+      openSnack(`Confermati ${meta.total} giorni${detail}`, 'commit');
+    },
+    onError: () => openSnack('Errore nel salvataggio. Modifiche ripristinate.', 'error')
+  });
 
   const total = flat.length;
   const totalLabel = total === 1 ? `${total} giorno` : `${total} giorni`;
@@ -45,48 +66,45 @@ export default function StagedChangesPanel({ compact = false, showActions = true
   const closeSnack = () => setSnack(s => ({ ...s, open: false }));
 
   const handleGlobalSave = async () => {
-    if (!ctx || !ctx.commitStaged) return;
-    try {
-      const snapshot = flat.slice();
-      await ctx.commitStaged(applyStagedToMock);
-      if (snapshot.length) {
-        let ins=0, upd=0, del=0; snapshot.forEach(it=>{const t=it.diff.type; if(t==='day-delete'||t==='delete-only') del++; else if(t==='new-day'||t==='insert-only') ins++; else upd++;});
-        const parts=[]; if(ins) parts.push(`${ins} nuovi`); if(upd) parts.push(`${upd} modificati`); if(del) parts.push(`${del} eliminati`);
-  const detail = parts.length?` (${parts.join(', ')})`:'';
-  openSnack(`Confermati ${snapshot.length} giorni${detail}`, 'commit');
-      } else {
-        openSnack('Nessuna modifica da confermare', 'commit');
-      }
-    } catch (e) {
-       
-      console.error('Global commit failed', e);
-    }
+    if (!ctx) return; // commit path still relies on higher-level context for remoteApply payload composition
+    const res = await batchCommit.commit({ flatItems: flat });
+    if (res?.empty) openSnack('Nessuna modifica da confermare', 'commit');
   };
 
   const handleGlobalDiscard = () => {
-    if (!ctx || !ctx.discardStaged) return;
-    ctx.discardStaged();
+  staging.discardAll();
   };
 
-  const handleRemoveEntry = (item) => {
-    if (!ctx) return;
-    const { employeeId, date, diff } = item;
-    const origArr = ctx.dataMap?.[employeeId]?.[date] || [];
-    if (diff.type === 'day-delete') {
-      ctx.stageReplace(employeeId, date, origArr.slice());
-      return; // NO snack
+  const handleRemoveEntry = (item, { rollback = false } = {}) => {
+    const { employeeId, date } = item;
+    const stagedEntry = staging.getStagedEntry(employeeId, date);
+    if (!stagedEntry) return;
+    // rollback: remove the staged entry (restore committed state)
+    if (rollback) {
+      staging.rollbackEntry(employeeId, date);
+      openSnack(`Ripristinato ${date}`, 'rollback');
+      return;
     }
-    ctx.stageReplace(employeeId, date, origArr.slice());
-    return; // NO snack
+    // revert (single click delete icon): also rollback (semantic difference not needed now that panel is snapshot-driven)
+    staging.rollbackEntry(employeeId, date);
+    openSnack(`Annullata modifica ${date}`, 'revert');
   };
 
   const extra = Math.max(0, flat.length - maxVisible);
   const open = Boolean(anchorEl);
-  const isEmpty = !Object.keys(stagedMap || {}).length;
+  const isEmpty = total === 0;
   if (isEmpty && !showLegend) return null;
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+    <Box
+      data-staged-count={total}
+      sx={{
+        display: 'flex',
+        flexWrap: compact ? 'nowrap' : 'wrap',
+        alignItems: 'center',
+        gap: 2,
+        width: fullWidth ? '100%' : 'auto'
+      }}>
       {showLegend && (
         <Box>
           <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Modifiche in attesa di conferma</Typography>
@@ -101,9 +119,8 @@ export default function StagedChangesPanel({ compact = false, showActions = true
         </Box>
       )}
       <Box sx={{
-        // central chips area: fixed height to keep layout stable and visual balance
-        flex: '1 1 520px',
-        minWidth: 220,
+        flex: '1 1 auto',
+        minWidth: 260,
         height: 56,
         position: 'relative',
         display: 'flex',
@@ -113,9 +130,10 @@ export default function StagedChangesPanel({ compact = false, showActions = true
         py: 0.5,
         borderRadius: 1,
         gap: 1,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        width: fullWidth ? '100%' : 'auto'
       }}>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', overflowX: 'auto', height: '100%' }}>
+  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', overflowX: 'auto', height: '100%', flex: 1 }}>
           {flat.slice(0, maxVisible).map((item, idx) => {
             const { diff } = item;
             let IconComp = EditIcon; let chipColor = 'warning';
@@ -153,6 +171,7 @@ export default function StagedChangesPanel({ compact = false, showActions = true
                   color={chipColor}
                   onDelete={(e) => { e.stopPropagation && e.stopPropagation(); handleRemoveEntry(item); }}
                   deleteIcon={<CloseIcon fontSize={compact ? 'small' : 'medium'} />}
+                  onDoubleClick={(e) => { e.preventDefault(); handleRemoveEntry(item, { rollback: true }); }}
                   sx={compact ? { minWidth: 64, height: 28, paddingX: 0.5, fontSize: '0.75rem' } : undefined}
                 />
               </Tooltip>
@@ -184,6 +203,9 @@ export default function StagedChangesPanel({ compact = false, showActions = true
                     <IconButton size="small" edge="end" onClick={(e) => { e.stopPropagation(); handleRemoveEntry(item); }}>
                       <CloseIcon fontSize="small" />
                     </IconButton>
+                    <IconButton size="small" edge="end" onClick={(e) => { e.stopPropagation(); handleRemoveEntry(item, { rollback: true }); }}>
+                      <UndoIcon fontSize="small" />
+                    </IconButton>
                   </MenuItem>
                 );
               })}
@@ -195,8 +217,8 @@ export default function StagedChangesPanel({ compact = false, showActions = true
       {showActions ? (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Typography variant="body2" color="text.secondary">{totalLabel}</Typography>
-          <Button size="small" variant="outlined" onClick={handleGlobalDiscard}>Annulla</Button>
-          <Button size="small" variant="contained" onClick={handleGlobalSave}>Conferma</Button>
+          <Button size="small" variant="outlined" disabled={batchCommit.isRunning || total===0} onClick={handleGlobalDiscard}>Annulla</Button>
+          <Button size="small" variant="contained" disabled={batchCommit.isRunning || total===0} onClick={handleGlobalSave} startIcon={batchCommit.isRunning ? <CircularProgress size={14} /> : null}>{batchCommit.isRunning ? 'Salvo...' : 'Conferma'}</Button>
         </Box>
       ) : (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -212,14 +234,17 @@ export default function StagedChangesPanel({ compact = false, showActions = true
         message={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {snack.kind === 'commit' && <CheckCircleOutlineIcon fontSize="small" color="success" />}
-            <Typography variant="body2" sx={{ color: snack.kind === 'commit' ? 'success.main' : 'text.primary', fontWeight: 500 }} >{snack.msg}</Typography>
+            {snack.kind === 'rollback' && <UndoIcon fontSize="small" color="warning" />}
+            {snack.kind === 'revert' && <CloseIcon fontSize="small" color="info" />}
+            {snack.kind === 'error' && <ErrorOutlineIcon fontSize="small" color="error" />}
+            <Typography variant="body2" sx={{ color: snack.kind === 'commit' ? 'success.main' : snack.kind === 'rollback' ? 'warning.main' : snack.kind === 'revert' ? 'info.main' : snack.kind === 'error' ? 'error.main' : 'text.primary', fontWeight: 500 }}>{snack.msg}</Typography>
           </Box>
         }
         ContentProps={{
           sx: theme => ({
             bgcolor: theme.palette.background.paper,
             border: '1px solid',
-            borderColor: snack.kind === 'commit' ? 'success.light' : 'divider',
+            borderColor: snack.kind === 'commit' ? 'success.light' : snack.kind === 'rollback' ? 'warning.light' : snack.kind === 'revert' ? 'info.light' : snack.kind === 'error' ? 'error.light' : 'divider',
             boxShadow: 6,
             px: 2,
             py: 1.25

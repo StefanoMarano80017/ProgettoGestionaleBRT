@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getTileSx, isWeekend as utilIsWeekend } from './utils';
-import { getStatusIcon } from '@calendar/statusIcons.jsx';
+import StatusIcon from '@calendar/statusIcons';
 
 /**
  * Resolve which icon element to render for the tile based on:
@@ -34,7 +34,7 @@ function resolveTileIcon({ icon, status, theme, isCompact }) {
     }
     return icon;
   }
-  const si = getStatusIcon(theme, status);
+  const si = <StatusIcon theme={theme} status={status} />;
   if (!si) return null;
   if (isCompact && React.isValidElement(si)) {
     const existingSx = si.props?.sx || {};
@@ -63,27 +63,41 @@ export function DayEntryTile({
   tooltipContent,
   variant = 'default', // 'default' | 'wide' | 'compact'
   onClick,
-  stagedStatus = null,
+  stagedStatus = null, // legacy: 'staged-insert' | 'staged-update' | 'staged-delete'
+  stagedOp = null,    // new stable op: 'create' | 'update' | 'delete'
+  stagingEntry = null, // optional full staging snapshot { op, base, draft }
+  onDoubleClick, // new: open modal editor
 }) {
   const isWide = variant === 'wide';
   const isCompact = variant === 'compact';
   const theme = useTheme();
   const isWeekend = useMemo(() => utilIsWeekend(dateStr), [dateStr]);
   const resolvedIcon = useMemo(() => resolveTileIcon({ icon, status, theme, isCompact }), [icon, status, theme, isCompact]);
+  // Derive effective stagedStatus preferring new props (stagedOp / stagingEntry)
+  const effectiveStagedStatus = useMemo(() => {
+    const op = stagedOp || stagingEntry?.op || null;
+    if (op === 'create') return 'staged-insert';
+    if (op === 'delete') return 'staged-delete';
+    if (op === 'update') return 'staged-update';
+    return stagedStatus; // fallback legacy prop
+  }, [stagedOp, stagingEntry?.op, stagedStatus]);
+
   const glowColor = useMemo(() => {
-    if (!stagedStatus) return null;
-    switch (stagedStatus) {
+    if (!effectiveStagedStatus) return null;
+    switch (effectiveStagedStatus) {
       case 'staged-insert': return theme.palette.success?.main || '#2e7d32';
       case 'staged-delete': return theme.palette.error?.main || '#d32f2f';
       case 'staged-update': return theme.palette.warning?.main || '#ed6c02';
       default: return null;
     }
-  }, [stagedStatus, theme]);
-  const glowShadow = glowColor ? `0 0 0 2px ${theme.palette.background.paper}, 0 0 0 3px ${glowColor}, 0 0 8px 4px ${glowColor}` : undefined;
+  }, [effectiveStagedStatus, theme]);
+  // Softer glow: thin outline + subtle blur with alpha
+  const glowShadow = glowColor ? `0 0 0 1px ${glowColor}, 0 0 4px 1px ${glowColor}66` : undefined;
 
   const tile = (
     <Box
       onClick={() => onClick?.(dateStr)}
+      onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick?.(dateStr); }}
       sx={(t) => ({
         ...getTileSx(t, {
           isSelected,
@@ -95,7 +109,8 @@ export function DayEntryTile({
           bgcolor,
           isWide,
         }),
-        ...(glowShadow ? { boxShadow: glowShadow, position: 'relative', zIndex: 1, transition: 'box-shadow 160ms ease-in-out' } : { transition: 'box-shadow 160ms ease-in-out' })
+        ...(glowShadow ? { boxShadow: glowShadow, position: 'relative', zIndex: 1, transition: 'box-shadow 160ms ease-in-out' } : { transition: 'box-shadow 160ms ease-in-out' }),
+        ...(effectiveStagedStatus ? { ['data-staged-op']: effectiveStagedStatus } : {})
       })}
     >
       {/* Day number chip */}
@@ -172,6 +187,13 @@ DayEntryTile.propTypes = {
   variant: PropTypes.oneOf(['default', 'wide', 'compact']),
   onClick: PropTypes.func,
   stagedStatus: PropTypes.string,
+  stagedOp: PropTypes.string,
+  stagingEntry: PropTypes.shape({
+    op: PropTypes.string,
+    base: PropTypes.any,
+    draft: PropTypes.any,
+  }),
+  onDoubleClick: PropTypes.func,
 };
 
 export default memo(DayEntryTile);

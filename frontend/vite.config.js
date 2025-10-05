@@ -22,6 +22,7 @@ export default defineConfig({
       '@theme': path.resolve(__dirname, 'src/Theme'),
       '@assets': path.resolve(__dirname, 'src/assets'),
       '@mocks': path.resolve(__dirname, 'src/mocks'),
+  '@config': path.resolve(__dirname, 'src/config'),
   // Domain-specific convenience aliases
   '@timesheet': path.resolve(__dirname, 'src/Hooks/Timesheet'),
   '@timesheetPages': path.resolve(__dirname, 'src/Pages/Timesheet'),

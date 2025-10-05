@@ -116,7 +116,9 @@ export function getOperaioPersonalMap() {
   }, 80));
 }
 
-// Generazione dati per ogni dipendente
+import { findUserById } from '@mocks/UsersMock';
+
+// Generazione dati per ogni dipendente (enriched with role + record ids)
 for (const emp of EMPLOYEES) {
   const assigned = EMPLOYEE_COMMESSE[emp.id] ?? EMPLOYEE_COMMESSE.default;
   const ts = {};
@@ -183,7 +185,17 @@ for (const emp of EMPLOYEES) {
     }
 
     if (dayRecords.length > 0) {
-      ts[key] = dayRecords;
+      // Enrich each record with required canonical fields
+      const userMeta = findUserById(emp.id);
+      const role = userMeta?.roles?.[0] || 'DIPENDENTE';
+      ts[key] = dayRecords.map((r, idx) => ({
+        ...r,
+        userId: emp.id,
+        userRole: role,
+        dateKey: key,
+        id: `${emp.id}-${key}-${idx}`,
+        _id: `${emp.id}-${key}-${idx}`,
+      }));
     }
   }
 

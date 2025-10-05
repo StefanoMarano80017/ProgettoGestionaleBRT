@@ -180,3 +180,15 @@ export async function authenticate(username, password) {
     token: `mock-token-${safe.id}`,
   };
 }
+
+// Safe read-only accessors for other mocks (timesheet role enrichment)
+export function listAllUsers() {
+  return USERS.map(u => ({ ...u, password: undefined }));
+}
+
+export function findUserById(id) {
+  const u = USERS.find(x => x.id === id);
+  if (!u) return null;
+  const { password: _pw, ...safe } = u; // rename unused var to satisfy lint
+  return safe;
+}

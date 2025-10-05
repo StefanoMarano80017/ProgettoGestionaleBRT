@@ -1,5 +1,5 @@
 // DataGrid filter hooks barrel
-export * from './useTextFilter.jsx';
-export * from './useStatusFilter.jsx';
-export * from './useEmployeeFilter.jsx';
-export * from './useDateFilter.jsx';
+export * from './useTextFilter';
+export * from './useStatusFilter';
+export * from './useEmployeeFilter';
+export * from './useDateFilter';

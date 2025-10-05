@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useRef } from 'react';
+import React, { useMemo, useCallback, useRef, useState, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Typography, Checkbox, Tooltip } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -12,7 +12,10 @@ export function EmployeeMonthGrid({
   month, // 0-based
   rows = [],
   tsMap = {},
+  virtualize = true,
+  estimatedRowHeight = 64,
   onDayClick,
+  onDayDoubleClick, // new: open modal day editor
   onEmployeeClick,
   statsSelection = null,
   onToggleStats,
@@ -29,6 +32,25 @@ export function EmployeeMonthGrid({
   stagedDaysMap = {},
 }) {
   const { daysInMonth, visualRows } = useEmployeeMonthGridRows({ rows, tsMap, year, month });
+  // Simple vertical windowing (virtualization-lite)
+  const containerRef = useRef(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const totalRows = visualRows.length;
+  const vh = height - 56; // subtract header approx
+  const rowH = estimatedRowHeight;
+  const maxVisible = Math.ceil(vh / rowH) + 4; // overscan
+  const startIndex = virtualize ? Math.max(0, Math.floor(scrollTop / rowH) - 2) : 0;
+  const endIndex = virtualize ? Math.min(totalRows, startIndex + maxVisible) : totalRows;
+  const topSpacer = virtualize ? startIndex * rowH : 0;
+  const bottomSpacer = virtualize ? Math.max(0, (totalRows - endIndex) * rowH) : 0;
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el || !virtualize) return;
+    const onScroll = () => setScrollTop(el.scrollTop);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [virtualize]);
   const gridTemplateColumns = useMemo(
     () => `${dipWidth}px ${azWidth}px ${Array.from({ length: daysInMonth }).map(() => `${dayWidth}px`).join(' ')}`,
     [dipWidth, azWidth, dayWidth, daysInMonth]
@@ -96,12 +118,13 @@ export function EmployeeMonthGrid({
           const cellHighlighted = rowHighlightedSet && (rowHighlightedSet.has ? rowHighlightedSet.has(cell.dateStr) : Array.isArray(rowHighlightedSet) && rowHighlightedSet.includes(cell.dateStr));
           const rowStagedMap = stagedDaysMap && stagedDaysMap[row.id];
           const cellAction = rowStagedMap ? rowStagedMap[cell.dateStr] : undefined;
-          // map action -> status name used by tileStyles
+          // staged glow only; base hours & status remain from committed data
           let stagedStatus = null;
-          if (cellAction === 'insert') stagedStatus = 'staged-insert';
-          else if (cellAction === 'update') stagedStatus = 'staged-update';
-          else if (cellAction === 'delete') stagedStatus = 'staged-delete';
-          const effectiveStatus = stagedStatus ? stagedStatus : (cellHighlighted ? 'prev-incomplete' : cell.status);
+          let stagedOp = null;
+          if (cellAction === 'create') { stagedStatus = 'staged-insert'; stagedOp = 'create'; }
+          else if (cellAction === 'update') { stagedStatus = 'staged-update'; stagedOp = 'update'; }
+          else if (cellAction === 'delete') { stagedStatus = 'staged-delete'; stagedOp = 'delete'; }
+          const effectiveStatus = cellHighlighted ? 'prev-incomplete' : cell.status;
           return (
             <Box key={`c-${row.id}-${cell.dateStr}`} sx={{ height: effectiveDayHeight }}>
               <DayEntryTile
@@ -113,7 +136,10 @@ export function EmployeeMonthGrid({
                 showHours={cell.totalHours > 0}
                 totalHours={cell.totalHours}
                 onClick={onDayClick ? () => onDayClick(row, cell.dateStr) : undefined}
+                onDoubleClick={onDayDoubleClick ? () => onDayDoubleClick(row, cell.dateStr) : undefined}
                 tooltipContent={tooltipContent}
+                stagedStatus={stagedStatus}
+                stagedOp={stagedOp}
                 // show day staged status if present
                 // DayEntryTile will map 'staged' status via tileStyles
                 
@@ -137,6 +163,7 @@ export function EmployeeMonthGrid({
         bgcolor: "background.main",
         ...sx,
       }}
+      ref={containerRef}
     >
       {/* Header sticky */}
       <Box
@@ -178,10 +205,12 @@ export function EmployeeMonthGrid({
       </Box>
 
       {/* Body righe */}
-      <Box sx={{ px: 1, py: 1, bgcolor: "background.main", borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}>
-        {visualRows.map((row) => (
+      <Box sx={{ px: 1, py: 1, bgcolor: "background.main", borderBottomLeftRadius: 8, borderBottomRightRadius: 8, position: 'relative' }}>
+        {virtualize && topSpacer > 0 && <Box sx={{ height: topSpacer }} />}
+        {visualRows.slice(startIndex, endIndex).map((row) => (
           <EmployeeRow key={row.id} row={row} />
         ))}
+        {virtualize && bottomSpacer > 0 && <Box sx={{ height: bottomSpacer }} />}
 
         {!rows.length && (
           <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
@@ -202,6 +231,7 @@ EmployeeMonthGrid.propTypes = {
   highlightedDaysMap: PropTypes.object,
   stagedDaysMap: PropTypes.object,
   onDayClick: PropTypes.func,
+  onDayDoubleClick: PropTypes.func,
   onEmployeeClick: PropTypes.func,
   selectedEmpId: PropTypes.any,
   selectedDate: PropTypes.string,
@@ -211,6 +241,8 @@ EmployeeMonthGrid.propTypes = {
   dipWidth: PropTypes.number,
   azWidth: PropTypes.number,
   sx: PropTypes.object,
+  virtualize: PropTypes.bool,
+  estimatedRowHeight: PropTypes.number,
 };
 
 EmployeeMonthGrid.displayName = 'EmployeeMonthGrid';

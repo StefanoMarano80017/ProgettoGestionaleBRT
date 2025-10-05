@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getTimesheetForEmployee } from '@mocks/ProjectMock';
-import { useTimesheetContext } from '@/Hooks/Timesheet';
+import { useTimesheetContext } from './context/TimesheetProvider.jsx';
 
 /**
  * Loads timesheet data for a single employee exactly once.
@@ -16,13 +16,9 @@ export default function useEmployeeTimesheetLoader(employeeId) {
     (async () => {
       try {
         const ts = await getTimesheetForEmployee(employeeId);
-        if (!cancelled) {
-          setEmployeeData(employeeId, ts);
-          loadedRef.current = true;
-        }
-  } catch {
+        if (!cancelled) { setEmployeeData(employeeId, ts); loadedRef.current = true; }
+      } catch {
         // silent; could expose error state if needed
-        // console.error('Failed to load timesheet', e);
       }
     })();
     return () => { cancelled = true; };

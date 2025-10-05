@@ -1,17 +1,18 @@
 import React from "react";
 import { Box, Stack, Typography, TextField, IconButton, Button, Chip, Alert, Autocomplete } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useTimesheetEntryEditor, useTimesheetContext } from '@/Hooks/Timesheet';
+import { useTimesheetEntryEditor, useTimesheetStaging } from '@/Hooks/Timesheet';
 
-function useOptionalTimesheetContext() {
-  try { return useTimesheetContext(); } catch { return null; }
+// Optional staging (provider guaranteed in app root now, but keep guard)
+function useOptionalStaging() {
+  try { return useTimesheetStaging(); } catch { return null; }
 }
 
 export default function OperaioEditor({ opRow, dateKey, tsMap, commesse, onSaved }) {
   const dayEntries = (tsMap?.[opRow.id]?.[dateKey] || []);
   const work = dayEntries.filter(r => !['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa)));
   const personalInitial = dayEntries.filter(r => ['FERIE','MALATTIA','PERMESSO'].includes(String(r.commessa)));
-  const ctx = useOptionalTimesheetContext();
+  const staging = useOptionalStaging();
   const editor = useTimesheetEntryEditor({
     entries: work,
     personalEntries: personalInitial,
@@ -20,8 +21,8 @@ export default function OperaioEditor({ opRow, dateKey, tsMap, commesse, onSaved
       const nextRecords = [...workEntries, ...personalEntries];
       // If provider staging available, stage the change so UI can show it and backend can be saved in batch
       try {
-        if (ctx && typeof ctx.stageUpdate === 'function') {
-          ctx.stageUpdate(opRow.id, dateKey, nextRecords);
+        if (staging && typeof staging.stageDraft === 'function') {
+          staging.stageDraft(opRow.id, dateKey, nextRecords);
         }
   } catch { /* ignore */ }
       // Notify parent to refresh derived data

@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { DayStatus, getStatusIcon } from '@calendar/statusIcons.jsx';
+import React, { useMemo } from 'react';
+import { DayStatus } from '@calendar/statusIcons.utils.js';
+import StatusIcon from '@calendar/statusIcons';
 import { useTheme } from '@mui/material/styles';
 import useDayStatusColor from './useDayStatusColor';
 
@@ -22,7 +23,7 @@ export function useTileLegendItems() {
       status,
       label,
       color: colorFor(status),
-      icon: getStatusIcon(theme, status)
+      icon: React.createElement(StatusIcon, { theme, status }),
     }))
   ), [theme, colorFor]);
 }

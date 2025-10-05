@@ -1,27 +1,29 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Box, Container, Alert, Typography, Snackbar } from '@mui/material';
+import React, { useState, useMemo } from 'react';
+import { Box, Container, Alert, Typography, Snackbar, Paper } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import PageHeader from '@components/PageHeader';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BadgeCard from '@components/BadgeCard/Badge';
-import StagedChangesPanel from '@components/Timesheet/StagedChangesPanel';
+import TimesheetStagingBar from '@components/Timesheet/TimesheetStagingBar';
 import WorkCalendar from '@components/Calendar/WorkCalendar';
-import DayEntryPanel from '@components/Calendar/DayEntryPanel';
+import DayEntryDialog from '@components/Calendar/DayEntryDialog';
 import CommesseDashboard from '@components/DipendenteHomePage/CommesseDashboard';
-import { TimesheetProvider, useTimesheetContext, useReferenceData } from '@/Hooks/Timesheet';
-import useDayEditBuffer from '@/Hooks/Timesheet/useDayEditBuffer';
+import { TimesheetProvider, useTimesheetContext, useReferenceData, useTimesheetStaging } from '@/Hooks/Timesheet';
+import useDayEditor from '@hooks/Timesheet/useDayEditor';
 import useMonthCompleteness from '@/Hooks/Timesheet/useMonthCompleteness';
-import useEmployeeTimesheetLoader from '@/Hooks/Timesheet/refactor/useEmployeeTimesheetLoader';
-import useMergedEmployeeData from '@/Hooks/Timesheet/refactor/useMergedEmployeeData';
-import useAutoStageDay from '@/Hooks/Timesheet/refactor/useAutoStageDay';
+import useEmployeeTimesheetLoader from '@/Hooks/Timesheet/useEmployeeTimesheetLoader';
+import useStableMergedDataMap from '@hooks/Timesheet/useStableMergedDataMap';
+import useStagedMetaMap from '@hooks/Timesheet/staging/useStagedMetaMap';
 
 function InnerDipendente({ employeeId }) {
   const ctx = useTimesheetContext();
-  // Load data once
+  const staging = useTimesheetStaging();
+  // Load data once (mock async fetch)
   useEmployeeTimesheetLoader(employeeId);
 
   const [selectedDay, setSelectedDay] = useState(null);
-  const [draftsByDay, setDraftsByDay] = useState({});
+  const dayEditor = useDayEditor();
+  // External draft tracking removed; DayEntryPanel now manages draft & staging internally
 
   const prevMonthDate = useMemo(() => {
     const d = new Date();
@@ -42,45 +44,14 @@ function InnerDipendente({ employeeId }) {
     employeeId
   });
 
-  // Edit buffer for selected day
-  const dayBuffer = useDayEditBuffer({
-    employeeId,
-    dayKey: selectedDay,
-    dataMap: { [employeeId]: ctx.dataMap?.[employeeId] || {} },
-    stagedMap: ctx.stagedMap
-  });
+  // Editing & auto staging are internal to DayEntryPanel; this page only selects a day and shows staging panel.
 
-  // Track drafts per day (only for dirty days not yet staged as deletion)
-  const updateDraftsForSelected = useCallback(() => {
-    if (!selectedDay) return;
-    const draftArr = Array.isArray(dayBuffer.draft) ? dayBuffer.draft : [];
-    if (dayBuffer.dirty) {
-      setDraftsByDay(prev => ({ ...prev, [selectedDay]: draftArr.slice() }));
-    } else if (draftsByDay[selectedDay]) {
-      setDraftsByDay(prev => {
-        const n = { ...prev };
-        delete n[selectedDay];
-        return n;
-      });
-    }
-  }, [selectedDay, dayBuffer.dirty, dayBuffer.draft, draftsByDay]);
-  React.useEffect(updateDraftsForSelected, [updateDraftsForSelected]);
-
-  // Auto-stage hook
-  useAutoStageDay({
-    employeeId,
-    selectedDay,
-    draft: dayBuffer.draft,
-    onDelete: () => {
-      /* no toast now */
-    },
-    onError: () => {
-      /* could set toast */
-    }
-  });
-
-  // Merged data view (base + staged + drafts overlay)
-  const mergedData = useMergedEmployeeData(employeeId, draftsByDay);
+  // Merged data view (base + staging overlay + local drafts) using new staging selectors
+  // Base data only (no staging overlay) for calendar display
+  const { mergedData } = useStableMergedDataMap({ dataMap: ctx.dataMap, staging, employeeId, mode: 'single' });
+  const baseData = useMemo(() => ctx.dataMap?.[employeeId] || {}, [ctx.dataMap, employeeId]);
+  const stagedMetaAll = useStagedMetaMap(staging);
+  const stagedMeta = useMemo(() => stagedMetaAll[employeeId] || {}, [stagedMetaAll, employeeId]);
 
   const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const isBadgiatoToday = useMemo(
@@ -88,15 +59,7 @@ function InnerDipendente({ employeeId }) {
     [mergedData, todayKey]
   );
 
-  const handleAddRecord = useCallback(
-    (day, nextRecords) => {
-      if (day === selectedDay) {
-        const arr = Array.isArray(nextRecords) ? nextRecords : [nextRecords];
-        dayBuffer.setDraft(arr);
-      }
-    },
-    [selectedDay, dayBuffer]
-  );
+  // Legacy handleAddRecord removed; DayEntryPanel manages staging internally
 
   // Toast state (kept for potential errors / info)
   const [toast, setToast] = useState({ open: false, msg: '', severity: 'info' });
@@ -120,7 +83,7 @@ function InnerDipendente({ employeeId }) {
           />
           <BadgeCard isBadgiato={isBadgiatoToday} />
         </Box>
-        <Box sx={{ mb: 3, boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main', p: 2 }} ><StagedChangesPanel compact maxVisible={5} showLegend /></Box>
+        <TimesheetStagingBar />
         {missingPrev.length > 0 && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             Attenzione: non hai completato il mese precedente ({missingPrev.length}{' '}
@@ -133,42 +96,66 @@ function InnerDipendente({ employeeId }) {
             borderRadius: 2,
             bgcolor: 'customBackground.main',
             py: 4,
-            px: 8,
+            px: { xs: 3, md: 8 },
             mb: 4,
             display: 'flex',
             flexDirection: 'row',
+            flexWrap: { xs: 'wrap', md: 'nowrap' },
             gap: 4,
             alignItems: 'flex-start'
           }}
         >
-          <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <Box sx={{ flex: '1 1 600px', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {selectedDay ? (
               <>
                 {commesseLoading && (
                   <Alert severity="info" sx={{ mb: 1 }}> Caricamento commesse... </Alert>
                 )}
-                <DayEntryPanel
-                  selectedDay={selectedDay}
-                  data={(() => {
-                    const synthetic = { ...mergedData };
-                    if (selectedDay)
-                      synthetic[selectedDay] = dayBuffer.dirty
-                        ? dayBuffer.draft
-                        : mergedData[selectedDay] || [];
-                    return synthetic;
-                  })()}
-                  onAddRecord={handleAddRecord}
-                  commesse={commesseList}
-                />
-                <Typography variant="caption" sx={{ mt: 2, opacity: 0.7 }}> Le modifiche vengono salvate in staging automaticamente. Usa il pannello in alto per Annullare o Confermare. </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>Fai doppio click su un giorno per aprire l'editor dettagliato in una finestra.</Typography>
+                <Typography variant="caption" sx={{ opacity: 0.7 }}>Le modifiche vengono salvate in staging automaticamente dal dialog.</Typography>
               </>
             ) : (
               <Alert severity="info" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }} > Seleziona un giorno. </Alert>
             )}
           </Box>
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }} ><WorkCalendar data={mergedData} selectedDay={selectedDay} onDaySelect={setSelectedDay} variant="wide" highlightedDays={missingPrevSet} stagedDays={ctx.stagedMap?.[employeeId] ? new Set(Object.keys(ctx.stagedMap[employeeId])) : undefined} /></Box>
+          {/* Right calendar column */}
+          <Box sx={{ flex: '0 0 auto', width: { xs: '100%', md: 420 }, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <WorkCalendar
+              data={baseData}
+              selectedDay={selectedDay}
+              onDaySelect={setSelectedDay}
+              onDayDoubleClick={(d) => { setSelectedDay(d); dayEditor.openEditor(employeeId, d); }}
+              variant="wide"
+              highlightedDays={missingPrevSet}
+              stagedMeta={stagedMeta}
+            />
+          </Box>
         </Box>
-        <Box sx={{ boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main', py: 3, px: 4, mb: 4 }} ><CommesseDashboard employeeId={employeeId} assignedCommesse={commesseList} data={mergedData} /></Box>
+  <Box sx={{ boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main', py: 3, px: 4, mb: 4 }}><CommesseDashboard employeeId={employeeId} assignedCommesse={commesseList} data={mergedData} /></Box>
+              {/* Monthly summary moved here from DayEntryPanel */}
+              {mergedData && mergedData.__monthlySummary && (
+                <Box sx={{ boxShadow: 4, borderRadius: 2, bgcolor: 'background.paper', py: 2, px: 3, mb: 4 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1 }}>Riepilogo Mensile</Typography>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip size="small" label={`Totale: ${mergedData.__monthlySummary.totalHours || 0}h`} sx={{ borderRadius: 1 }} />
+                    <Chip size="small" label={`Ferie: ${(mergedData.__monthlySummary.ferie?.days)||0}g (${(mergedData.__monthlySummary.ferie?.hours)||0}h)`} sx={{ borderRadius: 1 }} />
+                    <Chip size="small" label={`Malattia: ${(mergedData.__monthlySummary.malattia?.days)||0}g (${(mergedData.__monthlySummary.malattia?.hours)||0}h)`} sx={{ borderRadius: 1 }} />
+                    <Chip size="small" label={`Permesso: ${(mergedData.__monthlySummary.permesso?.days)||0}g (${(mergedData.__monthlySummary.permesso?.hours)||0}h)`} sx={{ borderRadius: 1 }} />
+                    {(mergedData.__monthlySummary.commesse || []).slice(0,5).map(c => (
+                      <Chip key={c.commessa} size="small" color="info" variant="outlined" label={`${c.commessa}: ${c.ore}h`} sx={{ borderRadius:1 }} />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+        <DayEntryDialog
+          open={dayEditor.isOpen}
+          onClose={dayEditor.closeEditor}
+            date={dayEditor.date}
+            employeeId={dayEditor.employeeId}
+            employeeName={employeeId}
+            data={mergedData}
+            commesse={commesseList}
+          />
       </Container>
       <Snackbar
         open={toast.open}

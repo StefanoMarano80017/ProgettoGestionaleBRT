@@ -1,4 +1,6 @@
 import { getAllEmployeeTimesheets } from "@mocks/ProjectMock";
+import { ROLES } from "@mocks/UsersMock";
+import { rolesWithPersonalEntries } from "@hooks/Timesheet/utils/roleCapabilities";
 
 const isWorkCode = (c) => c && !["FERIE", "MALATTIA", "PERMESSO"].includes(String(c).toUpperCase());
 const sameMonth = (dateKey, year, month0) => {
@@ -19,6 +21,10 @@ export async function getEmployeeMonthSummary(employeeId, year, month) {
     (records || []).forEach((r) => {
       const ore = Number(r?.ore || 0);
       if (!isWorkCode(r?.commessa) || ore <= 0) return;
+      // Defensive: only count if employee role allowed personal entries (for future role injection)
+      // In current mock dataset we don't store role on entries; assumption: employeeId represents a personal-entry role.
+      // If future enrichment adds r.userRole, enforce rolesWithPersonalEntries here:
+      if (r.userRole && !rolesWithPersonalEntries.has(r.userRole)) return;
       total += ore;
       byCommessa.set(r.commessa, (byCommessa.get(r.commessa) || 0) + ore);
     });
@@ -45,6 +51,7 @@ export async function getGlobalMonthByCommessa({ year, month, employeeIds = [], 
       (records || []).forEach((r) => {
         const ore = Number(r?.ore || 0);
         if (!isWorkCode(r?.commessa) || ore <= 0) return;
+        if (r.userRole && !rolesWithPersonalEntries.has(r.userRole)) return;
         agg.set(r.commessa, (agg.get(r.commessa) || 0) + ore);
       });
     });

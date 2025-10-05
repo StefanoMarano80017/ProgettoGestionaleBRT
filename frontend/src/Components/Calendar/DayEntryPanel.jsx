@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { DEBUG_TS } from '@config/debug';
 import { Box, Stack, Typography, Button, Tooltip, Alert, Divider, Chip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EntryListItem from "@components/Entries/EntryListItem";
@@ -9,6 +10,8 @@ import Paper from '@mui/material/Paper';
 import { useDayEntryDerived, useConfirmDelete } from '@/Hooks/Timesheet/dayEntry';
 import PropTypes from 'prop-types';
 import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
+import { semanticHash } from '@hooks/Timesheet/utils/semanticTimesheet';
+import { useTimesheetStaging } from '@hooks/Timesheet';
 // NOTE: Il pannello ora gestisce un wrapper di dialog locale invece di affidarsi
 // a proprietà (dialog/startAdd/startEdit/commit) che non esistono più nell'API
 // di `useTimesheetEntryEditor`. L'hook unificato gestisce validazione e salvataggio
@@ -16,13 +19,27 @@ import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
 
 /**
  * DayEntryPanel
+ * --------------------------------------------------------------
+ * Single–day timesheet editor now owning its own draft + staging.
+ * Responsibilities:
+ *  - Derive merged view (base + staged) via staging context
+ *  - Maintain local draft (records state) for immediate UI reactivity
+ *  - Debounce & propagate draft to global staging (stageDraft)
+ *  - Provide inline add/edit/remove dialogs
+ *  - Expose optional onDraftChange for outer summary recalculations
  *
- * Presentational panel that shows the list of timesheet records for a single day
- * and provides a local dialog wrapper for adding/editing entries. The component
- * intentionally keeps dialog state local but uses provided callbacks to persist
- * changes (onAddRecord).
+ * Staging Lifecycle:
+ *  User edit -> local records state -> debounce (450ms) -> staging.stageDraft
+ *  External changes (confirm/rollback/other tab edits) propagate down and
+ *  replace local draft only when the user has not diverged.
  *
- * Export pattern: named export + memoized default export.
+ * Deletion Semantics:
+ *  Empty records array is staged as [] meaning "clear day" (kept distinct from
+ *  absence of staging entry which means "unchanged").
+ *
+ * NOTE: Legacy external buffers (useDayEditBuffer / useAutoStageDay) have been
+ * removed; this component is now the single place where per‑day edits become
+ * staged.
  */
 export function DayEntryPanel({
   selectedDay,
@@ -32,6 +49,11 @@ export function DayEntryPanel({
   readOnly = false,
   mode: modeProp,
   maxHoursPerDay = 8,
+  // New props for integrated staging
+  employeeId,
+  dateKey, // optional override; defaults to selectedDay if provided
+  autoStage = true,
+  onDraftChange, // optional observer
 }) {
   /**
    * DayEntryPanel
@@ -47,7 +69,89 @@ export function DayEntryPanel({
   if (modeProp === 'readonly') readOnly = true;
 
   // Derived data from hooks (already memoized in hook implementation)
-  const { records, segnalazione, totalHours, itDate } = useDayEntryDerived(selectedDay, data, maxHoursPerDay);
+  const { records: baseRecords, segnalazione, totalHours, itDate } = useDayEntryDerived(selectedDay, data, maxHoursPerDay);
+  const staging = useTimesheetStaging();
+  const effectiveDate = dateKey || selectedDay;
+
+  // Derive merged staged view if employeeId/date provided
+  const stagedEntry = useMemo(() => {
+    if (!employeeId || !effectiveDate) return undefined;
+    return staging.getStagedEntry(employeeId, effectiveDate);
+  }, [staging, employeeId, effectiveDate]);
+
+  const mergedRecords = useMemo(() => {
+    if (!employeeId || !effectiveDate) return baseRecords;
+    if (!stagedEntry) return baseRecords;
+    if (stagedEntry.draft === null) return [];
+    return stagedEntry.draft;
+  }, [baseRecords, stagedEntry, employeeId, effectiveDate]);
+
+  // Base committed records (without staging overlay) for comparison / guard logic
+  const baseCommitted = useMemo(() => {
+    if (!employeeId || !effectiveDate) return baseRecords;
+    return staging.getBaseDay(employeeId, effectiveDate) || [];
+  }, [staging, employeeId, effectiveDate, baseRecords]);
+
+  // Local draft state initialized from mergedRecords; updates stage after debounce
+  const [records, setRecords] = useState(mergedRecords);
+  const lastMergedHashRef = useRef(semanticHash(mergedRecords));
+  const lastDraftHashRef = useRef(semanticHash(mergedRecords));
+  const debounceRef = useRef();
+  // Tracks whether the current draft mutation originated from an explicit user action
+  // (add/edit/delete/save) rather than an external sync/reset. Prevents staging of
+  // transient empty states (phantom deletions) produced by race conditions after commit.
+  const userEditRef = useRef(false);
+
+  // Sync in new mergedRecords if user hasn't diverged
+  useEffect(() => {
+    const mergedHash = semanticHash(mergedRecords);
+    const prevMergedHash = lastMergedHashRef.current;
+    if (mergedHash === prevMergedHash) return; // no external change
+    const draftHash = lastDraftHashRef.current;
+    if (draftHash === prevMergedHash) {
+      setRecords(mergedRecords);
+      lastDraftHashRef.current = mergedHash;
+    }
+    lastMergedHashRef.current = mergedHash;
+  }, [mergedRecords]);
+
+  // Debounced auto staging effect
+  useEffect(() => {
+    if (!autoStage || !employeeId || !effectiveDate) return;
+    const draftHash = semanticHash(records);
+    const mergedHash = semanticHash(mergedRecords);
+    const baseHash = semanticHash(baseCommitted);
+    lastDraftHashRef.current = draftHash;
+
+    // If nothing changed relative to merged view, skip.
+    if (draftHash === mergedHash) return;
+
+    const userEdited = userEditRef.current;
+    const isDeletionAttempt = records.length === 0 && baseCommitted.length > 0 && mergedHash === baseHash;
+    const isPotentialPhantomDeletion = isDeletionAttempt && !userEdited;
+    if (isPotentialPhantomDeletion) {
+  if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Skip phantom deletion staging', { effectiveDate, employeeId }); } catch { /* ignore debug */ } }
+      return;
+    }
+
+    // For non-deletion changes originating from passive sync we also skip staging.
+    if (!userEdited) {
+  if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Draft differs but no explicit user edit yet – skip staging', { effectiveDate, employeeId }); } catch { /* ignore debug */ } }
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const payload = records.length === 0 ? [] : records;
+  if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Stage draft', { effectiveDate, employeeId, action: records.length === 0 ? 'delete' : 'upsert', count: records.length }); } catch { /* ignore debug */ } }
+      staging.stageDraft(employeeId, effectiveDate, payload);
+      userEditRef.current = false; // reset after successful staging cycle
+    }, 450);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [records, autoStage, employeeId, effectiveDate, staging, mergedRecords, baseCommitted]);
+
+  // Notify external observer of draft changes
+  useEffect(() => { if (typeof onDraftChange === 'function') onDraftChange(records); }, [records, onDraftChange]);
 
   // Local dialog state used as editing wrapper
   const [dialog, setDialog] = useState({ open: false, mode: 'add', index: null, current: null });
@@ -69,41 +173,28 @@ export function DayEntryPanel({
 
   const commit = useCallback((entry) => {
     if (!entry) { closeDialog(); return; }
-    let next;
-    if (dialog.mode === 'add') {
-      next = [...records, entry];
-    } else {
-      next = records.map((r, i) => (i === dialog.index ? entry : r));
-    }
-    onAddRecord(selectedDay, next, true);
+    setRecords(prev => {
+      let next;
+      if (dialog.mode === 'add') next = [...prev, entry];
+      else next = prev.map((r, i) => (i === dialog.index ? entry : r));
+      onAddRecord(effectiveDate, next, false); // legacy callback still invoked (now informational)
+      userEditRef.current = true;
+      return next;
+    });
     closeDialog();
-  }, [dialog, records, onAddRecord, selectedDay, closeDialog]);
-
-  const removeCurrent = useCallback(() => {
-    if (dialog.mode !== 'edit') { closeDialog(); return; }
-    const next = records.filter((_, i) => i !== dialog.index);
-    onAddRecord(selectedDay, next, true);
-    closeDialog();
-  }, [dialog, records, onAddRecord, selectedDay, closeDialog]);
-
-  // Stable editing object for consumers
-  const editing = useMemo(() => ({
-    canAddMore,
-    startAdd,
-    startEdit,
-    dialog: dialog || { open: false, mode: 'add', index: null, current: null },
-    closeDialog,
-    commit,
-    removeCurrent,
-  }), [canAddMore, startAdd, startEdit, dialog, closeDialog, commit, removeCurrent]);
+  }, [dialog, onAddRecord, effectiveDate, closeDialog]);
 
   // use the shared computeDayUsed util (imported above)
 
   // Delete confirmation logic
   const deleteCtrl = useConfirmDelete(useCallback((i) => {
-    const next = records.filter((_, k) => k !== i);
-    onAddRecord(selectedDay, next, true);
-  }, [records, onAddRecord, selectedDay]));
+    setRecords(prev => {
+      const next = prev.filter((_, k) => k !== i);
+      onAddRecord(effectiveDate, next, false);
+      userEditRef.current = true;
+      return next;
+    });
+  }, [onAddRecord, effectiveDate]));
 
   const ROW_HEIGHT = 53;
   const LIST_HEIGHT = 365;
@@ -142,24 +233,44 @@ export function DayEntryPanel({
     );
   }, [records, startEdit, deleteCtrl]);
 
+  const removeCurrent = useCallback(() => {
+    if (dialog.mode !== 'edit') { closeDialog(); return; }
+    setRecords(prev => {
+      const next = prev.filter((_, i) => i !== dialog.index);
+      onAddRecord(effectiveDate, next, false);
+      userEditRef.current = true;
+      return next;
+    });
+    closeDialog();
+  }, [dialog, onAddRecord, effectiveDate, closeDialog]);
+
+  const editing = useMemo(() => ({
+    canAddMore,
+    startAdd,
+    startEdit,
+    dialog: dialog || { open: false, mode: 'add', index: null, current: null },
+    closeDialog,
+    commit,
+    removeCurrent,
+  }), [canAddMore, startAdd, startEdit, dialog, closeDialog, commit, removeCurrent]);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="h6" sx={{ py: 2 }}>Dettaglio {itDate}</Typography>
-        {!readOnly && (
-          <Tooltip title={editing.canAddMore ? '' : `Hai già ${maxHoursPerDay}h inserite: puoi modificare le righe esistenti`}>
-            <span>
-              <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={editing.startAdd} disabled={!editing.canAddMore}>
-                Aggiungi voce
-              </Button>
-            </span>
-          </Tooltip>
-        )}
-      </Stack>
+            {!readOnly && (
+              <Tooltip title={editing.canAddMore ? '' : `Hai già ${maxHoursPerDay}h inserite: puoi modificare le righe esistenti`}>
+                <span>
+                  <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={editing.startAdd} disabled={!editing.canAddMore}>
+                    Aggiungi voce
+                  </Button>
+                </span>
+              </Tooltip>
+            )}
+          </Stack>
 
-      <Divider />
+          <Divider />
 
-      <Box sx={{ height: LIST_HEIGHT, overflowY: 'auto', scrollbarGutter: 'stable', bgcolor: 'background.default', p: 1, borderRadius: 1 }}>
+          <Box sx={{ height: LIST_HEIGHT, overflowY: 'auto', scrollbarGutter: 'stable', bgcolor: 'background.default', p: 1, borderRadius: 1 }}>
         {records.length === 0 ? (
           <Box sx={{ height: LIST_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Alert severity="info" sx={{ width: '100%', mx: 1 }}>Nessun record per questa giornata.</Alert>
@@ -178,26 +289,7 @@ export function DayEntryPanel({
             </Box>
           </Box>
         </Box>
-
-        <Box sx={{ pb: 2, display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', sm: 'flex-end' }, minWidth: 360 }}>
-          <Typography variant="body2">Riepilogo Mensile</Typography>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 0.5 }}>
-            <Chip size="small" label={`Totale: ${monthlySummary.totalHours}h`} sx={{ borderRadius: 1 }} />
-            <Chip size="small" label={`Ferie: ${monthlySummary.ferie.days}g (${monthlySummary.ferie.hours}h) ${pct(monthlySummary.ferie.hours)}`} sx={{ borderRadius: 1 }} />
-            <Chip size="small" label={`Malattia: ${monthlySummary.malattia.days}g (${monthlySummary.malattia.hours}h) ${pct(monthlySummary.malattia.hours)}`} sx={{ borderRadius: 1 }} />
-            <Chip size="small" label={`Permesso: ${monthlySummary.permesso.days}g (${monthlySummary.permesso.hours}h) ${pct(monthlySummary.permesso.hours)}`} sx={{ borderRadius: 1 }} />
-          </Box>
-          {monthlySummary.commesse.length > 0 && (
-            <Box sx={{ display:'flex', gap:1, flexWrap:'wrap', mt: 1 }}>
-              {monthlySummary.commesse.slice(0,5).map(c => (
-                <Chip key={c.commessa} size="small" color="info" variant="outlined" label={`${c.commessa}: ${c.ore}h (${pct(c.ore)})`} sx={{ borderRadius:1 }} />
-              ))}
-              {monthlySummary.commesse.length > 5 && (
-                <Chip size="small" variant="outlined" label={`+${monthlySummary.commesse.length - 5} altre`} sx={{ borderRadius:1 }} />
-              )}
-            </Box>
-          )}
-        </Box>
+        <Box sx={{ pb: 2 }} />
       </Stack>
 
       {segnalazione && (
@@ -234,6 +326,10 @@ DayEntryPanel.propTypes = {
   readOnly: PropTypes.bool,
   mode: PropTypes.string,
   maxHoursPerDay: PropTypes.number,
+  employeeId: PropTypes.string,
+  dateKey: PropTypes.string,
+  autoStage: PropTypes.bool,
+  onDraftChange: PropTypes.func,
 };
 
 // (default props converted to parameter defaults above)

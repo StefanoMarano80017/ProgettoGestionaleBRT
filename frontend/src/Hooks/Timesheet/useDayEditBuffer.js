@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { semanticHash } from '@hooks/Timesheet/utils/semanticTimesheet';
 
 /**
  * useDayEditBuffer
  * Maintains a draft (uncommitted) set of records for a selected employee/day.
  * It derives the base committed+staged merged view then lets the caller edit
  * without re-staging on every tiny change. Caller explicitly calls stageDraft().
+ * stagedMap param now is a lightweight overlay map (dateKey -> array|null) built from new staging
+ * reducer. Eventually this hook could accept direct mergedDay + baseDay getters.
  */
 export default function useDayEditBuffer({ employeeId, dayKey, dataMap, stagedMap }) {
   const stagedForEmp = stagedMap?.[employeeId] || {};
@@ -17,26 +20,31 @@ export default function useDayEditBuffer({ employeeId, dayKey, dataMap, stagedMa
   }, [stagedDay, committedDay]);
 
   const [draft, setDraft] = useState(merged);
-  // Reset draft when changing selection OR when staged/committed source changes (if user hasn't diverged?)
+  // Reset draft when selection changes OR when merged source changes — but only
+  // overwrite the draft if the draft still matches the *previous* merged value.
+  // This avoids clobbering user edits while still picking up external updates.
   const lastMergedSigRef = useRef('');
+  const lastDraftSigRef = useRef('');
+
+  // Keep draft signature ref in sync when user edits
   useEffect(() => {
-    // Compute a lightweight signature of merged
-    const sig = Array.isArray(merged)
-      ? `${merged.length}|${merged.reduce((t,r)=>t+Number(r?.ore||0),0)}|${merged.slice(0,2).map(r=>r?.commessa||'').join(',')}`
-      : '0|0|';
-    // If draft already semantically equals merged, skip resetting to keep stable ref
-    let equal = false;
-    if (draft === merged) equal = true; else if (Array.isArray(draft) && Array.isArray(merged) && draft.length === merged.length) {
-      equal = true;
-      for (let i=0;i<draft.length;i++) {
-        const a=draft[i]||{}, b=merged[i]||{};
-        if ((a.commessa||'') !== (b.commessa||'') || Number(a.ore||0)!==Number(b.ore||0) || (a.descrizione||'') !== (b.descrizione||'')) { equal=false; break; }
-      }
+    lastDraftSigRef.current = semanticHash(Array.isArray(draft) ? draft : []);
+  }, [draft]);
+
+  useEffect(() => {
+    const mergedSig = semanticHash(Array.isArray(merged) ? merged : []);
+    const prevMergedSig = lastMergedSigRef.current;
+    if (prevMergedSig === mergedSig) return; // no structural merged change
+
+    const draftSig = lastDraftSigRef.current || semanticHash(Array.isArray(draft) ? draft : []);
+    // If user hasn't diverged from previous merged snapshot, adopt new merged
+    if (!prevMergedSig || draftSig === prevMergedSig) {
+      setDraft(merged);
+      // update draft signature since draft now equals merged
+      lastDraftSigRef.current = mergedSig;
     }
-    if (equal && lastMergedSigRef.current === sig) return; // nothing changed
-    lastMergedSigRef.current = sig;
-    if (!equal) setDraft(merged);
-  }, [merged, employeeId, dayKey, draft]);
+    lastMergedSigRef.current = mergedSig;
+  }, [merged, draft, employeeId, dayKey]);
 
   const dirty = useMemo(() => {
     if (draft === merged) return false;

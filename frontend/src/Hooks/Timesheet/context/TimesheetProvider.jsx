@@ -1,9 +1,8 @@
-import React, { useContext, useMemo, useState, useCallback, useRef } from 'react';
-import { semanticEqual, semanticHash } from '@hooks/Timesheet/utils/semanticTimesheet';
+import React, { useContext, useMemo, useState, useCallback } from 'react';
 import { useCalendarMonthYear } from '@hooks/Timesheet/calendar/useCalendarMonthYear';
 import { useTimesheetData } from '@hooks/Timesheet/data/useTimesheetData';
-import updateEmployeeDay, { batchUpdateEmployeeDays } from '@hooks/Timesheet/utils/updateEmployeeDay';
 import TimesheetContext from './_TimesheetContext.js';
+import { TimesheetStagingProvider } from '@hooks/Timesheet/staging/TimesheetStagingContext.jsx';
 
 // Context moved to separate module (_TimesheetContext.js) for cleaner fast-refresh boundaries.
 
@@ -16,189 +15,6 @@ export function TimesheetProvider({
 }) {
   const { currentMonth, currentYear, setMonthYear, shift } = useCalendarMonthYear(initialDate);
   const { employees, dataMap, setDataMap, load, loading, error, companies } = useTimesheetData({ scope, employeeIds, month: currentMonth, year: currentYear, autoLoad });
-  // Staging buffer for batched edits (not yet committed to backend)
-  const [stagedMap, setStagedMap] = useState({});
-
-  // Stage a single day update (visible immediately in UI by merging stagedMap over dataMap)
-  const ensureIds = (arr) => {
-    if (!Array.isArray(arr)) return arr;
-    // Fast path: if every record already has _id, reuse original array reference
-    let allHaveId = true;
-    for (let i = 0; i < arr.length; i++) {
-      const r = arr[i];
-      if (r && typeof r === 'object' && !r._id) { allHaveId = false; break; }
-    }
-    if (allHaveId) return arr;
-    return arr.map(r => (r && typeof r === 'object'
-      ? { _id: r._id || crypto.randomUUID?.() || Math.random().toString(36).slice(2), ...r }
-      : r));
-  };
-
-  const stageHashesRef = useRef({}); // { employeeId: { dateKey: hash } }
-  const stageReplace = useCallback((employeeId, dateKey, records) => {
-    if (!employeeId || !dateKey) return;
-    setStagedMap(prev => {
-      const prevEmp = prev?.[employeeId] || {};
-      const prevVal = prevEmp[dateKey];
-      const baseRecords = (dataMap?.[employeeId]?.[dateKey]) || [];
-      const nextVal = records === null ? null : (Array.isArray(records) ? ensureIds(records) : []);
-
-      // Hashes for quick short-circuit (null represented distinctly)
-      const prevHash = prevVal === null ? 'NULL' : semanticHash(prevVal);
-      const nextHash = nextVal === null ? 'NULL' : semanticHash(nextVal);
-  // baseHash previously used for diagnostics; removed to suppress unused var lint
-
-      if (prevHash === nextHash && semanticEqual(prevVal, nextVal)) return prev; // identical to current staged
-
-      // If next equals base -> clear staged entry
-      if ((nextVal === null && baseRecords.length === 0) || (nextVal !== null && semanticEqual(nextVal, baseRecords))) {
-        // If there was no previous staged value we can skip creating any new object -> prevents add/remove churn loops
-        if (prevVal === undefined) {
-          return prev; // no change
-        }
-        const next = { ...(prev || {}) };
-        const empCopy = { ...(next[employeeId] || {}) };
-        delete empCopy[dateKey];
-        if (Object.keys(empCopy).length === 0) delete next[employeeId]; else next[employeeId] = empCopy;
-        // update hash cache
-        if (stageHashesRef.current[employeeId]) delete stageHashesRef.current[employeeId][dateKey];
-        return next;
-      }
-
-      // Normal path
-      const next = { ...(prev || {}) };
-      const newEmp = { ...(next[employeeId] || {}) };
-      newEmp[dateKey] = nextVal;
-      next[employeeId] = newEmp;
-      if (!stageHashesRef.current[employeeId]) stageHashesRef.current[employeeId] = {};
-      stageHashesRef.current[employeeId][dateKey] = nextHash;
-      return next;
-    });
-  }, [dataMap]);
-  // Backward compatibility alias
-  const stageUpdate = stageReplace;
-  const stageDeleteDay = useCallback((employeeId, dateKey) => stageReplace(employeeId, dateKey, null), [stageReplace]);
-
-  const discardDay = useCallback((employeeId, dateKey) => {
-    if (!employeeId || !dateKey) return;
-    setStagedMap(prev => {
-      const emp = prev?.[employeeId];
-      if (!emp || !(dateKey in emp)) return prev;
-      const next = { ...prev };
-      const empCopy = { ...emp };
-      delete empCopy[dateKey];
-      if (Object.keys(empCopy).length === 0) delete next[employeeId]; else next[employeeId] = empCopy;
-      return next;
-    });
-  }, []);
-
-  const commitDay = useCallback(async (employeeId, dateKey, applyFn) => {
-    if (!employeeId || !dateKey) return;
-    const stagedEmp = stagedMap?.[employeeId];
-    if (!stagedEmp || !(dateKey in stagedEmp)) return;
-    const value = stagedEmp[dateKey];
-    const updates = [{ employeeId, dateKey, records: Array.isArray(value) ? [...value] : null }];
-    setDataMap(prev => batchUpdateEmployeeDays({ prev, updates }));
-    try {
-      if (typeof applyFn === 'function') {
-        await applyFn({ employeeId, updates: [{ dateKey, records: Array.isArray(value) ? [...value] : [] }] });
-      } else {
-        updateEmployeeDay({ prev: null, employeeId, dateKey, records: Array.isArray(value) ? value : [] });
-      }
-      setStagedMap(prev => {
-        const empDays = prev?.[employeeId];
-        if (!empDays) return prev;
-        const next = { ...prev };
-        const copy = { ...empDays };
-        delete copy[dateKey];
-        if (Object.keys(copy).length === 0) delete next[employeeId]; else next[employeeId] = copy;
-        return next;
-      });
-    } catch (err) {
-      console.error('[timesheet] commitDay failed', err);
-      throw err;
-    }
-  }, [stagedMap, setDataMap]);
-
-  // Discard staged edits (optionally for a specific employee or full)
-  const discardStaged = useCallback((opts = {}) => {
-    const { employeeId } = opts || {};
-    if (employeeId) {
-      setStagedMap(prev => { const next = { ...(prev || {}) }; delete next[employeeId]; return next; });
-    } else {
-      setStagedMap({});
-    }
-  }, []);
-
-  // Commit staged edits: apply to dataMap via setDataMap (batch) and clear staged buffer
-  const commitStaged = useCallback(async (applyFn) => {
-    // Build payload from stagedMap
-    const payload = Object.entries(stagedMap || {}).map(([empId, days]) => ({
-      employeeId: empId,
-      updates: Object.entries(days || {}).map(([dk, recs]) => ({ dateKey: dk, records: Array.isArray(recs) ? [...recs] : null }))
-    }));
-
-    // Apply to local dataMap first (batch)
-    setDataMap(prev => {
-      const updatesFlat = [];
-      payload.forEach(p => {
-        p.updates.forEach(u => updatesFlat.push({ employeeId: p.employeeId, dateKey: u.dateKey, records: u.records }));
-      });
-      return batchUpdateEmployeeDays({ prev, updates: updatesFlat });
-    });
-
-    try {
-      if (typeof applyFn === 'function') {
-        // allow applyFn to return a promise; await it and clear staged only on success
-        await applyFn(payload);
-      } else {
-        // default: persist into the local override store so reloads see edits
-        payload.forEach(p => {
-          p.updates.forEach(u => {
-            try {
-              // updateEmployeeDay writes window.__tsOverrides and dispatches events
-              updateEmployeeDay({ prev: null, employeeId: p.employeeId, dateKey: u.dateKey, records: Array.isArray(u.records) ? u.records : [] });
-            } catch { /* ignore per-update errors */ }
-          });
-        });
-      }
-      // only clear staged map after successful apply (or default local apply)
-      setStagedMap({});
-    } catch (err) {
-      console.error('[timesheet] commitStaged failed', err); // keep staged for retry
-      throw err;
-    }
-  }, [stagedMap, setDataMap]);
-
-  // Commit staged edits for a single employeeId only
-  const commitStagedFor = useCallback(async (employeeId, applyFn) => {
-    if (!employeeId) return;
-    const days = (stagedMap || {})[employeeId] || {};
-    const updates = Object.entries(days).map(([dk, recs]) => ({ employeeId, dateKey: dk, records: Array.isArray(recs) ? [...recs] : null }));
-
-    // apply to dataMap
-    setDataMap(prev => batchUpdateEmployeeDays({ prev, updates }));
-
-    try {
-      if (typeof applyFn === 'function') {
-        const payload = { employeeId, updates: updates.map(u => ({ dateKey: u.dateKey, records: Array.isArray(u.records) ? [...u.records] : [] })) };
-        await applyFn(payload);
-      } else {
-        // default: persist to override store
-        updates.forEach(u => {
-          try {
-            updateEmployeeDay({ prev: null, employeeId: u.employeeId, dateKey: u.dateKey, records: Array.isArray(u.records) ? u.records : [] });
-          } catch { /* ignore */ }
-        });
-      }
-      // only remove staged entries after success
-      setStagedMap(prev => { const next = { ...(prev || {}) }; delete next[employeeId]; return next; });
-    } catch (err) {
-      console.error('[timesheet] commitStagedFor failed', err); // preserve staged
-      throw err;
-    }
-  }, [stagedMap, setDataMap]);
-
   // Filters & selection centralizzati
   const [filters, setFilters] = useState({ search: '', azienda: '', commessa: '' });
   const [selection, setSelection] = useState({ employeeId: null, date: null });
@@ -224,15 +40,6 @@ export function TimesheetProvider({
     dataMap,
     setDataMap,
     setEmployeeData,
-    stagedMap,
-    stageUpdate,
-    stageReplace,
-    stageDeleteDay,
-    discardDay,
-    commitDay,
-    commitStaged,
-  commitStagedFor,
-    discardStaged,
     employees,
     load,
     loading,
@@ -245,9 +52,13 @@ export function TimesheetProvider({
     setSelection,
     setEmployeeDate,
     scope,
-  }), [currentMonth, currentYear, setMonthYear, shift, dataMap, stagedMap, employees, load, loading, error, companies, filters, selection, scope, setEmployeeData, setDataMap, updateFilter, setEmployeeDate, stageUpdate, stageReplace, stageDeleteDay, discardDay, commitDay, commitStaged, commitStagedFor, discardStaged]);
+  }), [currentMonth, currentYear, setMonthYear, shift, dataMap, employees, load, loading, error, companies, filters, selection, scope, setEmployeeData, setDataMap, updateFilter, setEmployeeDate]);
 
-  return <TimesheetContext.Provider value={value}>{children}</TimesheetContext.Provider>;
+  return (
+    <TimesheetStagingProvider debug={false}>
+      <TimesheetContext.Provider value={value}>{children}</TimesheetContext.Provider>
+    </TimesheetStagingProvider>
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components -- exporting a hook intentionally

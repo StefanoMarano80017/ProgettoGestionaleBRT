@@ -4,8 +4,6 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import aggregatePeriod from '@hooks/Timesheet/aggregation/aggregatePeriod';
 // New: prefer the single‑day focused DayEntryPanel for the "Voci" tab
-import DayEntryPanel from '@components/Calendar/DayEntryPanel';
-import { useTimesheetContext } from '@hooks/Timesheet';
 import AggregationTable from '@components/Timesheet/AggregationTable';
 
 /**
@@ -28,9 +26,9 @@ export default function AdminDetailsPanel({
   onDeselectAllStats,
   statsSelected,
 }) {
-  // Access global timesheet context to persist inline edits from DayEntryPanel
-  const { stageUpdate } = useTimesheetContext();
-  const [tab, setTab] = React.useState('entries');
+  // DayEntryPanel internally manages draft + staging; this panel just passes employee/date and listens for draft changes.
+  // Panel now only shows aggregated views & contextual day summary (editing moved to modal dialog via double-click)
+  const [tab, setTab] = React.useState('aggregates');
   const handleTab = (_, v) => v && setTab(v);
 
   // Aggregation state
@@ -77,110 +75,19 @@ export default function AdminDetailsPanel({
     return `${fmt(start)} - ${fmt(end)}`;
   }, [aggregation, period]);
 
-  // --- Single day panel integration ---
-  // We reuse DayEntryPanel for the daily view; build a data object shaped like the hook expects.
-  const dailyData = React.useMemo(() => {
-    if (!selEmp) return {};
-    const empTsRaw = tsMap[selEmp.id] || {};
-    // Override selected day with local edited state
-    const empTs = selDate ? { ...empTsRaw, [selDate]: details.dayRecords || empTsRaw[selDate] || [] } : empTsRaw;
-    const absenceKeys = ['FERIE','MALATTIA','PERMESSO'];
-    const absenceSummary = { ferie:{ days:0,hours:0 }, malattia:{ days:0,hours:0 }, permesso:{ days:0,hours:0 } };
-    const commessaMap = {}; // { commessa: hours }
-    let totalMonthHours = 0;
-    Object.entries(empTs).forEach(([k, list]) => {
-      if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(k)) return;
-      const [yy, mm] = k.split('-').map(Number);
-      if (yy !== year || mm !== month + 1) return;
-      const daySetAbs = new Set();
-      (list||[]).forEach(r => {
-        if (!r) return;
-        const code = String(r.commessa||'').toUpperCase();
-        const ore = Number(r.ore||0);
-        totalMonthHours += ore;
-        if (!absenceKeys.includes(code)) {
-          if (!commessaMap[code]) commessaMap[code] = 0;
-          commessaMap[code] += ore;
-        } else {
-          const key = code === 'FERIE' ? 'ferie' : code === 'MALATTIA' ? 'malattia' : 'permesso';
-          absenceSummary[key].hours += ore;
-          daySetAbs.add(key);
-        }
-      });
-      daySetAbs.forEach(key => absenceSummary[key].days += 1);
-    });
-    const commesseSummary = Object.entries(commessaMap)
-      .map(([commessa, ore]) => ({ commessa, ore }))
-      .sort((a,b) => b.ore - a.ore);
-    return { ...empTs, __monthlySummary: { ...absenceSummary, commesse: commesseSummary, totalHours: totalMonthHours } };
-  }, [selEmp, selDate, tsMap, details.dayRecords, year, month]);
-
-  const handleAddRecord = React.useCallback((day, records) => {
-    if (!selEmp || !day) return;
-    // 1. Update day records in details hook (local)
-    if (day === selDate) {
-      details.setDayRecords(records);
-    }
-    // 2. Stage update into provider so calendar reflects changes but can be saved in batch
-    stageUpdate(selEmp.id, day, records);
-    // 3. Recompute lightweight month summary (assenze + commesse)
-    if (day.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)) {
-      const empTs = { ...(tsMap[selEmp.id] || {}), [day]: records };
-      const absenceKeys = ['FERIE','MALATTIA','PERMESSO'];
-      const absenceSummary = { ferie:{ days:0,hours:0 }, malattia:{ days:0,hours:0 }, permesso:{ days:0,hours:0 } };
-      const commessaMap = {};
-      let totalMonthHours = 0;
-      Object.entries(empTs).forEach(([k,list]) => {
-        if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(k)) return;
-        const [yy, mm] = k.split('-').map(Number);
-        if (yy !== year || mm !== month + 1) return;
-        const daySetAbs = new Set();
-        (list||[]).forEach(r => {
-          if (!r) return;
-          const code = String(r.commessa||'').toUpperCase();
-          const ore = Number(r.ore||0);
-            totalMonthHours += ore;
-          if (!absenceKeys.includes(code)) {
-            if (!commessaMap[code]) commessaMap[code] = 0;
-            commessaMap[code] += ore;
-          } else {
-            const key = code === 'FERIE' ? 'ferie' : code === 'MALATTIA' ? 'malattia' : 'permesso';
-            absenceSummary[key].hours += ore;
-            daySetAbs.add(key);
-          }
-        });
-        daySetAbs.forEach(key => absenceSummary[key].days += 1);
-      });
-      const commesseSummary = Object.entries(commessaMap).map(([commessa, ore]) => ({ commessa, ore })).sort((a,b)=> b.ore - a.ore);
-      details.setMonthSummary && details.setMonthSummary({ ...(details.monthSummary||{}), __monthlySummary: { ...absenceSummary, commesse: commesseSummary, totalHours: totalMonthHours } });
-    }
-    // TODO: integrate remote save API if required
-  }, [selEmp, selDate, details, year, month, tsMap, stageUpdate]);
+  // Inline daily editing removed; daily edits now happen in DayEntryDialog (double-click a cell).
 
   // staged save actions handled globally (StagedChangesPanel); local staged presence no longer needed
 
   return (
     <Paper sx={{ mt: 2, p: 2, boxShadow: 8, borderRadius: 2, bgcolor: 'customBackground.main' }}>
       <Tabs value={tab} onChange={handleTab} variant="scrollable" allowScrollButtonsMobile>
-        <Tab label="Voci" value="entries" />
         <Tab label="Aggregati" value="aggregates" />
       </Tabs>
       <Divider sx={{ my: 2 }} />
-      {tab === 'entries' && (
-        selEmp && selDate ? (
-          <DayEntryPanel
-            selectedDay={selDate}
-            data={dailyData}
-            commesse={distinctCommesse}
-            onAddRecord={handleAddRecord}
-            maxHoursPerDay={8}
-          />
-        ) : (
-          <Alert severity="info">Seleziona un dipendente e un giorno dal calendario per visualizzare le voci.</Alert>
-        )
-      )}
-
-      {/* Staged-save is handled by the centralized StagedChangesPanel */}
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Doppio click su una cella del calendario per aprire l'editor dettagliato della giornata.
+      </Alert>
       {tab === 'aggregates' && (
         <Box>
           <Stack direction={{ xs:'column', md:'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs:'flex-start', md:'center' }} sx={{ mb:2 }}>

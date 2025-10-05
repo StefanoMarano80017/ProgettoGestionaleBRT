@@ -39,6 +39,7 @@ export function WorkCalendar({
   data = {},
   selectedDay,
   onDaySelect,
+  onDayDoubleClick,
   renderDayTooltip,
   highlightedDays,
   fixedDayWidth = false,
@@ -46,7 +47,8 @@ export function WorkCalendar({
   distributeGaps = false,
   variant = 'default',
   selectorVariant = 'windowed',
-  selectorLabels = 'short'
+  selectorLabels = 'short',
+  stagedMeta = null // optional { dateKey: 'create'|'update'|'delete' }
 }) {
   const tsCtx = useOptionalTimesheetContext();
   const stagedMap = React.useMemo(() => tsCtx?.stagedMap || {}, [tsCtx?.stagedMap]);
@@ -59,45 +61,63 @@ export function WorkCalendar({
     return null; // multi-employee view or unknown
   }, [tsCtx?.selection?.employeeId, stagedMap]);
 
-  const classify = (orig, stagedVal) => {
-    if (stagedVal === undefined) return null;
-    if (stagedVal === null) return 'staged-delete';
-    const stagedArr = Array.isArray(stagedVal) ? stagedVal : [];
-    const origArr = Array.isArray(orig) ? orig : [];
-    if (!origArr.length && stagedArr.length) return 'staged-insert';
-    if (origArr.length && !stagedArr.length) return 'staged-delete';
-    const changed = stagedArr.length !== origArr.length || stagedArr.some((r,i) => {
-      const o = origArr[i];
-      if (!o) return true;
-      return String(r?.commessa||'') !== String(o?.commessa||'') || Number(r?.ore||0) !== Number(o?.ore||0);
-    });
-    return changed ? 'staged-update' : null;
-  };
+  // Precompute staged status map once per render instead of per-tile classification.
+  const stagedStatusMap = useMemo(() => {
+    const result = {};
+    if (!tsCtx) return result;
 
-  const getStagedStatus = (dateStr) => {
-    // Prefer active employee.
+    const classify = (orig, stagedVal) => {
+      if (stagedVal === undefined) return null;
+      if (stagedVal === null) return 'staged-delete';
+      const stagedArr = Array.isArray(stagedVal) ? stagedVal : [];
+      const origArr = Array.isArray(orig) ? orig : [];
+      if (!origArr.length && stagedArr.length) return 'staged-insert';
+      if (origArr.length && !stagedArr.length) return 'staged-delete';
+      const changed = stagedArr.length !== origArr.length || stagedArr.some((r,i) => {
+        const o = origArr[i];
+        if (!o) return true;
+        return String(r?.commessa||'') !== String(o?.commessa||'') || Number(r?.ore||0) !== Number(o?.ore||0);
+      });
+      return changed ? 'staged-update' : null;
+    };
+
+    // Priority 1: if stagedMeta provided (already simplified from staging reducer), map directly.
+    if (stagedMeta) {
+      for (const [k, tag] of Object.entries(stagedMeta)) {
+        if (tag === 'create') result[k] = 'staged-insert';
+        else if (tag === 'delete') result[k] = 'staged-delete';
+        else if (tag === 'update') result[k] = 'staged-update';
+      }
+    }
+
+    // If we have an active employee, only compute for that scope.
     if (activeEmployeeId) {
       const days = stagedMap[activeEmployeeId] || {};
-      const stagedVal = days[dateStr];
-      const orig = tsCtx?.dataMap?.[activeEmployeeId]?.[dateStr] || [];
-      return classify(orig, stagedVal);
+      const baseDays = tsCtx?.dataMap?.[activeEmployeeId] || {};
+      for (const dateStr of Object.keys(days)) {
+        if (result[dateStr]) continue; // stagedMeta overrides
+        const status = classify(baseDays[dateStr] || [], days[dateStr]);
+        if (status) result[dateStr] = status;
+      }
+      return result;
     }
-    // Aggregate across all employees if no active selection.
-    // Precedence: delete > insert > update.
-    let found = null;
+
+    // Multi-employee aggregation: precedence delete > insert > update
+    const precedence = { 'staged-delete': 3, 'staged-insert': 2, 'staged-update': 1 };
     for (const empId of Object.keys(stagedMap)) {
       const days = stagedMap[empId] || {};
-      const stagedVal = days[dateStr];
-      if (stagedVal === undefined) continue;
-      const orig = tsCtx?.dataMap?.[empId]?.[dateStr] || [];
-      const status = classify(orig, stagedVal);
-      if (!status) continue;
-      if (status === 'staged-delete') { return status; }
-      if (status === 'staged-insert' && found !== 'staged-delete') { found = status; }
-      if (status === 'staged-update' && !found) { found = status; }
+      const baseDays = tsCtx?.dataMap?.[empId] || {};
+      for (const dateStr of Object.keys(days)) {
+        if (result[dateStr] && precedence[result[dateStr]] === 3) continue; // already highest
+        const status = classify(baseDays[dateStr] || [], days[dateStr]);
+        if (!status) continue;
+        if (!result[dateStr] || precedence[status] > precedence[result[dateStr]]) {
+          result[dateStr] = status;
+        }
+      }
     }
-    return found;
-  };
+    return result;
+  }, [tsCtx, stagedMap, activeEmployeeId, stagedMeta]);
   const today = useMemo(() => new Date(), []);
   const { currentMonth, currentYear, setMonthYear } = useCalendarMonthYear(today);
   const holidaySet = useItalianHolidays(currentYear);
@@ -161,7 +181,11 @@ export function WorkCalendar({
             isHoliday,
             today,
           });
-          const stagedStatus = getStagedStatus(dateStr);
+          const stagedStatus = stagedStatusMap[dateStr];
+          let stagedOp = null;
+          if (stagedStatus === 'staged-insert') stagedOp = 'create';
+          else if (stagedStatus === 'staged-delete') stagedOp = 'delete';
+          else if (stagedStatus === 'staged-update') stagedOp = 'update';
           // if highlightedDays includes this date, override status to a special flag
           const isHighlighted = highlightedDays && (highlightedDays.has ? highlightedDays.has(dateStr) : (Array.isArray(highlightedDays) && highlightedDays.includes(dateStr)));
           const effectiveStatus = stagedStatus || (isHighlighted ? 'prev-incomplete' : status);
@@ -181,6 +205,8 @@ export function WorkCalendar({
               variant={variant}
               isHoliday={isHoliday}
               stagedStatus={stagedStatus}
+              stagedOp={stagedOp}
+              onDoubleClick={onDayDoubleClick}
             />
           );
         })}
@@ -201,6 +227,7 @@ WorkCalendar.propTypes = {
   data: PropTypes.object,
   selectedDay: PropTypes.string,
   onDaySelect: PropTypes.func,
+  onDayDoubleClick: PropTypes.func,
   renderDayTooltip: PropTypes.func,
   highlightedDays: PropTypes.oneOfType([PropTypes.instanceOf(Set), PropTypes.array]),
   stagedDays: PropTypes.oneOfType([PropTypes.instanceOf(Set), PropTypes.array]),
@@ -210,6 +237,7 @@ WorkCalendar.propTypes = {
   variant: PropTypes.string,
   selectorVariant: PropTypes.string,
   selectorLabels: PropTypes.string,
+  stagedMeta: PropTypes.object,
 };
 
 export default React.memo(WorkCalendar);

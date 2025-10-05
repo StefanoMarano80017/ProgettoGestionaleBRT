@@ -19,7 +19,8 @@ export function updateEmployeeDay({ prev, employeeId, dateKey, records }) {
     ...(prev || {}),
     [employeeId]: {
       ...empTsPrev,
-      [dateKey]: Array.isArray(records) ? [...records] : [],
+  // Preserve enriched record fields (id, _id, userRole, dateKey, userId, etc.)
+  [dateKey]: Array.isArray(records) ? records.map(r => ({ ...r, _id: r?._id || r?.id || `${employeeId}-${dateKey}-${Math.random().toString(36).slice(2)}` })) : [],
     },
   };
   try {
@@ -59,7 +60,7 @@ export function batchUpdateEmployeeDays({ prev, updates = [] }) {
   for (const u of updates) {
     if (!u || !u.employeeId || !u.dateKey) continue;
     const empTs = next[u.employeeId] ? { ...next[u.employeeId] } : {};
-    empTs[u.dateKey] = Array.isArray(u.records) ? [...u.records] : [];
+  empTs[u.dateKey] = Array.isArray(u.records) ? u.records.map(r => ({ ...r, _id: r?._id || r?.id || `${u.employeeId}-${u.dateKey}-${Math.random().toString(36).slice(2)}` })) : [];
     next[u.employeeId] = empTs;
   }
   try {
