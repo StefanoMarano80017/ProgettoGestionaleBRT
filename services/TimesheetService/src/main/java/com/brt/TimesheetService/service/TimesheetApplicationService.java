@@ -50,7 +50,6 @@ public class TimesheetApplicationService {
     // ============================================================
     // TEMPLATE METHOD BASE CON LOGGING E GESTIONE ERRORI
     // ============================================================
-
     private <R> R executeSafely(String operationName, Function<Void, R> operation) {
         log.info("[{}] Avvio operazione timesheet", operationName);
         long start = System.currentTimeMillis();
@@ -74,7 +73,6 @@ public class TimesheetApplicationService {
     // ============================================================
     // UTILITY DI BASE
     // ============================================================
-
     private Employee getEmployeeOrThrow(Long employeeId) {
         return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Dipendente non trovato (ID: " + employeeId + ")"));
@@ -93,25 +91,30 @@ public class TimesheetApplicationService {
     // ============================================================
     // TEMPLATE METHODS PER AZIONI SPECIFICHE
     // ============================================================
-
-    private <R> R executeOnTimesheet(Long employeeId, LocalDate date,
-                                     OperationContext context,
-                                     Function<TimesheetDay, R> action,
-                                     String opName) {
+    private <R> R executeOnTimesheet(
+        Long employeeId, 
+        LocalDate date,
+        OperationContext context,
+        Function<TimesheetDay, R> action,
+        String opName
+    ) {
         return executeSafely(opName, ignored -> {
             Employee employee = getEmployeeOrThrow(employeeId);
             TimesheetDay day = getTimesheetDayOrThrow(employee, date);
             validator.validateRules(day, context, employee);
-            R result = action.apply(day);
-            timesheetDayRepository.save(day);
-            return result;
+            action.apply(day);  
+            TimesheetDay saved = timesheetDayRepository.save(day);    // salva e aggiorna 
+            return (R) TimesheetDayProjection.fromEntity(saved);      // restituisce l'oggetto finale
         });
     }
 
-    private <R> R executeOnNewTimesheet(Long employeeId, LocalDate date,
-                                        OperationContext context,
-                                        Function<TimesheetDay, R> action,
-                                        String opName) {
+    private <R> R executeOnNewTimesheet(
+        Long employeeId, 
+        LocalDate date,
+        OperationContext context,
+        Function<TimesheetDay, R> action,
+        String opName
+    ) {
         return executeSafely(opName, ignored -> {
             Employee employee = getEmployeeOrThrow(employeeId);
             if (isTimesheetDayExists(employee, date)) {
@@ -119,17 +122,19 @@ public class TimesheetApplicationService {
             }
             TimesheetDay day = TimesheetDay.builder().employee(employee).date(date).build();
             validator.validateRules(day, context, employee);
-            R result = action.apply(day);
-            timesheetDayRepository.save(day);
+            R result = action.apply(day);      // <-- ora R può essere TimesheetDayProjection
+            timesheetDayRepository.save(day);   // salva sempre il day nel DB
             return result;
         });
     }
 
-    private <R> Page<R> executeOnTimesheetPaged(Long employeeId,
-                                                Pageable pageable,
-                                                Function<TimesheetDay, R> mapper,
-                                                BiFunction<Employee, Pageable, Page<TimesheetDay>> queryFn,
-                                                String opName) {
+    private <R> Page<R> executeOnTimesheetPaged(
+        Long employeeId,
+        Pageable pageable,
+        Function<TimesheetDay, R> mapper,
+        BiFunction<Employee, Pageable, Page<TimesheetDay>> queryFn,
+        String opName
+    ) {
         return executeSafely(opName, ignored -> {
             Employee employee = getEmployeeOrThrow(employeeId);
             Page<TimesheetDay> page = queryFn.apply(employee, pageable);
@@ -140,21 +145,20 @@ public class TimesheetApplicationService {
     // ============================================================
     // ACTION METHODS (USERS / ADMIN)
     // ============================================================
-
     public TimesheetDayProjection getTimesheet(Long employeeId, LocalDate date) {
-        return executeOnTimesheet(employeeId, date, OperationContext.ADMIN,
-                TimesheetDayProjection::fromEntity, "getTimesheet[admin]");
+        return executeOnTimesheet(employeeId, date, OperationContext.ADMIN, TimesheetDayProjection::fromEntity, "getTimesheet[admin]");
     }
 
     public TimesheetDayProjection getTimesheetEmployee(Long employeeId, LocalDate date) {
-        return executeOnTimesheet(employeeId, date, OperationContext.USER,
-                TimesheetDayProjection::fromEntity, "getTimesheet[user]");
+        return executeOnTimesheet(employeeId, date, OperationContext.USER, TimesheetDayProjection::fromEntity, "getTimesheet[user]");
     }
 
-    public Page<TimesheetDayProjection> getTimesheets(Long employeeId,
-                                                      LocalDate startDate,
-                                                      LocalDate endDate,
-                                                      Pageable pageable) {
+    public Page<TimesheetDayProjection> getTimesheets(
+        Long employeeId,
+        LocalDate startDate,
+        LocalDate endDate,
+        Pageable pageable
+    ) {
         LocalDate[] dateRange = validator.parseDateRange(startDate, endDate);
         return executeOnTimesheetPaged(employeeId, pageable, TimesheetDayProjection::fromEntity,
                 (employee, p) -> timesheetDayRepository.findByEmployeeAndDateBetween(employee, dateRange[0], dateRange[1], p),
@@ -164,7 +168,6 @@ public class TimesheetApplicationService {
     // ============================================================
     // CREATE / UPDATE / DELETE TIMESHEET
     // ============================================================
-
     public TimesheetDayProjection saveTimesheetUser(Long employeeId, LocalDate date, TimesheetDayDTO dto) {
         Employee employee = getEmployeeOrThrow(employeeId);
         if (isTimesheetDayExists(employee, date)) {
@@ -210,7 +213,6 @@ public class TimesheetApplicationService {
     // ============================================================
     // ASSENZE
     // ============================================================
-
     public TimesheetDayProjection setAbsence(Long employeeId, LocalDate date, TimesheetDayDTO dto) {
         return executeOnNewTimesheet(employeeId, date, OperationContext.ADMIN_SET_ABSENCE, day -> {
             TimesheetDay updated = domainService.setAbsence(day, dto.getAbsenceTypeEnum());
@@ -240,7 +242,6 @@ public class TimesheetApplicationService {
     // ============================================================
     // ITEMS OPERATIONS
     // ============================================================
-
     public TimesheetItemProjection addOrCreateItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
         return executeOnTimesheet(employeeId, date, OperationContext.USER, day -> {
             TimesheetItem item = domainService.addItem(day, dto);

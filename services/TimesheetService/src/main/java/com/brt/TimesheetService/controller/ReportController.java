@@ -45,9 +45,7 @@ public class ReportController {
     ) {
         if (startDate == null) startDate = LocalDate.of(2000, 1, 1);
         if (endDate == null) endDate = LocalDate.now();
-
         Pageable pageable = PageableUtils.createSafePageable(page, size, sortBy, direction);
-
         Page<EmployeeCommessaHoursProjection> result;
         if (commessaCode != null && !commessaCode.isEmpty()) {
             result = reportService.getEmployeeHoursForCommessa(employeeId, commessaCode, startDate, endDate, pageable);
