@@ -1,125 +1,123 @@
 Repository: ProgettoGestionaleBRT
-Generated: 2025-10-05
+Generated: 2025-10-06
 
-Top-level (workspace root)
-- .git/ : Git repository data and history
-- .gitignore : Files ignored by Git
-- docker-compose.yml : Orchestration for local multi-service compose (root)
+Scope: frontend/src (aggiornato alla struttura domain-driven attuale)
 
-Frontend/
-- frontend/.env : Environment variables for local dev
-- frontend/.env.development : Dev env variables
-- frontend/.env.production : Production env variables
-- frontend/.gitignore : Ignored files for frontend
-- frontend/ARCHITECTURE.md : Project architecture notes and recent change log
-- frontend/Dockerfile : Dockerfile for building frontend container
-- frontend/default.conf : Nginx default configuration for frontend container
-- frontend/package.json : npm manifest (scripts, deps)
-- frontend/package-lock.json : npm lockfile
-- frontend/vite.config.js : Vite build/dev configuration
-- frontend/vitest.config.js : Vitest configuration for unit tests
-- frontend/README.md : Frontend README with quick info
-- frontend/public/ : static public assets served by Vite
-  - mockServiceWorker.js : Mock Service Worker for local API mocking
-  - vite.svg : example/static asset
+Root src/
+- app/ : Layouts e provider globali (Auth, Theme, ecc.)
+- assets/ : Immagini e risorse statiche (LogoBRT.png, LogoGestionale.png, react.svg ...)
+- config/ : Configurazioni (es. flag debug o mapping costanti)
+- domains/ : Feature domains (bounded contexts)
+- Hooks/ : (Residual generic hooks – migrazione in domains in corso)
+- Pages/ : Pagine legacy / non ancora migrate in domains
+- Routes/ : Configurazione di routing
+- mocks/ : Dati mock + MSW handlers
+- shared/ : Componenti / util condivisi cross-domain
+- App.jsx / main.jsx : bootstrap applicazione
 
-- frontend/archive/pmcampo/ : Archived PMcampo artifacts (kept for reference)
-  - PMCampoTimesheet.jsx : Archived PM Campo page (not active)
-  - usePmCampoEditing.actual.js : Archived hook (editing logic archived)
-  - README.md : Notes about archival and rationale
+domains/
+  accordi-quadro/
+  auth/
+  commesse/
+  gare/
+  tags/
+  timesheet/  (dominio migrato principale)
 
-- frontend/eslint-plugin-custom/ : Local ESLint plugin used by project
-- frontend/src/ : Source code (React + app)
-  - src/main.jsx : App bootstrap and React root
-  - src/App.jsx : Top-level app component and routing container
-  - src/index.css, src/App.css : Global styles
-  - src/assets/ : Static image assets used in UI
-    - LogoBRT.png, LogoGestionale.png, LogoInwave.png, LogoSTEP.png, react.svg : Branding images
+domains/timesheet/
+  components/
+    admin-grid/ (componenti amministrazione futura – placeholder / da validare)
+    calendar/
+      DayEntryDialog.jsx
+      DayEntryPanel.jsx
+      DayEntryTile.jsx
+      EmployeeMonthGrid.jsx
+      formatDayTooltip.jsx
+      index.js (barrel export)
+      MonthSelector.jsx
+      ProjectSidePanel.jsx
+      statusConstants.js
+      statusIcons.jsx
+      statusIcons.utils.js
+      TaskDetailCard.jsx
+      utils/
+        dateUtils.js
+        dayStatus.js
+        index.js
+        monthNames.js
+        tileStyles.js
+      WorkCalendar.jsx
+      WorkCalendarGrid.jsx
+    panels/  (placeholder per pannelli futuri – attualmente vuoto o minimale)
+    staging/
+      AggregationTable.jsx (selezioni / aggregazioni – basico)
+      LegendItem.jsx
+      OperaioEditor.jsx (editor specifico / placeholder)
+      StagedChangesPanel.jsx (pannello modifiche – versione estesa con overflow & snackbar)
+      TimesheetStagingBar.jsx (wrapper Paper + props)
+      index.js (barrel)
+  hooks/
+    calendar/ (hook derivati calendario – stato giorni, metadata)
+    dayEntry/ (gestione editing singolo giorno)
+    staging/
+      index.js
+      stagingReducer.js
+      TimesheetStagingContext.jsx (provider + context)
+      useStagedMetaMap.js
+      useStagingContextHooks.js (optional getters context-safe)
+      useTimesheetStaging.js (facade azioni: upsert, rollback, confirmAll ...)
+    utils/
+      computeDayUsed.js
+      roleCapabilities.js (implementazione minimale post-refactor)
+      semanticTimesheet.js
+      timesheetModel.js (diff & summarization helpers)
+    validation/
+      (validator hooks / funzioni – se vuoto ora, previsto per estensioni)
+    README.md (linee guida dominio timesheet)
+    TimesheetProvider.jsx (provider principale domain-scope)
+    useDayAndMonthDetails.js
+    useDayEditor.js
+    useEmployeeMonthGridRows.js
+    useEmployeeTimesheetLoader.js
+    useMonthCompleteness.js (versione semplificata: { filled, working, ratio })
+    useReferenceData.js
+    useSegnalazione.js (stub / estensione futura)
+    useStableMergedDataMap.js (merge base + staging)
+    useTimesheetApi.js (integrazione API futura / stub)
+    useTimesheetData.js (aggregazione dati principale)
+    useTimesheetFilters.js
+  models/ (modelli e shape – definizioni dati centralizzate se/quando aggiunte)
+  pages/
+    CoordinatoreTimesheet.jsx (pagina coordinatore – in evoluzione)
+    DipendenteTimesheet.jsx (pagina dipendente – usa provider + staging bar)
+    TimesheetRouter.jsx (route boundary del dominio timesheet)
+    index.js (barrel pages)
+  services/ (future integrazioni remote specifiche dominio – stub al momento)
 
-  - src/Components/ : Reusable UI components
-    - Avatar/AvatarInitials.jsx : Avatar with initials generator
-    - Avatar/CustomAvatarGroup.jsx : Avatar group with custom rendering rules
-    - BadgeCard/Badge.jsx : Compact badge card used in page headers
-    - Bars/Header.jsx : App header component (top bar)
-    - Bars/Sidebar.jsx : Application sidebar navigation
-    - Buttons/ThemeSwitch.jsx : Theme toggle button (light/dark)
+shared/ : util e componenti cross-domain (non dettagliati qui – mantenere DRY e isolare ciò che diventa domain-specific spostandolo)
 
-    - Calendar/DayEntryDialog.jsx : Dialog to edit a single day's entries
-    - Calendar/DayEntryPanel.jsx : Side panel showing day's entries and staging controls
-    - Calendar/DayEntryTile.jsx : Small tile representing an entry inside calendar cell
-    - Calendar/EmployeeMonthGrid.jsx : Grid view for employee month overview
-    - Calendar/MonthSelector.jsx : Month selector control used by calendar
-    - Calendar/ProjectSidePanel.jsx : Project detail side panel
-    - Calendar/TileLegend.jsx : Legend for calendar tile icons/colors
-    - Calendar/WorkCalendar.jsx : Main calendar component used across pages
-    - Calendar/WorkCalendarGrid.jsx : Grid implementation for the calendar
-    - Calendar/statusIcons.jsx : Mapping of status codes to icons
-    - Calendar/utils/ : Calendar helper utilities (date parsing, formatting)
+Hooks/ : contiene ancora alcuni hook generici; progressivamente da spostare sotto domains appropriati.
 
-    - DipendenteHomePage/CommesseDashboard.jsx : Dashboard for employee commesse (histogram + summary)
-    - DipendenteHomePage/CommesseList.jsx : List view of assigned commesse
-    - DipendenteHomePage/LayoutDashColumn.jsx : Layout helper for dashboard columns
+UTILS PRINCIPALI (dominio timesheet)
+- timesheetModel.js : computeDayDiff / summarizeDayDiff / helpers diff entries
+- semanticTimesheet.js : hashing / semantic identity
+- computeDayUsed.js : calcolo ore utilizzate da una giornata
+- roleCapabilities.js : mappa capacità ruoli (placeholder – raffinabile)
 
-    - Entries/EntryListItem.jsx : UI row representing a single timesheet entry
-    - Timesheet/EditEntryDialog.jsx : Dialog to edit a single entry (reused by panel)
-    - Timesheet/SegnalazioneDialog.jsx : (Stub) Dialog for admin "segnalazione" actions (kept minimal)
-    - Timesheet/StagedChangesPanel.jsx : UI panel listing staged changes and per-employee actions
-    - Timesheet/TimesheetStagingBar.jsx : Top-of-page staging status bar with counts/actions
-    - Timesheet/FiltersBar.jsx : Filtering toolbar for timesheet views
+STAGING CORE
+- stagingReducer.js : struttura stato { entries, order }
+- useTimesheetStaging.js : facade semplificato per componenti UI
+- StagedChangesPanel.jsx : visualizzazione diff & azioni bulk/overflow
+- useStableMergedDataMap.js : merge base + draft/staging
 
-  - src/Hooks/ : Custom React hooks (barrel in index.js)
-    - useAuth.js : Auth hook to read current user/session
-    - useThemeContext.js : Theme context hooks
-    - Timesheet/ : Timesheet-specific hooks
-      - dayEntry/ : hooks for single day computations and derived data
-      - staging/ : staging provider and helpers
-        - TimesheetStagingContext.jsx : React context/provider for staging
-        - stagingReducer.js : reducer implementing staging rules
-        - useTimesheetStaging.js : Hook facade exposing staging actions (stageDraft, rollback, confirmAll etc.)
-      - useEmployeeTimesheetLoader.js : Loads timesheet data for an employee (mocked)
-      - useReferenceData.js : Loads reference lists (commesse, personnel)
-      - useStableMergedDataMap.js : Produces merged base+staged view for calendar rendering
+NOTE MIGRAZIONE
+- Vecchia struttura `src/Hooks/Timesheet/*` rimossa; tutti i riferimenti aggiornati.
+- Avvisi sul mese precedente (missing days) disabilitati fino a reintroduzione hook esteso.
+- `roleCapabilities` implementato in forma minimale: definire regole effettive prima di usarlo per autorizzazioni reali.
+- `StagedChangesPanel` ora espone props: compact, maxVisible, showLegend, enableOverflow, showActions.
 
-  - src/Pages/ : Page-level components (routes)
-    - Timesheet/DipendenteTimesheet.jsx : Employee timesheet page (calendar + dashboard)
-    - Timesheet/TimesheetRouter.jsx : Router for timesheet-related routes (PMCampo removed)
-    - Timesheet/DashboardAmministrazioneTimesheet.jsx : Admin dashboard (stubbed)
-    - PMCampoTimesheet.jsx : (moved to archive)
-    - Home.jsx, About.jsx, Login.jsx : standard pages
-
-  - src/Routes/pagesConfig.js : Route configuration used by main app
-  - src/Services/api.js : API wrapper for network calls
-  - src/Services/projectService.js : Project-related API client
-  - src/Services/userService.js : User-related API client
-
-  - src/mocks/ : Mock data used in development/testing
-    - ProjectMock.js : Mock project/commesse data
-    - UsersMock.js : Mock user list
-    - TimesheetAggregatesMock.js : Sample aggregated timesheet data
-    - browser.js, handlers.js : msw setup for intercepting network requests
-
-  - src/Layouts/ : Layout and context providers
-    - AuthContext.jsx : Authentication provider wrapper
-    - MainLayout.jsx : Primary app layout (header + sidebar + main)
-    - ThemeContext.jsx : Theme provider and helpers
-
-  - src/Theme/ : Material UI theme definitions
-    - MainTheme.js : Primary theme used across app
-    - TemaDellaScienza.js : Alternate theme variant
-
-  - src/Utils/ : Utility functions and helpers
-    - dateRangeUtils.js : Date range helpers used by calendar and dashboard
-    - other helper files
-
-Other services & infra
-- gateways/apiGateway/Dockerfile + default.conf : Gateway Nginx config & image
-- reverseProxy/ : Reverse-proxy compose and Nginx config for local deployment
-- services/TimesheetService/ : Java backend microservice (maven) for timesheet persistence
-- services/deadlinemanager/Gest : Another Java service (maven) in the monorepo
-
-
-Notes & suggestions
-- Archived PMCampo code is placed under `frontend/archive/pmcampo/` and no active imports should reference it.
-- Staging logic is centralized in `src/Hooks/Timesheet/staging/*` and UI uses the `useTimesheetStaging` facade.
-- If you want a plain text file with this content saved at repo root or frontend root, say which path you prefer (e.g. `frontend/STRUCTURE_WITH_UTILS.txt` or `STRUCTURE_WITH_UTILS.txt`).
+PROSSIMI POSSIBILI PASSI
+- Aggiungere test unitari (Vitest) per diff utils e staging reducer.
+- Reintrodurre calcolo giorni mancanti mese precedente (hook esteso).
+- Consolidare hook generici spostandoli in domains/ pertinenti.
+- Validare e riempire folder `panels/` o rimuoverlo se non necessario.
 
