@@ -2,16 +2,16 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { DEBUG_TS } from '@config/debug';
 import { Box, Stack, Typography, Button, Tooltip, Alert, Divider, Chip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import EntryListItem from "@components/Entries/EntryListItem";
-import EditEntryDialog from "@components/Timesheet/EditEntryDialog";
-import ConfirmDialog from "@components/ConfirmDialog";
+import EntryListItem from "@/Components/Entries/EntryListItem";
+import EditEntryDialog from "@/shared/dialogs/EditEntryDialog";
+import ConfirmDialog from "@/shared/components/ConfirmDialog";
 // TileLegend is rendered in the calendar area; monthly summary chips are shown in this panel
 import Paper from '@mui/material/Paper';
-import { useDayEntryDerived, useConfirmDelete } from '@/Hooks/Timesheet/dayEntry';
+import { useDayEntryDerived, useConfirmDelete } from '@domains/timesheet/hooks/dayEntry';
 import PropTypes from 'prop-types';
-import computeDayUsed from '@hooks/Timesheet/utils/computeDayUsed';
-import { semanticHash } from '@hooks/Timesheet/utils/semanticTimesheet';
-import { useTimesheetStaging } from '@hooks/Timesheet';
+import computeDayUsed from '@domains/timesheet/hooks/utils/computeDayUsed.js';
+import { semanticHash } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
+import { useTimesheetStaging } from '@domains/timesheet/hooks/staging';
 // NOTE: Il pannello ora gestisce un wrapper di dialog locale invece di affidarsi
 // a proprietà (dialog/startAdd/startEdit/commit) che non esistono più nell'API
 // di `useTimesheetEntryEditor`. L'hook unificato gestisce validazione e salvataggio

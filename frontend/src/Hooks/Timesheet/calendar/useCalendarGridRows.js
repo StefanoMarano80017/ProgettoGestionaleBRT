@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { getDayStatus } from './useDayStatus';
-import formatDayTooltip from '@components/Calendar/formatDayTooltip';
+import formatDayTooltip from '@domains/timesheet/components/calendar/formatDayTooltip';
 
 // Hook generico per costruire le righe (array di giorni) per un calendario mensile semplice.
 // data: { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': {...} }

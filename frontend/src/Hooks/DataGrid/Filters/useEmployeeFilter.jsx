@@ -1,6 +1,6 @@
 import { useState } from "react";
-import EmployeeFilter from "@components/DataGridDashboard/Filters/EmployeeFilter";
-import CustomAvatarGroup from "@components/Avatar/CustomAvatarGroup";
+import EmployeeFilter from "@/Components/DataGridDashboard/Filters/EmployeeFilter";
+import CustomAvatarGroup from "@/shared/components/Avatar/CustomAvatarGroup";
 import { Chip, Box } from "@mui/material";
 import { JoinLeft, JoinInner } from "@mui/icons-material";
 

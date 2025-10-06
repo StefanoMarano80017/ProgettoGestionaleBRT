@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import StatusFilter from "@components/DataGridDashboard/Filters/StatusFilter";
+import StatusFilter from "@/Components/DataGridDashboard/Filters/StatusFilter";
 import { Chip } from "@mui/material";
 
 export function useStatusFilter(statusOptions = []) {

@@ -1,13 +1,13 @@
 // src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import MainLayout from "@layouts/MainLayout";
-import Login from "@pages/Login";
-import RequireAuth from "@routes/RequireAuth";
-import TimesheetRouter from "@pages/Timesheet/TimesheetRouter";
-import DipendenteTimesheet from "@pages/Timesheet/DipendenteTimesheet";
+import MainLayout from "@/app/layouts/MainLayout";
+import Login from "@/Pages/Login";
+import RequireAuth from "@/Routes/RequireAuth";
+import TimesheetRouter from "@domains/timesheet/pages/TimesheetRouter";
+import DipendenteTimesheet from "@domains/timesheet/pages/DipendenteTimesheet";
 // import DashboardAmministrazioneTimesheet from "./Pages/DashboardAmministrazioneTimesheet";
-import Home from "@pages/Home"; // <-- aggiunto
+import Home from "@/Pages/Home"; // <-- aggiunto
 
 export default function App() {
   return (

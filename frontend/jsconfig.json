@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "baseUrl": "src",
+    "paths": {
+      "@/*": ["*"],
+      "@app/*": ["app/*"],
+      "@domains/*": ["domains/*"],
+      "@shared/*": ["shared/*"],
+      "@mocks/*": ["mocks/*"],
+      "@assets/*": ["assets/*"]
+    }
+  },
+  "include": ["src"]
+}

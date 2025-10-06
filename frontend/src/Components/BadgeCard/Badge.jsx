@@ -2,7 +2,7 @@ import React, { useMemo, memo } from 'react';
 import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import useAuth from '@hooks/useAuth';
+import useAuth from '@/domains/auth/hooks/useAuth';
 import LogoGestionale from '@assets/LogoGestionale.png';
 import { resolveBadgeData } from './utils/badgeUtils';
 import PropTypes from 'prop-types';
