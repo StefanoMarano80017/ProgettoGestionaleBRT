@@ -1,13 +1,10 @@
 // Root hooks barrel
-export * from './Timesheet/useDayAndMonthDetails.js';
-export * from './Timesheet/useSegnalazione.js';
-export * from './Timesheet/useSelection.js';
-export * from './Timesheet/useTimesheetApi.js';
-export * from './Timesheet/useTimesheetFilters.js';
+// Legacy Timesheet/* exports removed; use domain barrel instead.
+export * from '@domains/timesheet/hooks';
 export * from '@domains/timesheet/hooks/staging';
 
 // Sub-barrels
 export * from '@domains/timesheet/hooks/dayEntry';
 export * from '@domains/timesheet/hooks/calendar';
-export { default as useEmployeeMonthGridRows } from './Timesheet/useEmployeeMonthGridRows.js';
+// Employee month grid rows now available through domain barrel as well.
 export * from './DataGrid/Filters';

@@ -46,9 +46,8 @@ export default defineConfig({
             if (id.includes('@mui')) return 'vendor-mui';
             return 'vendor';
           }
-          if (id.includes('/src/Hooks/Timesheet') || id.includes('/src/Pages/Timesheet')) {
-            return 'timesheet';
-          }
+          // Legacy chunk grouping for old Timesheet paths removed (all domain code now under domains/timesheet).
+          // If future domain-specific splitting is needed, add explicit pattern here.
         }
       }
     }

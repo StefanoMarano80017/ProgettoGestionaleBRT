@@ -1,6 +1,6 @@
 # Progetto Gestionale – Architecture & Data Flow
 
-_Last updated: 2025-10-05_
+_Last updated: 2025-10-06_
 
 ## Scope
 This document focuses on the runtime architecture and information flow for the currently relevant user‑facing pages:
@@ -31,10 +31,11 @@ State & Hooks Layer
  ├─ AuthProvider / useAuth
  ├─ TimesheetProvider & Context (employees, dataMap, selection helpers)
  ├─ Staging Reducer + useTimesheetStaging (entries, order, ops)
- ├─ Domain hooks: useEmployeeTimesheetLoader, useMonthCompleteness, useMultipleMonthCompleteness,
- │   useStableMergedDataMap, useStagedMetaMap, useTimesheetEntryEditor, useDayAndMonthDetails,
- │   useTimesheetAggregates, useTimesheetFilters, useSegnalazione, useSelection
- └─ Utility models: semantic hashes, diff & merge helpers
+ ├─ Canonical domain hooks (all under `src/domains/timesheet/hooks/`):
+ │   calendar/*, dayEntry/*, staging/*, useTimesheetData, useEmployeeTimesheetLoader,
+ │   useMonthCompleteness, useStableMergedDataMap, useStagedMetaMap, useTimesheetEntryEditor,
+ │   useDayAndMonthDetails, useTimesheetFilters, useSegnalazione, useTimesheetApi, useReferenceData, useSelection
+ └─ Utility models (utils/*): semantic hashes, diff & merge helpers, roleCapabilities, timesheetModel
 
 Data Sources (Mock / Future API)
  ├─ UsersMock (authenticate)
@@ -195,25 +196,34 @@ Confirm → buildBatchPayload() → remoteApplyFn(applyStagedToMock) → success
 - Add offline persistence (localStorage) for staging entries on navigation-away safeguard.
 
 ---
-## Legacy Removed (2025-10-05 Cleanup)
-The following previously identified legacy modules were removed to reduce surface area:
+## Legacy Removal (2025-10-06 Consolidated Refactor)
+All legacy path variants under `src/domains/timesheet/hooks/Timesheet/` have been fully removed. Canonical imports must use the root barrel `@domains/timesheet/hooks` or direct files under `calendar/`, `dayEntry/`, `staging/`, `utils/`.
 
-Removed components:
-- `Components/Timesheet/DetailsPanel.jsx` (superseded by `AdminDetailsPanel` + `DayEntryPanel`).
+Eliminated legacy directory tree:
+```
+src/domains/timesheet/hooks/Timesheet/** (entire folder)
+```
 
-Removed hooks (unused in active flows):
-- `usePmGroups.js`
-- `useOpPersonal.js`
-- `useOperaiTimesheet.js`
+Previously removed / superseded components:
+- `Components/Calendar/DayEntryPanel.jsx` (duplicate) → canonical now `domains/timesheet/components/calendar/DayEntryPanel.jsx`
+- `Components/Timesheet/DetailsPanel.jsx` → replaced by `AdminDetailsPanel` + `DayEntryPanel`
+- `Components/Timesheet/StagedChangesPanel.jsx` → moved to `domains/timesheet/components/staging/`
+- `Components/Timesheet/TimesheetStagingBar.jsx` → staging UI consolidated in `StagedChangesPanel` / provider context
 
-Barrel exports pruned in `Hooks/Timesheet/index.js` and root `Hooks/index.js`.
+Removed (or migrated) hooks & utilities (legacy variants):
+- All files in `hooks/Timesheet/dayEntry/`, `hooks/Timesheet/staging/`, `hooks/Timesheet/utils/`, `hooks/Timesheet/context/`
+- Redundant re-export barrels (`hooks/Timesheet/index.js`)
 
-Rationale: not referenced transitively by Login, Home, DipendenteTimesheet, DashboardAmministrazioneTimesheet, or their imported component trees. Reintroduction should follow new staging snapshot contract (base + draft overlay).
+Canonical utilities retained:
+- `utils/semanticTimesheet.js`
+- `utils/computeDayUsed.js`
+- `utils/timesheetModel.js`
+- `utils/roleCapabilities.js`
 
-Retained utility `computeDayUsed` (still referenced by `DayEntryPanel`, editor hooks, and admin page logic).
+Rationale: reduces duplicate logic, prevents accidental mixed imports, clarifies DDD layout.
 
 ---
-## Cleanup Strategy (Preview)
+## Cleanup Strategy (Post-Refactor Baseline)
 1. Build dependency graph (import traversal from target pages) → mark reachable.
 2. Collect files in `src` not reachable → manual review to avoid false positives (e.g., dynamic imports, index.js re-exports).
 3. Categorize:

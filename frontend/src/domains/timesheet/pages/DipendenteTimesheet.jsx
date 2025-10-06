@@ -28,18 +28,12 @@ function InnerDipendente({ employeeId }) {
   const dayEditor = useDayEditor();
   // External draft tracking removed; DayEntryPanel now manages draft & staging internally
 
-  const prevMonthDate = useMemo(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 1);
-    return d;
-  }, []);
-  const baseForCompleteness = ctx.dataMap?.[employeeId] || {};
-  const { missingDates: missingPrev, missingSet: missingPrevSet } = useMonthCompleteness({
-    tsMap: { [employeeId]: baseForCompleteness },
-    id: employeeId,
-    year: prevMonthDate.getFullYear(),
-    month: prevMonthDate.getMonth()
-  });
+  // NOTE: useMonthCompleteness migrated to a minimal version returning { filled, working, ratio } only.
+  // Previous missing days logic removed; for now compute a simple previous-month missing count separately (placeholder).
+  const prevMonthDate = useMemo(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d; }, []);
+  const completeness = useMonthCompleteness();
+  const missingPrev = [];
+  const missingPrevSet = [];
   const { commesse: commesseList, loading: commesseLoading } = useReferenceData({
     commesse: true,
     personale: false,
@@ -94,10 +88,10 @@ function InnerDipendente({ employeeId }) {
           <BadgeCard isBadgiato={isBadgiatoToday} />
         </Box>
         <TimesheetStagingBar />
-        {missingPrev.length > 0 && (
+        {/* Placeholder warning: disabled until extended completeness hook restored */}
+        {false && missingPrev.length > 0 && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            Attenzione: non hai completato il mese precedente ({missingPrev.length}{' '}
-            giorni mancanti).
+            Attenzione: non hai completato il mese precedente ({missingPrev.length} giorni mancanti).
           </Alert>
         )}
         {/* Move: show 'Seleziona un giorno' immediately under the previous-month warning */}
