@@ -1,7 +1,7 @@
 Repository: ProgettoGestionaleBRT
-Generated: 2025-10-06 (post-legacy-archive update, pre-archive deletion)
+Generated: 2025-10-06 (final post-legacy purge)
 
-Purpose: Canonical map of current frontend/src after migration of components to shared/ and providers to app/providers. Serves as baseline before deleting `_legacy_archive` and `Components/` stub package.
+Purpose: Canonical map of `frontend/src` after full removal of legacy archive, shims, and component stubs. Companion to `ARCHITECTURE.md`.
 
 LEGEND
  [UTIL] pure utility (no React rendering)
@@ -12,25 +12,16 @@ LEGEND
 TOP-LEVEL SUMMARY
  - Active domains: auth, timesheet (+ future placeholders: accordi-quadro, commesse, gare, tags)
  - Shared component library: `shared/components/*` now hosts all UI previously in `Components/`
- - Providers: moved from `app/layouts/*Context` to `app/providers/*Provider`
- - Legacy shims remaining: `app/layouts/{AuthContext.jsx,ThemeContext.jsx}` (re-export providers) & `Hooks/useThemeContext.js` (re-export shared hook) → safe to remove after grep zero external references
- - `_legacy_archive/` slated for deletion; not referenced by runtime code
+ - Providers: `app/providers/*Provider` (Auth, Theme)
+ - All legacy shims & `_legacy_archive` removed
 
 CORE STRUCTURE (condensed)
 src/
   App.jsx
   main.jsx
   app/
-    providers/
-      AuthProvider.jsx
-      ThemeProvider.jsx
-    layouts/ [SHIM]
-      AuthContext.jsx [SHIM -> AuthProvider]
-      ThemeContext.jsx [SHIM -> ThemeProvider]
-      MainLayout.jsx
-      ResizableLayout.jsx
-      DataGridDashboardLayout.jsx
-      index.js [BARREL]
+    providers/ (AuthProvider.jsx, ThemeProvider.jsx)
+    layouts/ (MainLayout.jsx, ResizableLayout.jsx, DataGridDashboardLayout.jsx, index.js [BARREL])
   domains/
     auth/
       hooks/useAuth.js
@@ -59,14 +50,10 @@ src/
     dialogs/(EditEntryDialog, SegnalazioneDialog, index.js [BARREL])
     theme/(MainTheme.js, TemaDellaScienza.js)
     utils/dateRangeUtils.js [UTIL]
-  Hooks/ [SHIM]
-    useThemeContext.js [SHIM -> shared/hooks/useThemeContext]
-  shared/hooks/
-    useThemeContext.js
+  shared/hooks/(useThemeContext.js)
   mocks/(browser, handlers, sample data ...)
   Pages/(Home, Login, About) [TO DOMAIN]
   Routes/(RequireAuth, pagesConfig)
-  _legacy_archive/ (AuthContext, ThemeContext, old Hooks) [PENDING DELETION]
 
 KEY UTIL LOCATIONS
  - Timesheet domain: hooks/utils (computeDayUsed, semanticTimesheet, timesheetModel, roleCapabilities) [UTIL]
@@ -76,25 +63,24 @@ KEY UTIL LOCATIONS
  - Validation: domains/timesheet/hooks/validation/validateDayHours.js [UTIL]
  - Status icons mapping: domains/timesheet/components/calendar/statusIcons.utils.js [UTIL]
 
-PENDING REMOVALS (SAFE ONCE GREP CONFIRMED)
- 1. `_legacy_archive/` directory
- 2. `Hooks/useThemeContext.js` shim (replace all imports with `@shared/hooks/useThemeContext`)
- 3. Layout shims `app/layouts/AuthContext.jsx` and `ThemeContext.jsx`
- 4. Entire `Components/` (after confirming no stray imports; if already deleted remove this point)
+REMOVED LEGACY (COMPLETED)
+ - `_legacy_archive/`
+ - context shims (AuthContext, ThemeContext)
+ - hook shim (Hooks/useThemeContext.js)
+ - legacy `Components/` stubs
 
 RECOMMENDED NEXT TASKS
- - Delete `_legacy_archive` & shims; update import checker to drop exclusion clause
  - Add Vitest tests (computeDayUsed, semanticTimesheet, timesheetModel, stagingReducer)
- - Move `Pages/` into appropriate domain (e.g., auth or appShell)
- - Prune empty placeholder domain folders or add concise README stating intent
- - Document provider contract in `ARCHITECTURE.md` (AuthProvider value shape, ThemeProvider toggling API)
- - Consider alias removal for `@/Pages` once pages are domain-scoped
+ - Domain-scoping of `Pages/` (auth/appShell) and removal of `@/Pages` alias
+ - README per domain placeholder or prune unused
+ - Introduce backend adapter for staging commit pipeline
+ - Add CI gate for test + import checker
 
-CHANGE LOG (this revision)
- - Removed verbose per-file legacy stub listing; replaced with concise active structure
- - Marked remaining shims & pending deletions explicitly
- - Updated util inventory to reflect migration to shared/
- - Added Recommended Next Tasks for post-archive phase
+CHANGE LOG (final revision)
+ - Purged references to archive & shims
+ - Collapsed hooks shim section (now only shared/hooks)
+ - Marked legacy removals as completed
+ - Aligned terminology with updated architecture doc
 
 -- END UPDATED STRUCTURE --
 
