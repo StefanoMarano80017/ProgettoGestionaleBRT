@@ -1,123 +1,291 @@
 Repository: ProgettoGestionaleBRT
-Generated: 2025-10-06
+Generated: 2025-10-06 (refreshed snapshot post-migration)
 
-Scope: frontend/src (aggiornato alla struttura domain-driven attuale)
+Scope: Complete tree of frontend/src (inclusi legacy stub re-export e nuovi percorsi shared/) per pianificazione cleanup finale & decommission stubs.
 
-Root src/
-- app/ : Layouts e provider globali (Auth, Theme, ecc.)
-- assets/ : Immagini e risorse statiche (LogoBRT.png, LogoGestionale.png, react.svg ...)
-- config/ : Configurazioni (es. flag debug o mapping costanti)
-- domains/ : Feature domains (bounded contexts)
-- Hooks/ : (Residual generic hooks – migrazione in domains in corso)
-- Pages/ : Pagine legacy / non ancora migrate in domains
-- Routes/ : Configurazione di routing
-- mocks/ : Dati mock + MSW handlers
-- shared/ : Componenti / util condivisi cross-domain
-- App.jsx / main.jsx : bootstrap applicazione
+LEGEND TAGS
+ [UTIL] file o dir di utilità pura
+ [BARREL] file index.js che re-esporta
+ [LEGACY] codice legacy/non allineato a domains
+ [PLACEHOLDER] struttura presente ma quasi vuota / futura
 
-domains/
-  accordi-quadro/
-  auth/
-  commesse/
-  gare/
-  tags/
-  timesheet/  (dominio migrato principale)
+ SUMMARY COUNTS (solo src/)
+ - Total files enumerated: ~155 (inclusi stub)
+ - Domains presenti: accordi-quadro, auth, commesse, gare, tags, timesheet (timesheet = dominio maturo)
+ - Componenti migrati in shared/components: Bars, PageHeader, NotificationMenu, BadgeCard, DipendenteHomePage/CommesseDashboard, DataGridDashboard/*, TaskManager/TaskItem, Entries/EntryListItem, Inputs/SearchBar, Buttons/ThemeSwitch, Filters/*
+ - Legacy residuo: directory `Components/` composta quasi totalmente da stub re-export → pronta per rimozione dopo aggiornamento import consumer esterni (se esistono)
+ - Utils principali timesheet: computeDayUsed, semanticTimesheet, timesheetModel, roleCapabilities, calendar/utils/*, shared/utils/dateRangeUtils
 
-domains/timesheet/
-  components/
-    admin-grid/ (componenti amministrazione futura – placeholder / da validare)
-    calendar/
-      DayEntryDialog.jsx
-      DayEntryPanel.jsx
-      DayEntryTile.jsx
-      EmployeeMonthGrid.jsx
-      formatDayTooltip.jsx
-      index.js (barrel export)
-      MonthSelector.jsx
-      ProjectSidePanel.jsx
-      statusConstants.js
-      statusIcons.jsx
-      statusIcons.utils.js
-      TaskDetailCard.jsx
-      utils/
-        dateUtils.js
-        dayStatus.js
-        index.js
-        monthNames.js
-        tileStyles.js
-      WorkCalendar.jsx
-      WorkCalendarGrid.jsx
-    panels/  (placeholder per pannelli futuri – attualmente vuoto o minimale)
-    staging/
-      AggregationTable.jsx (selezioni / aggregazioni – basico)
-      LegendItem.jsx
-      OperaioEditor.jsx (editor specifico / placeholder)
-      StagedChangesPanel.jsx (pannello modifiche – versione estesa con overflow & snackbar)
-      TimesheetStagingBar.jsx (wrapper Paper + props)
-      index.js (barrel)
-  hooks/
-    calendar/ (hook derivati calendario – stato giorni, metadata)
-    dayEntry/ (gestione editing singolo giorno)
-    staging/
-      index.js
-      stagingReducer.js
-      TimesheetStagingContext.jsx (provider + context)
-      useStagedMetaMap.js
-      useStagingContextHooks.js (optional getters context-safe)
-      useTimesheetStaging.js (facade azioni: upsert, rollback, confirmAll ...)
-    utils/
-      computeDayUsed.js
-      roleCapabilities.js (implementazione minimale post-refactor)
-      semanticTimesheet.js
-      timesheetModel.js (diff & summarization helpers)
-    validation/
-      (validator hooks / funzioni – se vuoto ora, previsto per estensioni)
-    README.md (linee guida dominio timesheet)
-    TimesheetProvider.jsx (provider principale domain-scope)
-    useDayAndMonthDetails.js
-    useDayEditor.js
-    useEmployeeMonthGridRows.js
-    useEmployeeTimesheetLoader.js
-    useMonthCompleteness.js (versione semplificata: { filled, working, ratio })
-    useReferenceData.js
-    useSegnalazione.js (stub / estensione futura)
-    useStableMergedDataMap.js (merge base + staging)
-    useTimesheetApi.js (integrazione API futura / stub)
-    useTimesheetData.js (aggregazione dati principale)
-    useTimesheetFilters.js
-  models/ (modelli e shape – definizioni dati centralizzate se/quando aggiunte)
-  pages/
-    CoordinatoreTimesheet.jsx (pagina coordinatore – in evoluzione)
-    DipendenteTimesheet.jsx (pagina dipendente – usa provider + staging bar)
-    TimesheetRouter.jsx (route boundary del dominio timesheet)
-    index.js (barrel pages)
-  services/ (future integrazioni remote specifiche dominio – stub al momento)
+ROOT TREE
+src/
+  App.css
+  App.jsx
+  index.css
+  main.jsx
+  app/
+    layouts/
+      AuthContext.jsx
+      DataGridDashboardLayout.jsx
+      MainLayout.jsx
+      ResizableLayout.jsx
+      ThemeContext.jsx
+  assets/
+    LogoBRT.png
+    LogoGestionale.png
+    LogoInwave.png
+    LogoSTEP.png
+    react.svg
+  Components/ [LEGACY][STUB-PACKAGE]
+    NotificationMenu.jsx [STUB? NO - contiene ancora implementazione duplicata → valutare sostituzione con re-export verso shared]
+    PageHeader.jsx [STUB? simile, verificare/manuale]
+    BadgeCard/
+      Badge.jsx [STUB: re-export verso shared/components/BadgeCard/Badge]
+      utils/ [UTIL][LEGACY]
+        badgeUtils.js [UTIL][LEGACY -> già migrato? ora presente copia in shared/components/BadgeCard/utils se creato]
+    Bars/
+      Header.jsx [STUB]
+      Sidebar.jsx [STUB]
+      SidebarItem.jsx [STUB]
+      sidebarUtils.js [UTIL][LEGACY]
+    Buttons/
+      ThemeSwitch.jsx [STUB]
+    DataGridDashboard/
+      ColorDot.jsx [STUB]
+      FiltersBar.jsx [STUB]
+      FiltersMenu.jsx [STUB]
+      NavigationBar.jsx [STUB]
+      Filters/ (tutti stub re-export)
+        DateFilter.jsx [STUB]
+        DeadlineFilter.jsx [STUB]
+        EmployeeFilter.jsx [STUB]
+        FiltersMenu.jsx [STUB]
+        StatusFilter.jsx [STUB]
+        TextFilter.jsx [STUB]
+    DipendenteHomePage/ [LEGACY][PARTIAL]
+      CommesseDashboard.jsx [STUB]
+      CommesseList.jsx [LEGACY REAL]
+      LayoutDashColumn.jsx [LEGACY REAL]
+    Entries/ [LEGACY]
+      EntryListItem.jsx [STUB]
+      EntryListPanel.jsx [LEGACY REAL]
+    Inputs/
+      CalendarioCard.jsx [LEGACY REAL]
+      SearchBar.jsx [STUB]
+    TaskManager/ [LEGACY]
+      TaskItem.jsx [STUB]
+  config/
+    debug.js
+  domains/
+    accordi-quadro/ [PLACEHOLDER]
+    auth/
+      hooks/
+        useAuth.js
+      services/
+        userService.js
+    commesse/ [PLACEHOLDER]
+    gare/ [PLACEHOLDER]
+    tags/ [PLACEHOLDER]
+    timesheet/
+      components/
+        calendar/
+          DayEntryDialog.jsx
+          DayEntryPanel.jsx
+          DayEntryTile.jsx
+          EmployeeMonthGrid.jsx
+          formatDayTooltip.jsx [UTIL]
+          index.js [BARREL]
+          MonthSelector.jsx
+          ProjectSidePanel.jsx
+          statusConstants.js
+          statusIcons.jsx
+          statusIcons.utils.js [UTIL]
+          TaskDetailCard.jsx
+          utils/ [UTIL]
+            dateUtils.js [UTIL]
+            dayStatus.js [UTIL]
+            index.js [BARREL]
+            monthNames.js [UTIL]
+            tileStyles.js [UTIL]
+          WorkCalendar.jsx
+          WorkCalendarGrid.jsx
+        staging/
+          AggregationTable.jsx
+          LegendItem.jsx
+          OperaioEditor.jsx [PLACEHOLDER]
+          StagedChangesPanel.jsx
+          TimesheetStagingBar.jsx
+          index.js [BARREL]
+        admin-grid/ [PLACEHOLDER]
+      hooks/
+        README.md
+        TimesheetProvider.jsx
+        calendar/
+          index.js [BARREL]
+          useCalendarDays.js
+          useCalendarGridRows.js
+          useCalendarModel.js
+          useCalendarMonthYear.js
+          useDayStatus.js
+          useDayStatusColor.js
+          useItalianHolidays.js [UTIL]
+          useTileLegendItems.js
+        dayEntry/
+          index.js [BARREL]
+          useConfirmDelete.js
+          useDayEntryDerived.js
+          useTimesheetEntryEditor.js
+        staging/
+          index.js [BARREL]
+          TimesheetStagingContext.jsx
+          stagingReducer.js
+          useStagedMetaMap.js
+          useStagingContextHooks.js
+          useTimesheetStaging.js
+        utils/ [UTIL]
+          computeDayUsed.js [UTIL]
+          roleCapabilities.js [UTIL]
+          semanticTimesheet.js [UTIL]
+          timesheetModel.js [UTIL]
+        validation/
+          validateDayHours.js [UTIL]
+        useDayAndMonthDetails.js
+        useDayEditor.js
+        useEmployeeMonthGridRows.js
+        useEmployeeTimesheetLoader.js
+        useMonthCompleteness.js
+        useReferenceData.js
+        useSegnalazione.js [PLACEHOLDER]
+        useStableMergedDataMap.js
+        useTimesheetApi.js [PLACEHOLDER]
+        useTimesheetData.js
+        useTimesheetFilters.js
+      pages/
+        CoordinatoreTimesheet.jsx
+        DipendenteTimesheet.jsx
+        TimesheetRouter.jsx
+        index.js [BARREL]
+      services/
+        api.js [PLACEHOLDER]
+        projectService.js [PLACEHOLDER]
+      models/ [PLACEHOLDER]
+  Hooks/ [LEGACY]
+    README.md
+    index.js [BARREL]
+    useAuth.js (duplicato logico rispetto domains/auth/hooks/useAuth.js) [LEGACY]
+    useThemeContext.js
+    DataGrid/
+      index.js [BARREL]
+      Filters/
+        index.js [BARREL]
+        useDateFilter.jsx
+        useStatusFilter.jsx
+        useEmployeeFilter.jsx
+        useTextFilter.jsx
+  mocks/
+    browser.js
+    EmployeeCommesseMock.js
+    employeeTasksMock.js
+    handlers.js
+    ProjectMock.js
+    TimesheetAggregatesMock.js
+    UsersMock.js
+  Pages/ [LEGACY]
+    About.jsx
+    Home.jsx
+    Login.jsx
+  Routes/
+    RequireAuth.jsx
+    pagesConfig.js
+  shared/
+    components/
+      Avatar/
+        AvatarInitials.jsx
+        CustomAvatarGroup.jsx
+        utils/ [UTIL]
+          color.js [UTIL]
+      BadgeCard/
+        Badge.jsx
+        utils/
+      Bars/
+        Header.jsx
+        Sidebar.jsx
+        SidebarItem.jsx
+        sidebarUtils.js [UTIL]
+        FiltersBar.jsx (se parte Bars o DataGridDashboard? attuale in DataGridDashboard directory)
+      Buttons/
+        ThemeSwitch.jsx
+      Calendar/
+        TileLegend.jsx
+        index.js [BARREL]
+      ConfirmDialog.jsx
+      DataGridDashboard/
+        FiltersBar.jsx
+        FiltersMenu.jsx
+        NavigationBar.jsx
+      DipendenteHomePage/
+        CommesseDashboard.jsx
+      Entries/
+        EntryListItem.jsx
+      Filters/
+        ColorDot.jsx
+        DateFilter.jsx
+        DeadlineFilter.jsx
+        EmployeeFilter.jsx
+        FiltersMenu.jsx
+        StatusFilter.jsx
+        TextFilter.jsx
+      Inputs/
+        SearchBar.jsx
+      NotificationMenu.jsx
+      PageHeader.jsx
+      TaskManager/
+        TaskItem.jsx
+    dialogs/
+      EditEntryDialog.jsx
+      SegnalazioneDialog.jsx
+      index.js [BARREL]
+    theme/
+      MainTheme.js
+      TemaDellaScienza.js
+    utils/ [UTIL]
+      dateRangeUtils.js [UTIL]
 
-shared/ : util e componenti cross-domain (non dettagliati qui – mantenere DRY e isolare ciò che diventa domain-specific spostandolo)
+UTILS INVENTORY (dettaglio)
+ - domains/timesheet/hooks/utils/* (4 core helpers + diff + semantics)
+ - domains/timesheet/components/calendar/utils/* (data calendar, tile styles, month names, status computation)
+ - shared/utils/dateRangeUtils.js (range date helpers wide-scope)
+ - Components/BadgeCard/utils/badgeUtils.js (badge rendering logic) [LEGACY copy] → migrare oppure rimuovere se duplicato di shared
+ - Components/Bars/sidebarUtils.js (sidebar rendering + color) [LEGACY] → sostituire con shared/components/Bars/sidebarUtils.js
+ - shared/components/Avatar/utils/color.js (avatar color derivation)
+ - domains/timesheet/components/calendar/statusIcons.utils.js (status icon mapping)
+ - domains/timesheet/hooks/validation/validateDayHours.js (validation util)
 
-Hooks/ : contiene ancora alcuni hook generici; progressivamente da spostare sotto domains appropriati.
+DUPLICAZIONI / ATTENZIONI
+ - useAuth.js duplicato: presente in `Hooks/` e `domains/auth/hooks/`. Pianificare rimozione della versione legacy.
+ - Molti componenti in `Components/` sovrapposti a responsabilità domain oppure condivisibili via shared/.
+ - Placeholder vuoti: accordi-quadro, commesse, gare, tags, admin-grid, models, alcuni services.
 
-UTILS PRINCIPALI (dominio timesheet)
-- timesheetModel.js : computeDayDiff / summarizeDayDiff / helpers diff entries
-- semanticTimesheet.js : hashing / semantic identity
-- computeDayUsed.js : calcolo ore utilizzate da una giornata
-- roleCapabilities.js : mappa capacità ruoli (placeholder – raffinabile)
+SUGGERIMENTI CLEANUP (aggiornati)
+ 1. Convertire NotificationMenu.jsx & PageHeader.jsx legacy in STUB re-export oppure eliminare (usare shared version ovunque).
+ 2. Rimuovere duplicato `src/Hooks/useAuth.js` (consumatori puntino a domains/auth/hooks/useAuth.js).
+ 3. Eliminare tutti gli stub in `Components/` dopo verifica assenza import esterni (grep sul repo) e rimuovere cartella.
+ 4. Rimuovere legacy utils duplicati (badgeUtils/sidebarUtils) mantenendo solo shared/.
+ 5. Consolidare o archiviare `DipendenteHomePage` e `EntryListPanel`, `CalendarioCard` se non più coerenti con domain timesheet.
+ 6. Placeholder: aggiungere README con scopo oppure eliminare se nessun owner definito (<30gg).
+ 7. Aggiungere test per core utils (computeDayUsed, semanticTimesheet, timesheetModel, stagingReducer).
 
-STAGING CORE
-- stagingReducer.js : struttura stato { entries, order }
-- useTimesheetStaging.js : facade semplificato per componenti UI
-- StagedChangesPanel.jsx : visualizzazione diff & azioni bulk/overflow
-- useStableMergedDataMap.js : merge base + draft/staging
+NOTE MIGRAZIONE (stato attuale)
+ - Timesheet è il dominio più avanzato, già separato con hooks + components + services stub.
+ - Legacy globale concentrato in `Components/`, `Pages/`, `Hooks/` (fuori domains) e parte DataGrid.
+ - Utils calendar e staging sono coerenti e centralizzabili in pacchetto domain interno se si adotta build modulare.
 
-NOTE MIGRAZIONE
-- Vecchia struttura `src/Hooks/Timesheet/*` rimossa; tutti i riferimenti aggiornati.
-- Avvisi sul mese precedente (missing days) disabilitati fino a reintroduzione hook esteso.
-- `roleCapabilities` implementato in forma minimale: definire regole effettive prima di usarlo per autorizzazioni reali.
-- `StagedChangesPanel` ora espone props: compact, maxVisible, showLegend, enableOverflow, showActions.
+PROSSIMI PASSI CONSIGLIATI (priorità aggiornata)
+ P1: Eliminare / stubbare ultimi duplicati reali (NotificationMenu, PageHeader) in Components.
+ P2: Rimozione cartella Components/ completa (post grep zero referenze) + cleanup alias superflui.
+ P3: Eliminare util legacy duplicati (badgeUtils/sidebarUtils) se già presenti in shared.
+ P4: Test Vitest per core utils & stagingReducer.
+ P5: Refactor legacy Pages -> domains routing; migrare Login/About/Home sotto un domain (auth/appShell).
+ P6: Documentare architecture in ARCHITECTURE.md (aggiornare sezione layering e naming).
 
-PROSSIMI POSSIBILI PASSI
-- Aggiungere test unitari (Vitest) per diff utils e staging reducer.
-- Reintrodurre calcolo giorni mancanti mese precedente (hook esteso).
-- Consolidare hook generici spostandoli in domains/ pertinenti.
-- Validare e riempire folder `panels/` o rimuoverlo se non necessario.
+-- FINE SNAPSHOT --
 

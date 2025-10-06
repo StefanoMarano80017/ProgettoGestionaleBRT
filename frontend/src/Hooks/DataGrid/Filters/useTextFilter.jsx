@@ -1,5 +1,6 @@
+// LEGACY: moved to @shared/hooks/filters/useTextFilter
 import React, { useState } from "react";
-import TextFilter from "@/Components/DataGridDashboard/Filters/TextFilter";
+import TextFilter from "@shared/components/Filters/TextFilter";
 import { Chip } from "@mui/material";
 
 export function useTextFilter(initialValue = "", placeholder) {

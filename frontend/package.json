@@ -4,6 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "barrels": "node scripts/generate-barrels.js",
+    "rewire": "node scripts/rewire-imports.js",
+    "check:imports": "node scripts/check-imports.js",
+    "prebuild": "npm run check:imports && npm run barrels",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",

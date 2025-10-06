@@ -1,5 +1,6 @@
+// LEGACY: moved to @shared/hooks/filters/useStatusFilter
 import { useState, useCallback } from "react";
-import StatusFilter from "@/Components/DataGridDashboard/Filters/StatusFilter";
+import StatusFilter from "@shared/components/Filters/StatusFilter";
 import { Chip } from "@mui/material";
 
 export function useStatusFilter(statusOptions = []) {

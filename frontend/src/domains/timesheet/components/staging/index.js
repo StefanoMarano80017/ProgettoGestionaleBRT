@@ -1,4 +1,10 @@
-export { default as AggregationTable } from './AggregationTable.jsx';
-export { default as LegendItem } from './LegendItem.jsx';
-export { default as StagedChangesPanel } from './StagedChangesPanel.jsx';
-export { default as TimesheetStagingBar } from './TimesheetStagingBar.jsx';
+export { default as AggregationTable } from './AggregationTable';
+export * from './AggregationTable';
+export { default as LegendItem } from './LegendItem';
+export * from './LegendItem';
+export { default as OperaioEditor } from './OperaioEditor';
+export * from './OperaioEditor';
+export { default as StagedChangesPanel } from './StagedChangesPanel';
+export * from './StagedChangesPanel';
+export { default as TimesheetStagingBar } from './TimesheetStagingBar';
+export * from './TimesheetStagingBar';

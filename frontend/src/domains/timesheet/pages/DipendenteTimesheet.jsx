@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Container, Alert, Typography, Snackbar, Paper, ButtonGroup, Button } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
-import PageHeader from '@/Components/PageHeader';
+import PageHeader from '@shared/components/PageHeader';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 // navigation icons removed — period controls live inside the dashboard now
-import BadgeCard from '@/Components/BadgeCard/Badge';
+import BadgeCard from '@shared/components/BadgeCard/Badge';
 import TimesheetStagingBar from '@domains/timesheet/components/staging/TimesheetStagingBar';
 import WorkCalendar from '@domains/timesheet/components/calendar/WorkCalendar';
 import DayEntryDialog from '@domains/timesheet/components/calendar/DayEntryDialog';
-import CommesseDashboard from '@/Components/DipendenteHomePage/CommesseDashboard';
+import CommesseDashboard from '@shared/components/DipendenteHomePage/CommesseDashboard';
 import { TimesheetProvider, useTimesheetContext, useReferenceData, useTimesheetStaging } from '@domains/timesheet/hooks';
 import { findUserById } from '@mocks/UsersMock';
 import useAuth from '@/domains/auth/hooks/useAuth';

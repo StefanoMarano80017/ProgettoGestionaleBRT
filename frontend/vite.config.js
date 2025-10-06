@@ -17,14 +17,11 @@ export default defineConfig({
       '@domains': path.resolve(__dirname, 'src/domains'),
       '@shared': path.resolve(__dirname, 'src/shared'),
 
-      // Common folders (keep these for convenience and backwards compatibility)
-      '@components': path.resolve(__dirname, 'src/Components'),
-      '@hooks': path.resolve(__dirname, 'src/Hooks'),
-      '@layouts': path.resolve(__dirname, 'src/Layouts'),
-      '@pages': path.resolve(__dirname, 'src/Pages'),
-      '@routes': path.resolve(__dirname, 'src/Routes'),
-      '@services': path.resolve(__dirname, 'src/Services'),
-      '@theme': path.resolve(__dirname, 'src/Theme'),
+  // (LEGACY) Deprecated aliases - keep temporarily for backward compatibility. Remove after import rewrite & cleanup.
+  // Removed deprecated @components, @hooks, @layouts, @pages aliases after migration
+  '@routes': path.resolve(__dirname, 'src/Routes'),         // keep (active routing)
+  '@services': path.resolve(__dirname, 'src/Services'),     // TODO review structure
+  '@theme': path.resolve(__dirname, 'src/Theme'),           // (still pending relocation of theme assets)
 
       // Assets & mocks
       '@assets': path.resolve(__dirname, 'src/assets'),
@@ -34,7 +31,7 @@ export default defineConfig({
       // Useful component-scoped aliases kept for continued compatibility
       // Map calendar to the new domain location (calendar components moved under domains)
       '@calendar': path.resolve(__dirname, 'src/domains/timesheet/components/calendar'),
-      '@entries': path.resolve(__dirname, 'src/Components/Entries'),
+  // Removed @entries after migrating EntryListItem; use @shared/components/Entries instead
     }
   },
   build: {
