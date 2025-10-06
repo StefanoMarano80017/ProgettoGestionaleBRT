@@ -1,7 +1,7 @@
 // src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import MainLayout from "@/Layouts/MainLayout";
+import MainLayout from "@/app/layouts/MainLayout";
 import Login from "@/Pages/Login";
 import RequireAuth from "@/Routes/RequireAuth";
 import TimesheetRouter from "@domains/timesheet/pages/TimesheetRouter";

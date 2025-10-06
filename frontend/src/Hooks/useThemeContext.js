@@ -1,5 +1,5 @@
 import React from 'react';
-import { ThemeCtx } from '@/Layouts/ThemeContext';
+import { ThemeCtx } from '@/app/layouts/ThemeContext';
 
 export function useThemeContext() {
   return React.useContext(ThemeCtx);
