@@ -1,8 +1,8 @@
 // src/layouts/MainLayout.jsx
 import { Outlet } from "react-router-dom";
 import { Box } from "@mui/material";
-import Sidebar from "@components/Bars/Sidebar";
-import Header from "@components/Bars/Header";
+import Sidebar from "@/Components/Bars/Sidebar";
+import Header from "@/Components/Bars/Header";
 
 export default function MainLayout() {
   // Removed unused collapsed state/handler (sidebar currently handles its own internal state)

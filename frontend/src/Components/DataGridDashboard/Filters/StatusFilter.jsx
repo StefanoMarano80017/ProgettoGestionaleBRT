@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, MenuItem, Checkbox, ListItemIcon, ListItemText, Typography } from "@mui/material";
-import ColorDot from "@components/DataGridDashboard/ColorDot";
+import ColorDot from "@/Components/DataGridDashboard/ColorDot";
 
 const StatusFilter = ({ statusOptions = [], statusFilter = [], setStatusFilter }) => {
   const toggleStatus = (status) => {

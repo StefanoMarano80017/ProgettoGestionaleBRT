@@ -11,8 +11,13 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      // Root and broad groups
       '@': path.resolve(__dirname, 'src'),
-      // Core feature directories
+      '@app': path.resolve(__dirname, 'src/app'),
+      '@domains': path.resolve(__dirname, 'src/domains'),
+      '@shared': path.resolve(__dirname, 'src/shared'),
+
+      // Common folders (keep these for convenience and backwards compatibility)
       '@components': path.resolve(__dirname, 'src/Components'),
       '@hooks': path.resolve(__dirname, 'src/Hooks'),
       '@layouts': path.resolve(__dirname, 'src/Layouts'),
@@ -20,14 +25,16 @@ export default defineConfig({
       '@routes': path.resolve(__dirname, 'src/Routes'),
       '@services': path.resolve(__dirname, 'src/Services'),
       '@theme': path.resolve(__dirname, 'src/Theme'),
+
+      // Assets & mocks
       '@assets': path.resolve(__dirname, 'src/assets'),
       '@mocks': path.resolve(__dirname, 'src/mocks'),
-  '@config': path.resolve(__dirname, 'src/config'),
-  // Domain-specific convenience aliases
-  '@timesheet': path.resolve(__dirname, 'src/Hooks/Timesheet'),
-  '@timesheetPages': path.resolve(__dirname, 'src/Pages/Timesheet'),
-  '@calendar': path.resolve(__dirname, 'src/Components/Calendar'),
-  '@entries': path.resolve(__dirname, 'src/Components/Entries'),
+      '@config': path.resolve(__dirname, 'src/config'),
+
+      // Useful component-scoped aliases kept for continued compatibility
+      // Map calendar to the new domain location (calendar components moved under domains)
+      '@calendar': path.resolve(__dirname, 'src/domains/timesheet/components/calendar'),
+      '@entries': path.resolve(__dirname, 'src/Components/Entries'),
     }
   },
   build: {
