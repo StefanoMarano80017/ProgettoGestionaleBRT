@@ -3,7 +3,7 @@ import { DEBUG_TS } from '@config/debug';
 import { Box, Stack, Typography, Button, Tooltip, Alert, Divider, Chip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EntryListItem from "@/Components/Entries/EntryListItem";
-import EditEntryDialog from "@/Components/Timesheet/EditEntryDialog";
+import EditEntryDialog from "@/shared/dialogs/EditEntryDialog";
 import ConfirmDialog from "@/shared/components/ConfirmDialog";
 // TileLegend is rendered in the calendar area; monthly summary chips are shown in this panel
 import Paper from '@mui/material/Paper';

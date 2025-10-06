@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import useAuth from "@/Hooks/useAuth";
+import useAuth from "@/domains/auth/hooks/useAuth";
 
 export default function RequireAuth({ children }) {
   const { isAuthenticated } = useAuth();

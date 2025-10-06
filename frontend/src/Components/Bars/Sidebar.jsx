@@ -2,7 +2,7 @@ import { Box, List, Divider, Avatar, Typography, Button } from '@mui/material';
 import React, { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import SidebarItem from './SidebarItem';
-import useAuth from '@/Hooks/useAuth';
+import useAuth from '@/domains/auth/hooks/useAuth';
 import { PAGES as pages } from '@/Routes/pagesConfig';
 import LogoGestionale from '@/assets/LogoGestionale.png';
 import { getInitials, renderIcon } from './sidebarUtils';

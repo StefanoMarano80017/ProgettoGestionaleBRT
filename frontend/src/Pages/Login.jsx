@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box, Paper, Stack, Typography, TextField, Button, Alert,
 } from "@mui/material";
-import useAuth from "@/Hooks/useAuth";
+import useAuth from "@/domains/auth/hooks/useAuth";
 import LogoGestionale from "@assets/LogoGestionale.png";
 
 export default function Login() {

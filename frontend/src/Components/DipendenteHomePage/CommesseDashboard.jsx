@@ -4,7 +4,7 @@ import { Box, Stack, Typography, Paper, Chip, Divider, ButtonGroup, Button } fro
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
-import { parseKeyToDate, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, inRange } from '../../Utils/dateRangeUtils';
+import { parseKeyToDate, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, inRange } from '@/shared/utils/dateRangeUtils';
 import { BarChart } from '@mui/x-charts/BarChart';
 
 const BAR_COLORS = ['#1976d2', '#9c27b0', '#2e7d32', '#0288d1', '#ed6c02', '#d32f2f', '#6d4c41', '#455a64', '#7b1fa2', '#00796b'];

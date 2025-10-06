@@ -11,7 +11,7 @@ import DayEntryDialog from '@domains/timesheet/components/calendar/DayEntryDialo
 import CommesseDashboard from '@/Components/DipendenteHomePage/CommesseDashboard';
 import { TimesheetProvider, useTimesheetContext, useReferenceData, useTimesheetStaging } from '@domains/timesheet/hooks';
 import { findUserById } from '@mocks/UsersMock';
-import useAuth from '@/Hooks/useAuth';
+import useAuth from '@/domains/auth/hooks/useAuth';
 import useDayEditor from '@domains/timesheet/hooks/useDayEditor';
 import useMonthCompleteness from '@domains/timesheet/hooks/useMonthCompleteness';
 import useEmployeeTimesheetLoader from '@domains/timesheet/hooks/useEmployeeTimesheetLoader';
