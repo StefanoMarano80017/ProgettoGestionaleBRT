@@ -30,31 +30,7 @@ import com.brt.TimesheetService.model.TimesheetDay;
 public class TimesheetValidator {
     // =======================
     // PUBLIC METHODS
-    /**
-     * Metodo di utilità per interpretare i parametri di filtro delle date.
-     * Restituisce un array di due LocalDate: [startDate, endDate].
-     * La logica è:
-     * - Se start ed end sono forniti, li usa direttamente.
-     * - Altrimenti, se month è fornito, calcola il primo e l'ultimo giorno del mese.
-     * - Se nessuno è fornito, usa un intervallo ampio (es. dal 2000-01-01 ad oggi).
-     */
-    public LocalDate[] parseDateRange(YearMonth month, LocalDate start, LocalDate end) {
-        LocalDate rangeStart;
-        LocalDate rangeEnd;
 
-        if (start != null && end != null) {
-            rangeStart = start;
-            rangeEnd = end;
-        } else if (month != null) {
-            rangeStart = month.atDay(1);
-            rangeEnd = month.atEndOfMonth();
-        } else {
-            rangeStart = LocalDate.of(2000, 1, 1);
-            rangeEnd = LocalDate.now();
-        }
-
-        return new LocalDate[]{rangeStart, rangeEnd};
-    }
 
     /**
      * Metodo principale: valida tutte le regole, distinguendo admin da utente normale

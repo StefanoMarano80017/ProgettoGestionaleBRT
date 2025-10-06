@@ -1,7 +1,6 @@
 package com.brt.TimesheetService.controller;
 
 import java.time.LocalDate;
-import java.time.YearMonth;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,75 +19,77 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.brt.TimesheetService.dto.TimesheetDayDTO;
 import com.brt.TimesheetService.dto.TimesheetItemDTO;
-import com.brt.TimesheetService.service.TimesheetDayService;
+import com.brt.TimesheetService.projection.TimesheetDayProjection;
+import com.brt.TimesheetService.projection.TimesheetItemProjection;
+import com.brt.TimesheetService.service.TimesheetApplicationService;
 
 @RestController
 @RequestMapping("/employees/{employeeId}/timesheets")
 public class TimesheetController {
 
-    private final TimesheetDayService timesheetDayService;
+    private final TimesheetApplicationService timesheetApplicationService;
 
-    public TimesheetController(TimesheetDayService timesheetDayService) {
-        this.timesheetDayService = timesheetDayService;
+    public TimesheetController(TimesheetApplicationService timesheetApplicationService) {
+        this.timesheetApplicationService = timesheetApplicationService;
     }
 
     @GetMapping
-    public ResponseEntity<Page<TimesheetDayDTO>> getTimesheets(
+    public ResponseEntity<Page<TimesheetDayProjection>> getTimesheets(
             @PathVariable Long employeeId,
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false)  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate  startDate,
-            @RequestParam(required = false)  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate  endDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        YearMonth ym = (year != null && month != null) ? YearMonth.of(year, month) : null;
         Pageable pageable = PageRequest.of(page, size);
-        Page<TimesheetDayDTO> dtos = timesheetDayService.getTimesheets(employeeId, ym, startDate, endDate, pageable);
-        return ResponseEntity.ok(dtos);
+        Page<TimesheetDayProjection> projections = timesheetApplicationService.getTimesheets(employeeId, startDate, endDate, pageable);
+        return ResponseEntity.ok(projections);
     }
 
+
     @GetMapping("/{date}")
-    public ResponseEntity<TimesheetDayDTO> getTimesheet(@PathVariable Long employeeId, @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        TimesheetDayDTO dto = timesheetDayService.getTimesheet(employeeId, date);
-        return ResponseEntity.ok(dto);
+    public ResponseEntity<TimesheetDayProjection> getTimesheet(@PathVariable Long employeeId, @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        TimesheetDayProjection projection = timesheetApplicationService.getTimesheet(employeeId, date);
+        return ResponseEntity.ok(projection);
     }
 
     @PostMapping("/{date}")
-    public ResponseEntity<TimesheetDayDTO> saveTimesheet(@PathVariable Long employeeId,
-                                                         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-                                                         @RequestBody TimesheetDayDTO dto) {
-        TimesheetDayDTO saved = timesheetDayService.createTimesheetEmployee(employeeId, date, dto);
+    public ResponseEntity<TimesheetDayProjection> saveTimesheet(@PathVariable Long employeeId,
+                                                                @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                                                @RequestBody TimesheetDayDTO dto) {
+        TimesheetDayProjection saved = timesheetApplicationService.saveTimesheetUser(employeeId, date, dto);
         return ResponseEntity.status(201).body(saved);
     }
 
     @DeleteMapping("/{date}")
     public ResponseEntity<Void> deleteTimesheet(@PathVariable Long employeeId, @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        timesheetDayService.deleteTimesheet(employeeId, date);
+        timesheetApplicationService.deleteTimesheetUser(employeeId, date);
         return ResponseEntity.noContent().build();
     }
 
+    // POST semantics: nel dominio, la creazione di un item sulla stessa commessa
+    // equivale a un "merge" (aggiunta ore) invece che un duplicato.
     @PostMapping("/{date}/items")
-    public ResponseEntity<TimesheetItemDTO> addItem(@PathVariable Long employeeId,
+    public ResponseEntity<TimesheetItemProjection> addItem(@PathVariable Long employeeId,
                                                     @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                                     @RequestBody TimesheetItemDTO itemDTO) {
-        TimesheetItemDTO saved = timesheetDayService.addItem(employeeId, date, itemDTO);
+        TimesheetItemProjection saved = timesheetApplicationService.AddOrCreateItem(employeeId, date, itemDTO);
         return ResponseEntity.status(201).body(saved);
     }
 
     @PutMapping("/{date}/items")
-    public ResponseEntity<TimesheetItemDTO> updateItem(@PathVariable Long employeeId,
+    public ResponseEntity<TimesheetItemProjection> updateItem(@PathVariable Long employeeId,
                                                        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                                        @RequestBody TimesheetItemDTO itemDTO) {                                                           
-        TimesheetItemDTO updated = timesheetDayService.updateItem(employeeId, date, itemDTO);
+        TimesheetItemProjection updated = timesheetApplicationService.putItem(employeeId, date, itemDTO);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{date}/items/{itemId}")
-    public ResponseEntity<Void> deleteItem(@PathVariable Long employeeId,
+    public ResponseEntity<Void> deleteItem(@PathVariable Long employeeId, 
                                            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                            @PathVariable Long itemId) {
-        timesheetDayService.deleteItem(employeeId, date, itemId);
+        timesheetApplicationService.deleteItem(employeeId, date, itemId);
         return ResponseEntity.noContent().build();
     }
 }

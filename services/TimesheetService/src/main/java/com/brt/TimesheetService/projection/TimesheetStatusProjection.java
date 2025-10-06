@@ -17,11 +17,13 @@
 
 package com.brt.TimesheetService.projection;
 
-import com.brt.TimesheetService.model.TimesheetStatus;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+
+import com.brt.TimesheetService.model.TimesheetStatus;
 
 public record TimesheetStatusProjection(
     LocalDate date,
     TimesheetStatus status,
-    double totalHours
+    BigDecimal totalHours
 ) {}
