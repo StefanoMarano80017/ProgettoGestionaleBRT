@@ -1,8 +1,7 @@
 package com.brt.TimesheetService.controller;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,11 +10,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.brt.TimesheetService.dto.CommessaDTO;
 import com.brt.TimesheetService.model.Commessa;
 import com.brt.TimesheetService.service.CommessaService;
+import com.brt.TimesheetService.util.PageableUtils;
 
 @RestController
 @RequestMapping("/commesse")
@@ -28,10 +29,14 @@ public class CommessaController {
 
     /** Lista tutte le commesse  */
     @GetMapping
-    public ResponseEntity<List<CommessaDTO>> getAllCommesse() {
-        List<Commessa> commesse = commessaService.findAll();
-        List<CommessaDTO> dtos = commesse.stream().map(commessaDTO -> commessaService.mapToDTO(commessaDTO)).collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+    public ResponseEntity<Page<Commessa>> getAllCommesse(
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) String sortBy,
+        @RequestParam(required = false) String direction
+    ) {
+        Pageable pageable = PageableUtils.createSafePageable(page, size, sortBy, direction);
+        return ResponseEntity.ok(commessaService.findAll(pageable));
     }
 
     /** Recupera una commessa per ID */

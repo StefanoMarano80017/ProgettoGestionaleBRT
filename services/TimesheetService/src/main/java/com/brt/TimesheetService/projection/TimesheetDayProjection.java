@@ -17,15 +17,16 @@
 
 package com.brt.TimesheetService.projection;
 
-import com.brt.TimesheetService.model.TimesheetDay;
-
 import java.time.LocalDate;
 import java.util.List;
+
+import com.brt.TimesheetService.model.TimesheetDay;
 
 public record TimesheetDayProjection(
     LocalDate date,
     String employeeName,
     String status,
+    String absence,
     List<TimesheetItemProjection> items
 ) {
     public static TimesheetDayProjection fromEntity(TimesheetDay day) {
@@ -33,6 +34,7 @@ public record TimesheetDayProjection(
                 day.getDate(),
                 day.getEmployee().getName(),
                 day.getStatus() != null ? day.getStatus().name() : null,
+                day.getAbsenceType().toString(),
                 day.getItems().stream().map(TimesheetItemProjection::fromEntity).toList()
         );
     }
