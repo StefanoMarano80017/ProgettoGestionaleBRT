@@ -1,4 +1,4 @@
-// timesheetModel.js
+// timesheetModel.js (canonical location)
 // Day-level diff & summary helpers for the timesheet staging refactor.
 // Provides a coarse summary (one chip per day) instead of per-record chips.
 // Diff object shape:
@@ -9,7 +9,7 @@
 //   new-day     -> brand new day (only inserts)
 //   insert-only / update-only / delete-only / mixed / no-op
 
-import { semanticEqualArray } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
+import { semanticEqualArray } from './semanticTimesheet.js';
 
 const recKey = (r, idx) => (r && r._id) ? r._id : `idx:${idx}`;
 
@@ -49,7 +49,7 @@ export function computeDayDiff(original = [], stagedVal) {
       changes.push({ type: 'delete', before: oval.rec, after: null });
     } else {
       const sval = sMap.get(id);
-      if (!semanticEqualArray([oval.rec], [sval.rec])) { // record-level semantic compare
+      if (!semanticEqualArray([oval.rec], [sval.rec])) {
         updates++;
         changes.push({ type: 'update', before: oval.rec, after: sval.rec });
       }

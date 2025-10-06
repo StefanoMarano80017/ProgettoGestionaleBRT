@@ -1,6 +1,6 @@
 import { getAllEmployeeTimesheets } from "@mocks/ProjectMock";
 import { ROLES } from "@mocks/UsersMock";
-import { rolesWithPersonalEntries } from "@domains/timesheet/hooks/Timesheet/utils/roleCapabilities";
+import { rolesWithPersonalEntries } from "@domains/timesheet/hooks/utils/roleCapabilities.js";
 
 const isWorkCode = (c) => c && !["FERIE", "MALATTIA", "PERMESSO"].includes(String(c).toUpperCase());
 const sameMonth = (dateKey, year, month0) => {

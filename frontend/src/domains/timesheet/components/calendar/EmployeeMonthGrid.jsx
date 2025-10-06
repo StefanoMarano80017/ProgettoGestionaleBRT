@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Box, Typography, Checkbox, Tooltip, Paper } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import DayEntryTile from './DayEntryTile';
-import useEmployeeMonthGridRows from '@domains/timesheet/hooks/Timesheet/useEmployeeMonthGridRows';
+import { useEmployeeMonthGridRows } from '@domains/timesheet/hooks';
 
 const GAP = 4; // px, like WorkCalendarGrid (gap: 0.5)
 

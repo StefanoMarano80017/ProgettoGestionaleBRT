@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Stack, Typography, TextField, IconButton, Button, Chip, Alert, Autocomplete } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useTimesheetEntryEditor, useTimesheetStaging } from '@/Hooks/Timesheet';
+import { useTimesheetEntryEditor, useTimesheetStaging } from '@domains/timesheet/hooks';
 
 // Optional staging (provider guaranteed in app root now, but keep guard)
 function useOptionalStaging() {

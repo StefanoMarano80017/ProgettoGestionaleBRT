@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
-import { getDayStatus } from './calendar/useDayStatus';
+import { getDayStatus } from '@domains/timesheet/hooks/calendar/useDayStatus.js';
 import formatDayTooltip from '@domains/timesheet/components/calendar/formatDayTooltip';
 
-// rows: elenco dipendenti [{ id, dipendente, azienda }]
-// tsMap: { [empId]: { 'YYYY-MM-DD': [records], 'YYYY-MM-DD_segnalazione': {...} } }
+// Canonical version migrated from legacy Timesheet/useEmployeeMonthGridRows
 export default function useEmployeeMonthGridRows({ rows = [], tsMap = {}, year, month, today = new Date() }) {
   const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
 
@@ -19,11 +18,11 @@ export default function useEmployeeMonthGridRows({ rows = [], tsMap = {}, year, 
         const ferie = dayData.some(e => e.commessa === 'FERIE');
         const malattia = dayData.some(e => e.commessa === 'MALATTIA');
         const permesso = dayData.some(e => e.commessa === 'PERMESSO');
-  const statusObj = getDayStatus(dayData, segnalazione, dateStr, today);
+        const statusObj = getDayStatus(dayData, segnalazione, dateStr, today);
         const tooltipNode = formatDayTooltip(dayData, segnalazione, totalHours);
         cells.push({
           dateStr,
-            day: d,
+          day: d,
           totalHours,
           ferie, malattia, permesso,
           segnalazione,

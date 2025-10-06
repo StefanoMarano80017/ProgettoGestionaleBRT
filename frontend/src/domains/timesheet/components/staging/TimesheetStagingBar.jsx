@@ -1,6 +1,6 @@
 import React from 'react';
 import { Paper } from '@mui/material';
-import StagedChangesPanel from './StagedChangesPanel';
+import { StagedChangesPanel } from './index.js';
 
 /**
  * TimesheetStagingBar
