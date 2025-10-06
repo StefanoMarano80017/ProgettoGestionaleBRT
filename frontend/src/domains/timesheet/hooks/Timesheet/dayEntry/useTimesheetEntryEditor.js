@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { validateDayHours } from '@domains/timesheet/hooks/Timesheet/validation/validateDayHours';
-import computeDayUsed from '@domains/timesheet/hooks/Timesheet/utils/computeDayUsed';
+import { validateDayHours } from '@domains/timesheet/hooks/validation/validateDayHours.js';
+import computeDayUsed from '@domains/timesheet/hooks/utils/computeDayUsed.js';
 
 /** Core unified editor for a single employee/day timesheet entries.
  * Inputs:

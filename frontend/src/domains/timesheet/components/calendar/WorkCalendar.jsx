@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import DayEntryTile from '@domains/timesheet/components/calendar/DayEntryTile';
 import MonthSelector from '@domains/timesheet/components/calendar/MonthSelector';
 import TileLegend from '@shared/components/Calendar/TileLegend';
-import { useCalendarMonthYear, useItalianHolidays, useCalendarDays } from '@domains/timesheet/hooks/Timesheet/calendar';
+import { useCalendarMonthYear, useItalianHolidays, useCalendarDays } from '@domains/timesheet/hooks/calendar';
 import { computeDayStatus } from '@domains/timesheet/components/calendar/utils';
 import formatDayTooltip from '@domains/timesheet/components/calendar/formatDayTooltip';
 import { useTimesheetContext } from '@domains/timesheet/hooks';

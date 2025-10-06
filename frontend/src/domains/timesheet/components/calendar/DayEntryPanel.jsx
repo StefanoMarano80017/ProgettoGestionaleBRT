@@ -7,11 +7,11 @@ import EditEntryDialog from "@shared/dialogs/EditEntryDialog";
 import ConfirmDialog from "@shared/components/ConfirmDialog";
 // TileLegend is rendered in the calendar area; monthly summary chips are shown in this panel
 import Paper from '@mui/material/Paper';
-import { useDayEntryDerived, useConfirmDelete } from '@domains/timesheet/hooks/Timesheet/dayEntry';
+import { useDayEntryDerived, useConfirmDelete } from '@domains/timesheet/hooks/dayEntry';
 import PropTypes from 'prop-types';
-import computeDayUsed from '@domains/timesheet/hooks/Timesheet/utils/computeDayUsed';
-import { semanticHash } from '@domains/timesheet/hooks/Timesheet/utils/semanticTimesheet';
-import { useTimesheetStaging } from '@domains/timesheet/hooks/Timesheet/staging/useTimesheetStaging';
+import computeDayUsed from '@domains/timesheet/hooks/utils/computeDayUsed.js';
+import { semanticHash } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
+import { useTimesheetStaging } from '@domains/timesheet/hooks/staging';
 // NOTE: Il pannello ora gestisce un wrapper di dialog locale invece di affidarsi
 // a proprietà (dialog/startAdd/startEdit/commit) che non esistono più nell'API
 // di `useTimesheetEntryEditor`. L'hook unificato gestisce validazione e salvataggio

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { semanticHash } from '@domains/timesheet/hooks/Timesheet/utils/semanticTimesheet';
+import { semanticHash } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
 
 /**
  * useDayEditBuffer

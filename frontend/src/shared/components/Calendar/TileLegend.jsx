@@ -2,7 +2,7 @@ import React, { useMemo, memo } from 'react';
 import PropTypes from 'prop-types';
 import { Stack, Chip, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useTileLegendItems } from '@domains/timesheet/hooks/Timesheet/calendar';
+import { useTileLegendItems } from '@domains/timesheet/hooks/calendar';
 
 const STATUS_COLOR_MAP = (theme) => ({
   'staged-insert': theme.palette.success?.main,
@@ -25,8 +25,8 @@ export function TileLegend() {
   const theme = useTheme();
   const colorMap = STATUS_COLOR_MAP(theme);
 
-  const rendered = useMemo(() => items.map((item) => {
-    const statusKey = item.status;
+  const rendered = useMemo(() => items.map((item, idx) => {
+    const statusKey = item.status || item.key || `legend-${idx}`;
     const iconColor = item.color || colorMap[statusKey] || theme.palette.text.secondary;
 
     let icon = item.icon;
@@ -39,7 +39,7 @@ export function TileLegend() {
 
     return (
       <Chip
-        key={item.status}
+        key={statusKey}
         size="small"
         icon={icon}
         label={item.label}

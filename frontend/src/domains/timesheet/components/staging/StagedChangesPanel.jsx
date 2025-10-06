@@ -8,7 +8,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { computeDayDiff, summarizeDayDiff } from '@domains/timesheet/hooks/Timesheet/utils/timesheetModel';
-import { useTimesheetContext, useTimesheetStaging } from '@domains/timesheet/hooks/Timesheet';
+import { useTimesheetContext, useTimesheetStaging } from '@domains/timesheet/hooks';
 // Batch commit removed from UI (admin-only control stripped)
 
 function useOptionalTimesheetContext() {

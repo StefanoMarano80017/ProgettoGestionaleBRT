@@ -4,8 +4,7 @@ import { Box, IconButton, Typography, Paper } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import DayEntryTile from "@domains/timesheet/components/calendar/DayEntryTile";
-import { useCalendarMonthYear } from '@/Hooks/Timesheet/calendar';
-import useCalendarGridRows from '@/Hooks/Timesheet/calendar/useCalendarGridRows';
+import { useCalendarMonthYear, useCalendarGridRows } from '@domains/timesheet/hooks/calendar';
 
 const monthNames = [
   "Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",

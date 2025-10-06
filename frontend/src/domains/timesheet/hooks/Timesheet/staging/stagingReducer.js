@@ -1,4 +1,4 @@
-import { semanticEqual, semanticHash } from '@domains/timesheet/hooks/Timesheet/utils/semanticTimesheet';
+import { semanticEqual, semanticHash } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
 import { DEBUG_TS } from '@config/debug';
 /**
  * stagingReducer

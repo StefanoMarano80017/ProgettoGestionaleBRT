@@ -9,7 +9,7 @@
 //   new-day     -> brand new day (only inserts)
 //   insert-only / update-only / delete-only / mixed / no-op
 
-import { semanticEqualArray } from '@domains/timesheet/hooks/Timesheet/utils/semanticTimesheet';
+import { semanticEqualArray } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
 
 const recKey = (r, idx) => (r && r._id) ? r._id : `idx:${idx}`;
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useTimesheetApi } from '@domains/timesheet/hooks/Timesheet/useTimesheetApi';
+import { useTimesheetApi } from '@domains/timesheet/hooks';
 
 /**
  * Unified data fetch + normalization for timesheets.

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { semanticEqual, semanticHash, normalizeRecord } from '@domains/timesheet/hooks/Timesheet/utils/semanticTimesheet';
+import { semanticEqual, semanticHash, normalizeRecord } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
 import { useTimesheetContext } from './context/TimesheetProvider.jsx';
 import { useTimesheetStaging } from './staging/useTimesheetStaging.js';
 

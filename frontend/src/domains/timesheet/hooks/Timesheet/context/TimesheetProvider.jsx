@@ -1,8 +1,8 @@
 import React, { useContext, useMemo, useState, useCallback } from 'react';
-import { useCalendarMonthYear } from '@domains/timesheet/hooks/Timesheet/calendar/useCalendarMonthYear';
+import { useCalendarMonthYear } from '@domains/timesheet/hooks/calendar';
 import { useTimesheetData } from '@domains/timesheet/hooks/Timesheet/data/useTimesheetData';
 import TimesheetContext from './_TimesheetContext.js';
-import { TimesheetStagingProvider } from '@domains/timesheet/hooks/Timesheet/staging/TimesheetStagingContext.jsx';
+import { TimesheetStagingProvider } from '@domains/timesheet/hooks/staging';
 
 // Context moved to separate module (_TimesheetContext.js) for cleaner fast-refresh boundaries.
 
