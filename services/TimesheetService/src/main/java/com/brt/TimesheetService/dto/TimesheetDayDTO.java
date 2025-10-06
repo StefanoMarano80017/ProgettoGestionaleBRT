@@ -26,7 +26,7 @@ public class TimesheetDayDTO {
     // Metodo helper per ottenere l'enum
     @JsonIgnore
     public AbsenceType getAbsenceTypeEnum() {
-        if (absenceTypeStr == null) return AbsenceType.NONE; // default
+        if (absenceTypeStr == null || absenceTypeStr.isEmpty()) return AbsenceType.NONE; // default
         try {
             return AbsenceType.valueOf(absenceTypeStr.toUpperCase());
         } catch (IllegalArgumentException e) {

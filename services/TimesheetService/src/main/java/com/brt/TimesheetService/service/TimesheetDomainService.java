@@ -1,20 +1,3 @@
-/*
- *   Copyright (c) 2025 Stefano Marano https://github.com/StefanoMarano80017
- *   All rights reserved.
-
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
-
- *   http://www.apache.org/licenses/LICENSE-2.0
-
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
- */
-
 package com.brt.TimesheetService.service;
 
 import java.math.BigDecimal;
@@ -23,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.brt.TimesheetService.dto.TimesheetDayDTO;
@@ -40,6 +25,7 @@ import com.brt.TimesheetService.repository.CommessaRepository;
 @Service
 public class TimesheetDomainService {
 
+    private static final Logger logger = LoggerFactory.getLogger(TimesheetDomainService.class);
     private static final double FULL_WORKDAY_HOURS = 8.0;
     private final CommessaRepository commessaRepository;
 
@@ -47,52 +33,54 @@ public class TimesheetDomainService {
         this.commessaRepository = commessaRepository;
     }
 
-    // ===========================
     // TEMPLATE METHOD
-    // ===========================
     private <R> R withTimesheetRules(TimesheetDay day, Function<TimesheetDay, R> action) {
-        // 1. Esegui l'azione centrale
         R result = action.apply(day);
-        // 2. Aggiorna lo status basato sulle ore
         updateStatus(day);
         return result;
     }
 
-    // ===========================
-    // CREAZIONE / AGGIORNAMENTO DEL TIMESHEET
-    // ===========================
-    public TimesheetDay createTimesheet(TimesheetDayDTO dto) {
-        return withTimesheetRules(new TimesheetDay(), d ->{
-            d.setDate(dto.getDate());
-            // Imposta il tipo di assenza, se presente
+    // CREAZIONE / AGGIORNAMENTO TIMESHEET
+    // il day viene creato esternamente e passato come parametro, qui imposto solo gli item, stato e assenza. 
+    public TimesheetDay createTimesheet(TimesheetDay day, TimesheetDayDTO dto) {
+        logger.info("Creazione timesheet per data {}", dto.getDate());
+        return withTimesheetRules(day, d -> {
             AbsenceType absenceType = dto.getAbsenceTypeEnum();
-            if (absenceType != null) {
+            if (absenceType != null && absenceType != AbsenceType.NONE) {
                 d.setAbsenceType(absenceType);
-            } else {
-                dto.getItems().forEach(itemDTO -> addItemAction(d, itemDTO));
+                logger.info("Giorno segnato come assenza di tipo {}", absenceType);
+            }
+            if (dto.getItems() != null && !dto.getItems().isEmpty()) {
+                dto.getItems().forEach(itemDTO -> {
+                    TimesheetItem item = addItemAction(d, itemDTO);
+                    logger.info("Aggiunto item {} ore {} per commessa {}", item.getId(), item.getHours(), item.getCommessa().getCode());
+                });
             }
             return d;
         });
     }
 
     public TimesheetDay updateTimesheet(TimesheetDay existingDay, TimesheetDayDTO dto) {
-        return withTimesheetRules(existingDay, existingd -> {
-            // Aggiorna tipo di assenza
-            AbsenceType newAbsence = dto.getAbsenceTypeEnum();            
-            // Se è un giorno di assenza, rimuove gli items
-            if (newAbsence == null || newAbsence == AbsenceType.NONE) {
-                return setAbsenceAction(existingd, newAbsence);
-            } else if (dto.getItems() == null || dto.getItems().isEmpty()) {
-                throw new IllegalArgumentException("Dto senza items per un giorno non di assenza");
+        logger.info("Aggiornamento timesheet {} per data {}", existingDay.getId(), dto.getDate());
+        return withTimesheetRules(existingDay, d -> {
+            AbsenceType newAbsence = dto.getAbsenceTypeEnum();
+            if (newAbsence != null && newAbsence != AbsenceType.NONE) {
+                logger.info("Aggiornamento giorno come assenza {}", newAbsence);
+                d.getItems().clear(); // rimuove items se giorno di assenza
+                d.setAbsenceType(newAbsence);
+            } else {
+                d.setAbsenceType(AbsenceType.NONE);
+                if (dto.getItems() != null && !dto.getItems().isEmpty()) {
+                    // Rimuove items non presenti nel DTO
+                    d.getItems().removeIf(existing -> dto.getItems().stream().noneMatch(i -> i.getId() != null && i.getId().equals(existing.getId())));
+                    // Aggiorna o aggiunge items
+                    for (TimesheetItemDTO itemDTO : dto.getItems()) {
+                        TimesheetItem item = addItemAction(d, itemDTO);
+                        logger.info("Aggiornato/aggiunto item {} ore {} per commessa {}", item.getId(), item.getHours(), item.getCommessa().getCode());
+                    }
+                }
             }
-            // Se invece non è assenza, sincronizza gli items
-            // 1 - Elimina item non più presenti nel DTO
-            existingd.getItems().removeIf(existing -> dto.getItems().stream().noneMatch(i -> i.getId() != null && i.getId().equals(existing.getId())));
-            // 2️ - Aggiorna o aggiunge nuovi item
-            for (TimesheetItemDTO itemDTO : dto.getItems()) {
-                 addItemAction(existingd, itemDTO);
-            }
-            return existingd;
+            return d;
         });
     }
 
@@ -100,59 +88,38 @@ public class TimesheetDomainService {
         if (absenceType == null || absenceType == AbsenceType.NONE) {
             throw new IllegalArgumentException("AbsenceType non può essere null o NONE");
         }
+        logger.info("Impostazione assenza {} per il giorno {}", absenceType, day.getDate());
         return withTimesheetRules(day, d -> {
-            return setAbsenceAction(day, absenceType);
+            d.getItems().clear();
+            d.setAbsenceType(absenceType);
+            return d;
         });
     }
 
-    private TimesheetDay setAbsenceAction(TimesheetDay day, AbsenceType absenceType){
-        day.getItems().clear();
-        day.setAbsenceType(absenceType);
-        return day;
-    }
-                                                     
     public List<TimesheetDay> setAbsences(Employee employee, LocalDate startDate, LocalDate endDate, AbsenceType absenceType){
         if (startDate == null || endDate == null) {
             throw new TimesheetValidationException("Le date di inizio e fine non possono essere nulle");
         }
         if (endDate.isBefore(startDate)) {
             throw new TimesheetValidationException("La data di fine non può essere precedente alla data di inizio");
-        }     
+        }
         List<TimesheetDay> createdDays = new ArrayList<>();
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             TimesheetDay day = TimesheetDay.builder().employee(employee).date(date).absenceType(absenceType).status(null).build();
-            createdDays.add(setAbsenceAction(day, absenceType));
+            createdDays.add(setAbsence(day, absenceType));
         }
         return createdDays;
     }
 
-
-    // ===========================
     // OPERAZIONI SU ITEMS
-    // ===========================
-
-    // ===========================
-    // POST: crea o somma ore se esiste già
-    // ===========================
     public TimesheetItem addItem(TimesheetDay day, TimesheetItemDTO dto) {
         return withTimesheetRules(day, d -> addItemAction(d, dto));
     }
 
-    // ===========================
-    // PUT: crea o sostituisce ore se esiste già
-    // ===========================
     public TimesheetItem putItem(TimesheetDay day, TimesheetItemDTO dto) {
-        return withTimesheetRules(day, d -> createItemAction(day, dto));
+        return withTimesheetRules(day, d -> createItemAction(d, dto));
     }
 
-    // ==========================
-    // ACTIONS
-    // ===========================
-
-    /**
-     * Se l'item con la stessa commessa esiste somma ore 
-     * Altrimenti crea un nuovo item.
-     */
     private TimesheetItem addItemAction(TimesheetDay day, TimesheetItemDTO dto) {
         TimesheetItem existingItem = findTimesheetItem(day, dto.getCommessaCode());
         if (existingItem != null) {
@@ -180,7 +147,7 @@ public class TimesheetDomainService {
                 .findFirst()
                 .orElse(null);
     }
-    
+
     public void deleteItem(TimesheetDay day, Long itemId) {
         withTimesheetRules(day, d -> {
             TimesheetItem item = d.getItems().stream()
@@ -188,13 +155,12 @@ public class TimesheetDomainService {
                     .findFirst()
                     .orElseThrow(() -> new ResourceNotFoundException("Item non trovato"));
             d.removeItem(item);
+            logger.info("Item {} rimosso dal giorno {}", itemId, day.getDate());
             return null;
         });
     }
 
-    // ===========================
     // HELPERS
-    // ===========================
     private void updateStatus(TimesheetDay day) {
         if (day.getAbsenceType() != null && day.getAbsenceType() != AbsenceType.NONE) {
             day.setStatus(null);
@@ -215,6 +181,11 @@ public class TimesheetDomainService {
     private TimesheetItem mapDTOToEntity(TimesheetItemDTO dto, TimesheetDay day) {
         Commessa commessa = commessaRepository.findByCode(dto.getCommessaCode())
                 .orElseThrow(() -> new ResourceNotFoundException("Commessa non trovata: " + dto.getCommessaCode()));
-        return TimesheetItem.builder().description(dto.getDescription()).hours(dto.getHours()).timesheetDay(day).commessa(commessa).build();
+        return TimesheetItem.builder()
+                .description(dto.getDescription())
+                .hours(dto.getHours())
+                .timesheetDay(day)
+                .commessa(commessa)
+                .build();
     }
 }
