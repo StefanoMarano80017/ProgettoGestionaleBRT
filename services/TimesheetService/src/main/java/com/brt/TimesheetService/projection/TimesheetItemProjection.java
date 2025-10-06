@@ -17,12 +17,14 @@
 
 package com.brt.TimesheetService.projection;
 
+import java.math.BigDecimal;
+
 import com.brt.TimesheetService.model.TimesheetItem;
 
 public record TimesheetItemProjection(
     Long id,
     String description,
-    Double hours,
+    BigDecimal hours,
     String commessaCode
 ) {
     public static TimesheetItemProjection fromEntity(TimesheetItem item) {

@@ -14,16 +14,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.brt.TimesheetService.dto.TimesheetDayDTO;
 import com.brt.TimesheetService.model.AbsenceType;
-import com.brt.TimesheetService.service.TimesheetDayService;
+import com.brt.TimesheetService.projection.TimesheetDayProjection;
+import com.brt.TimesheetService.service.TimesheetApplicationService;
 
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
 
-    private final TimesheetDayService timesheetDayService;
+    private final TimesheetApplicationService timesheetApplicationService;
 
-    public AdminController(TimesheetDayService timesheetDayService) {
-        this.timesheetDayService = timesheetDayService;
+    public AdminController(TimesheetApplicationService timesheetApplicationService) {
+        this.timesheetApplicationService = timesheetApplicationService;
     }
 
     /**
@@ -31,12 +32,12 @@ public class AdminController {
      * Esempio request body: "SICK" oppure "VACATION"
      */
     @PostMapping("/employees/{employeeId}/timesheets/absence/bulk")
-    public ResponseEntity<List<TimesheetDayDTO>> setAbsences(@PathVariable Long employeeId,
+    public ResponseEntity<List<TimesheetDayProjection>> setAbsences(@PathVariable Long employeeId,
                                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
                                                              @RequestBody TimesheetDayDTO dto) {
         AbsenceType absenceType = dto.getAbsenceTypeEnum();
-        List<TimesheetDayDTO> created = timesheetDayService.createAbsenceTimesheets(employeeId, startDate, endDate, absenceType);
+        List<TimesheetDayProjection> created = timesheetApplicationService.setAbsences(employeeId, startDate, endDate, absenceType);
         return ResponseEntity.status(200).body(created);
     }
 
@@ -48,7 +49,7 @@ public class AdminController {
     public ResponseEntity<Void> setAbsence(@PathVariable Long employeeId,
                                            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                            @RequestBody  TimesheetDayDTO dto) {
-        timesheetDayService.createAbsenceTimesheet(employeeId, date, dto.getAbsenceTypeEnum());
+        timesheetApplicationService.setAbsence(employeeId, date, dto);
         return ResponseEntity.noContent().build();
     }
 
@@ -58,10 +59,10 @@ public class AdminController {
      */
     
     @PostMapping("/employees/{employeeId}/timesheets/override/{date}")
-    public ResponseEntity<TimesheetDayDTO> overrideTimesheet(@PathVariable Long employeeId,
-                                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate Date,
+    public ResponseEntity<TimesheetDayProjection> overrideTimesheet(@PathVariable Long employeeId,
+                                                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate Date,
                                                              @RequestBody TimesheetDayDTO dto) {
-        TimesheetDayDTO saved = timesheetDayService.createTimesheet(employeeId, Date, dto, true);
+        TimesheetDayProjection saved = timesheetApplicationService.saveTimesheetAdmin(employeeId, Date, dto);
         return ResponseEntity.status(201).body(saved);
     }
 

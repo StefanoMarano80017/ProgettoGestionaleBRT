@@ -40,7 +40,6 @@ public class ReportService {
     // Ore totali per commessa
     public Page<CommessaHoursDTO> getTotalHoursByCommessa(LocalDate startDate, LocalDate endDate, Pageable pageable) {
         Page<CommessaHoursDTO> commessaPage = timesheetItemRepository.aggregateHoursByCommessa(startDate, endDate, pageable);
-
         // For each commessa, fetch distinct employee names for that commessa and period
         List<CommessaHoursDTO> enrichedList = commessaPage.getContent().stream().map(commessaDTO -> {
             List<String> employeeNames = timesheetItemRepository.findDistinctEmployeeNamesByCommessaAndDate(
@@ -53,7 +52,6 @@ public class ReportService {
                 employeeNames
             );
         }).toList();
-
         return new org.springframework.data.domain.PageImpl<>(enrichedList, pageable, commessaPage.getTotalElements());
     }
 
@@ -61,7 +59,6 @@ public class ReportService {
     public Page<EmployeeTotalHoursDTO> getTotalHoursByEmployee(Pageable pageable) {
         return timesheetItemRepository.aggregateHoursByEmployee(pageable);
     }
-
 
     public Page<DailyHoursReportDTO> getReportGroupedByCommessaOptimized(LocalDate startDate, LocalDate endDate, Pageable pageable) {
         return timesheetItemRepository.aggregateDailyHoursAllCommesseByDate(startDate, endDate, pageable);
