@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { useTimesheetApi } from './useTimesheetApi.js';
 import { listServizi } from '@mocks/ServiziMock';
 import { listCommesse } from '@mocks/CommesseMock';
+import {
+  getAbsenceSummary,
+  getAbsenceLedger,
+  getAbsenceRangeSummary,
+  getVacationBalances
+} from '@mocks/TimesheetAbsencesMock';
 
 export function useReferenceData(opts = { commesse: true, personale: true, pmGroups: true, employeeId: undefined }) {
   const { api } = useTimesheetApi();
@@ -14,7 +20,13 @@ export function useReferenceData(opts = { commesse: true, personale: true, pmGro
     commesseAttive: [], 
     commesseConChiuse: [], 
     loading: false, 
-    error: '' 
+    error: '',
+    absencesApi: {
+      getAbsenceSummary: () => Promise.resolve([]),
+      getAbsenceLedger: () => Promise.resolve({}),
+      getAbsenceRangeSummary: () => Promise.resolve([]),
+      getVacationBalances: () => Promise.resolve([]),
+    }
   });
   
   useEffect(() => {
@@ -41,7 +53,13 @@ export function useReferenceData(opts = { commesse: true, personale: true, pmGro
           servizi: serviziData,
           commesseAttive: commesseAttiveData,
           commesseConChiuse: commesseConChiuseData,
-          loading: false 
+          loading: false,
+          absencesApi: {
+            getAbsenceSummary,
+            getAbsenceLedger,
+            getAbsenceRangeSummary,
+            getVacationBalances
+          }
         }));
       } catch (e) {
         if (!mounted) return;

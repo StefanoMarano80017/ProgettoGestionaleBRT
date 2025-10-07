@@ -11,6 +11,11 @@
 
 import { semanticEqualArray } from './semanticTimesheet.js';
 
+// Canonical non-work codes for timesheet UI and validation
+export const NON_WORK = ["FERIE", "MALATTIA", "PERMESSO", "ROL"];
+
+export const isWorkCode = (c) => c && !NON_WORK.includes(String(c).toUpperCase());
+
 const recKey = (r, idx) => (r && r._id) ? r._id : `idx:${idx}`;
 
 export function computeDayDiff(original = [], stagedVal) {
