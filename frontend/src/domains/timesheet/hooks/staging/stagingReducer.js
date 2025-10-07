@@ -63,7 +63,7 @@ export function stagingReducer(state, action) {
 				hashes: { base: baseSnapshot === null ? 'NULL' : semanticHash(baseSnapshot), draft: draft === null ? 'NULL' : semanticHash(draft) },
 				dirty: true,
 			};
-			if (DEBUG_TS) { try { console.debug('[staging] upsert', { key, op, lenBase: baseSnapshot?.length || 0, lenDraft: draft?.length || 0, prevOp: existing?.op }); } catch {} }
+			if (DEBUG_TS) { try { console.debug('[staging] upsert', { key, op, lenBase: baseSnapshot?.length || 0, lenDraft: draft?.length || 0, prevOp: existing?.op }); } catch {} } // eslint-disable-line no-empty
 			const newEmp = { ...empEntries, [dateKey]: nextEntry };
 			const newEntries = { ...entries, [employeeId]: newEmp };
 			const inOrder = state.order.includes(key) ? state.order : [...state.order, key];

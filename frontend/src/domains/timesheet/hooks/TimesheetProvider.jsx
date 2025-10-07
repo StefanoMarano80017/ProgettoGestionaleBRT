@@ -3,6 +3,7 @@ import { useCalendarMonthYear } from '@domains/timesheet/hooks/calendar';
 import { useTimesheetData } from '@domains/timesheet/hooks/useTimesheetData.js';
 import { TimesheetStagingProvider } from '@domains/timesheet/hooks/staging';
 
+// eslint-disable-next-line react-refresh/only-export-components
 const TimesheetContext = createContext(null);
 
 export function TimesheetProvider({ children, scope = 'all', employeeIds = [], autoLoad = true, initialDate = new Date() }) {

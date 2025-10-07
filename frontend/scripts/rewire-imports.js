@@ -1,42 +1,53 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const path = require('path');
+// Modernized rewire-imports script (idempotent). Converts legacy/temporary paths
+// to canonical shared/domains locations. Safe to re-run.
+import { readdirSync, readFileSync, writeFileSync } from 'fs';
+import path from 'path';
 
-const root = path.resolve(__dirname, '..');
-const src = path.join(root, 'src');
+const src = path.resolve(process.cwd(), 'src'); // eslint-disable-line no-undef
 
 const patterns = [
-  // mapping: old import -> new alias path
-  { from: /@routes\//g, to: "@/Routes/" },
-  { from: /@layouts\//g, to: "@/Layouts/" },
-  { from: /@pages\//g, to: "@/Pages/" },
-  { from: /@components\//g, to: "@/Components/" },
-  { from: /@hooks\//g, to: "@/Hooks/" },
-  { from: /@services\//g, to: "@/Services/" },
-  { from: /@theme\//g, to: "@/shared/theme/" },
-  { from: /@calendar\//g, to: "@domains/timesheet/components/calendar/" },
-  { from: /@entries\//g, to: "@/Components/Entries/" },
-  // timesheet specific
-  { from: /src\/Pages\/Timesheet/g, to: "@domains/timesheet/pages" },
+  // Old dashboard components -> shared
+  { from: /@\/Components\/DataGridDashboard\/FiltersBar/g, to: '@shared/components/DataGridDashboard/FiltersBar' },
+  { from: /@\/Components\/DataGridDashboard\/NavigationBar/g, to: '@shared/components/DataGridDashboard/NavigationBar' },
+  { from: /@\/Components\/DataGridDashboard\/Filters\//g, to: '@shared/components/Filters/' },
+  { from: /@\/Components\/DataGridDashboard\/ColorDot/g, to: '@shared/components/Filters/ColorDot' },
+  // Theme move
+  { from: /@theme\//g, to: '@shared/theme/' },
+  // Generic legacy top-level aliases -> root '@/' (can prune later)
+  { from: /@components\//g, to: '@/' },
+  { from: /@hooks\//g, to: '@/' },
+  // Calendar relocation hint (only if still present)
+  { from: /@calendar\//g, to: '@domains/timesheet/components/calendar/' },
+  { from: /@entries\//g, to: '@/' },
 ];
 
 let modified = 0;
+
 function walk(dir) {
-  const items = fs.readdirSync(dir, { withFileTypes: true });
-  items.forEach(it => {
-    const full = path.join(dir, it.name);
-    if (it.isDirectory()) return walk(full);
-    if (!/\.jsx?$|\.tsx?$/.test(it.name)) return;
-    let content = fs.readFileSync(full, 'utf8');
-    let original = content;
-    patterns.forEach(p => { content = content.replace(p.from, p.to); });
-    if (content !== original) {
-      fs.writeFileSync(full, content, 'utf8');
-      modified++;
-      console.log('rewired', full);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(full);
+    else if (/\.(jsx?|tsx?)$/.test(entry.name)) processFile(full);
+  }
+}
+
+function processFile(file) {
+  let text = readFileSync(file, 'utf8');
+  let changed = false;
+  for (const { from, to } of patterns) {
+    if (from.test(text)) {
+      text = text.replace(from, to);
+      changed = true;
     }
-  });
+  }
+  if (changed) {
+    writeFileSync(file, text, 'utf8');
+    modified++;
+    console.log('[rewire] updated', path.relative(process.cwd(), file)); // eslint-disable-line no-undef
+  }
 }
 
 walk(src);
-console.log('files modified:', modified);
+console.log(`[rewire] files modified: ${modified}`);

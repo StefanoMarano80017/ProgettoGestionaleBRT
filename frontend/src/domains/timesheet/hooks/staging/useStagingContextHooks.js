@@ -10,3 +10,6 @@ export function useTimesheetStagingContext() {
 export function useOptionalTimesheetStaging() {
 	return useContext(TimesheetStagingContext);
 }
+
+// Backward compatibility alias expected by auto-generated barrel (which referenced a default)
+// No default export: barrel script will only generate star export for this file.

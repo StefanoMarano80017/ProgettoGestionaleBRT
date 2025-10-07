@@ -1,5 +1,7 @@
 import { rest } from "msw";
 import { projectsMock } from "@mocks/ProjectMock";
+import { listServizi } from "@mocks/ServiziMock";
+import { listCommesse } from "@mocks/CommesseMock";
 
 // Mock degli utenti
 const users = [
@@ -65,6 +67,33 @@ export const handlers = [
     return project
       ? res(ctx.status(200), ctx.json(project))
       : res(ctx.status(404));
+  }),
+
+  // GET /mock/servizi - Lista servizi dal catalogo
+  rest.get("/mock/servizi", async (req, res, ctx) => {
+    try {
+      const servizi = await listServizi();
+      return res(ctx.status(200), ctx.json(servizi));
+    } catch (error) {
+      return res(
+        ctx.status(500), 
+        ctx.json({ message: "Errore nel caricamento servizi", error: error.message })
+      );
+    }
+  }),
+
+  // GET /mock/commesse - Lista commesse con filtro includeClosed opzionale
+  rest.get("/mock/commesse", async (req, res, ctx) => {
+    try {
+      const includeClosed = req.url.searchParams.get('includeClosed') === 'true';
+      const commesse = await listCommesse({ includeClosed });
+      return res(ctx.status(200), ctx.json(commesse));
+    } catch (error) {
+      return res(
+        ctx.status(500), 
+        ctx.json({ message: "Errore nel caricamento commesse", error: error.message })
+      );
+    }
   }),
   
 ];

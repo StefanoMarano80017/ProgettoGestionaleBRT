@@ -7,6 +7,7 @@ export function useTimesheetApi() {
     getEmployees: ProjectMock.getEmployees,
     getAllEmployeeTimesheets: ProjectMock.getAllEmployeeTimesheets,
     sendSegnalazione: ProjectMock.sendSegnalazione,
+    batchSaveTimesheetEntries: ProjectMock.batchSaveTimesheetEntries,
     getEmployeeMonthSummary: TimesheetAggregatesMock.getEmployeeMonthSummary,
     getGlobalMonthByCommessa: TimesheetAggregatesMock.getGlobalMonthByCommessa,
     getOperaiByAzienda: ProjectMock.getOperaiByAzienda,

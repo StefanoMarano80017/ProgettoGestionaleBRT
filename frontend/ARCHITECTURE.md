@@ -1,343 +1,192 @@
-# Progetto Gestionale – Architecture & Data Flow
+## Progetto Gestionale – Architecture & Runtime Design
 
-_Last updated: 2025-10-06_
+_Last updated: 2025-10-06 (post-legacy cleanup & shim removal)_
+
+## Executive Overview
+Domain‑centric modular frontend with strong separation of concerns:
+```
+App Shell (routing, layouts, providers)
+  ├─ Domains (auth, timesheet, future placeholders)
+  ├─ Shared UI Library (shared/components, dialogs, theme, hooks, utils)
+  └─ Cross-Cutting Providers (AuthProvider, ThemeProvider)
+```
+Legacy `Components/`, context shims, and `_legacy_archive` have been fully purged. A pre‑build import checker enforces canonical paths.
 
 ## Scope
-This document focuses on the runtime architecture and information flow for the currently relevant user‑facing pages:
-- Login (`Pages/Login.jsx`)
-- Home (`Pages/Home.jsx`)
-- Dipendente Timesheet (`Pages/Timesheet/DipendenteTimesheet.jsx`)
-- Dashboard Amministrazione Timesheet (`Pages/Timesheet/DashboardAmministrazioneTimesheet.jsx`)
+1. Layering & boundaries
+2. Provider contracts
+3. Timesheet domain models & flows
+4. Utilities strategy
+5. Import rules & enforcement
+6. Migration recap
+7. Testing strategy
+8. Performance considerations
+9. Open TODOs & governance
 
-It also maps the core subsystems (Auth, Timesheet Domain, Staging Layer, Calendar/Grid UI) and identifies candidate unused code for cleanup (separate section placeholder – populated after deeper static graph scan).
-
----
-## High-Level Layered View
-
+## Layered View
 ```
-Presentation (Pages & Composite Panels)
- ├─ Login / Home
+Presentation (Pages / Layouts)
+ ├─ Login / Home (to be domain-scoped)
  ├─ DipendenteTimesheet
- └─ DashboardAmministrazioneTimesheet
+ └─ Coordinatore/Admin Timesheet
 
-Domain UI Components
- ├─ StagedChangesPanel
- ├─ DayEntryPanel / AdminDetailsPanel
- ├─ WorkCalendar / EmployeeMonthGrid / DayEntryTile
- ├─ CommesseDashboard / FiltersBar / TileLegend / BadgeCard
- └─ Dialogs (EditEntryDialog, SegnalazioneDialog, ConfirmDialog)
+Shared Components
+ ├─ Bars / Filters / BadgeCard / Dialogs / Calendar / Entries / TaskManager / Inputs
+ └─ Theming (themes + hook)
 
-State & Hooks Layer
- ├─ AuthProvider / useAuth
- ├─ TimesheetProvider & Context (employees, dataMap, selection helpers)
- ├─ Staging Reducer + useTimesheetStaging (entries, order, ops)
- ├─ Canonical domain hooks (all under `src/domains/timesheet/hooks/`):
- │   calendar/*, dayEntry/*, staging/*, useTimesheetData, useEmployeeTimesheetLoader,
- │   useMonthCompleteness, useStableMergedDataMap, useStagedMetaMap, useTimesheetEntryEditor,
- │   useDayAndMonthDetails, useTimesheetFilters, useSegnalazione, useTimesheetApi, useReferenceData, useSelection
- └─ Utility models (utils/*): semantic hashes, diff & merge helpers, roleCapabilities, timesheetModel
+Domain: Timesheet
+ ├─ components/calendar, staging
+ ├─ hooks/{calendar,dayEntry,staging,utils,validation}
+ ├─ pages
+ └─ services
 
-Data Sources (Mock / Future API)
- ├─ UsersMock (authenticate)
- ├─ Project / Commessa mocks
- └─ Timesheet mock loaders (applyStagedToMock, etc.)
+Providers
+ ├─ AuthProvider
+ └─ ThemeProvider
+
+Mocks (temporary data sources)
 ```
 
----
-## Data Models (Key Shapes)
-
-### Auth
+## Provider Contracts
+### AuthProvider
 ```
-AuthState: {
-  user: { id, username, roles[], azienda, ... },
-  token: string | null
-}
-AuthContext Value: {
-  user, token, isAuthenticated: boolean, roles: string[],
-  login(username, password) -> Promise<{user, token}>,
-  logout(), hasRole(role)
+value: {
+  user: { id, username, roles[], azienda, ... } | null,
+  token: string | null,
+  isAuthenticated: boolean,
+  roles: string[],
+  login(username, password): Promise<{ user, token }>,
+  logout(): void,
+  hasRole(role: string): boolean
 }
 ```
+Invariants: `isAuthenticated === !!user && !!token`; login persists atomically.
 
-### Timesheet Base Data
+### ThemeProvider
 ```
-TimesheetDataMap: {
-  [employeeId: string]: {
-     [dateKey: 'YYYY-MM-DD']: Array<Record>
-  }
+value: {
+  mode: 'light' | 'dark',
+  toggleTheme(): void,
+  muiTheme: Theme
 }
+```
+Invariants: persistent mode toggle; consumers use `useThemeContext` only.
+
+## Timesheet Domain Models
+### Base Data
+```
+TimesheetDataMap: { [employeeId]: { [dateKey: 'YYYY-MM-DD']: Record[] } }
 Record: { commessa: string, ore: number, descrizione?: string }
 ```
 
-### Staging Entry (Reducer State)
+### Staging State
 ```
-StagingState: {
-  entries: {
-    [employeeId]: {
-      [dateKey]: {
-        employeeId,
-        dateKey,
-        base: Record[]      // snapshot at first stage
-        draft: Record[]|[]|null // null => day-delete (explicit)
-        op: 'create' | 'update' | 'delete' | 'noop'
-        previousOp?: string
-        hashes: { base: string, draft: string }
-        dirty: boolean
-      }
-    }
-  },
-  order: [ "empId|dateKey", ... ]
+StagingState.entries[empId][dateKey] = {
+  employeeId, dateKey,
+  base: Record[],      // frozen snapshot
+  draft: Record[] | [] | null,
+  op: 'create' | 'update' | 'delete' | 'noop',
+  hashes: { base, draft },
+  dirty: boolean
 }
 ```
 
-### Derived Meta
-- `useStagedMetaMap` → `{ [employeeId]: { [dateKey]: op } }` (filters out `noop`).
-- `useStableMergedDataMap` → overlays staged `draft` for read contexts that must reflect local edits (employee page editing panel) while calendar tiles still show committed base + glow.
+### Derived Meta & Diff
+`useStagedMetaMap` → op per tile; `useStableMergedDataMap` → merged view for focused editing.
+`DayDiff` surfaces semantic change type + per‑record inserts/updates/deletes.
 
-### Diff Object (Panel)
-```
-DayDiff: {
-  type: 'new-day'|'day-delete'|'insert-only'|'update-only'|'delete-only'|'mixed'|'no-op',
-  inserts: number,
-  updates: number,
-  deletes: number,
-  original: Record[] | [],
-  staged: Record[] | [] | null,
-  changes: Array<{ type: 'insert'|'update'|'delete', before?, after? }>
-}
-```
+## Core Flows (Condensed)
+1. Login: form → `login()` → mock auth → context update → redirect.
+2. Employee edit: load single employee → select day → edit → stage → confirm commit.
+3. Multi-employee admin: load all → per selection open panel/dialog → stage per day → batch confirm.
+4. Staging lifecycle: freeze base, classify op, rollback on cancel, purge on commit.
+5. Visual separation: tiles show base + glow; editor uses merged base+draft only for active day/employee.
 
----
-## Core Flows
+## Key Component Roles
+| Component | Base? | Draft? | Writes Staging | Notes |
+|-----------|-------|--------|----------------|-------|
+| WorkCalendar | ✓ | ✗ | ✗ | Uses staged meta for glow |
+| EmployeeMonthGrid | ✓ | ✗ | ✗ | Multi-employee base grid |
+| DayEntryPanel | via merged | ✓ | ✓ | Focused editor |
+| StagedChangesPanel | via staging | ✓ | rollback/confirm | Diff + controls |
+| DayEntryTile | ✓ | ✗ | ✗ | Visual op indicator |
 
-### 1. Login
-```
-User submits credentials → useAuth.login → authenticate (Mocks) → set AuthContext & localStorage → Navigate to /Home or preserved route in location.state.from
-```
-Sequence (simplified):
-1. `Login.jsx` form submit
-2. `login()` calls `authenticate()` (UsersMock) → success returns { user, token }
-3. AuthProvider updates context state + persists to localStorage
-4. React Router navigation to original target (RequireAuth stored) or `/Home`
+## Invariants
+- Base data immutable until commit.
+- Staging `base` snapshot never mutates.
+- `noop` retained for stability (filtered from payload).
+- Diff building isolated (staging panel) to avoid per-tile overhead.
 
-### 2. Employee Timesheet Editing & Staging
+## Information Flow (Text)
 ```
-TimesheetProvider(scope='single') mounts → load employee base data (useEmployeeTimesheetLoader)
-User selects day in WorkCalendar → DayEntryPanel renders with mergedData
-User edits entries → DayEntryPanel debounces and calls staging.stageDraft(empId,dateKey,draft)
-Staging reducer stores snapshot (base) & draft → op classification
-Calendar still reads base data; glow via stagedMeta (op mapped to staged-* tag)
-StagedChangesPanel lists diffs purely from staging.entries (base vs draft)
-User clicks Confirm → batch commit hook applyStagedToMock → on success staging cleared
+Edit → stageDraft → stagingReducer
+  ├─ StagedChangesPanel (diff list)
+  ├─ useStagedMetaMap → Calendar/Grid (glow)
+  └─ useStableMergedDataMap → Editor (merged view)
+
+Confirm → build payload → apply (mock/real) → clear staging
 ```
 
-### 3. Admin Multi-Employee Editing
-```
-TimesheetProvider(scope='all') → loads all employees + timesheet map
-EmployeeMonthGrid shows base hours per day (no staged overlay) + glow from stagedMeta
-Selecting (emp, date) loads details via useDayAndMonthDetails
-Edits in AdminDetailsPanel / dialogs update local detail state then staging.stageDraft(emp,date,draft)
-Commit through StagedChangesPanel (same shared component) → batch apply
-Filters & completeness metrics recompute on base data only until commit
-```
+## Migration Recap
+| Phase | Action | Result |
+|-------|--------|--------|
+| 1 | Inventory & alias audit | Legacy surface mapped |
+| 2 | Introduce shared/ | Centralized UI library |
+| 3 | Move providers | `app/providers/*` canonical |
+| 4 | Stub & rewire imports | Non-breaking transition |
+| 5 | Barrel script upgrade | Correct default export handling |
+| 6 | Import checker | Prevent regressions |
+| 7 | Archive quarantine | Legacy isolated |
+| 8 | Purge archive & shims | Clean final state |
 
-### 4. Staging Operation Lifecycle
-```
-Initial edit → UPSERT_ENTRY: capture base snapshot if first time; classify op
-Subsequent edits → reuse frozen base; re-classify
-If draft semantically equals base → entry converted to 'noop' (retained) or skipped if first staging (stability)
-Rollback / Revert (panel chip X or double-click) → staging.rollbackEntry removes entry (restores base view)
-Confirm → build payload (entries with op != 'noop') → remoteApplyFn → success clears reducer; failure triggers rollback payload
-```
+## Import Rules (Enforced)
+Blocked: `@/Components/`, `@/app/layouts/AuthContext`, `@/app/layouts/ThemeContext`, `@/Hooks/`.
+Allowed patterns: `@/app/providers/*Provider`, `@shared/components/...`, `@shared/hooks/useThemeContext`, `@domains/<domain>/hooks/...`.
+Guidelines: No cross-domain deep imports; promote utils only when reused across domains; keep barrels acyclic.
 
-### 5. Visual State Separation
-```
-Calendar / Grid tiles: show committed base (tsCtx.dataMap) + highlight (stagedMeta op → glow)
-Editing panels (DayEntryPanel, AdminDetailsPanel) use merged data: base plus staged draft for current day
-StagedChangesPanel: independent view of staging snapshot (base + draft) unaffected by outside dataMap refresh jitter
-```
+## Utilities Strategy
+| Category | Location | Promotion Rule |
+|----------|----------|----------------|
+| Domain semantic | domains/timesheet/hooks/utils | Stay unless ≥2 domains need it |
+| Generic date range | shared/utils | Already shared |
+| Component-scoped helper | component dir (utils/) | Migrate upward if reused |
 
----
-## Key Components Responsibilities
-| Component | Responsibility | Reads Base | Reads Draft | Writes Staging | Shows Glow |
-|-----------|---------------|-----------|------------|----------------|-----------|
-| WorkCalendar | Month view (single employee) | Yes | No | No | Yes (stagedMeta) |
-| EmployeeMonthGrid | Matrix employees × days | Yes | No | No | Yes (stagedDaysMap) |
-| DayEntryPanel | Focused day editing (employee) | Via mergedData | Yes | Yes (stageDraft) | N/A |
-| AdminDetailsPanel | Focused editing (admin) | Yes (details) | Local copy → stage | Yes | N/A |
-| StagedChangesPanel | Diff & control actions | Via staging.entries | Yes | Rollback / Discard / Confirm | N/A |
-| DayEntryTile | Visual per day cell | Yes | No | No | Yes (stagedOp→glow) |
+## Testing Strategy (Planned)
+| Target | Type | Purpose |
+| stagingReducer | Unit | Op transitions & invariants |
+| computeDayUsed / semanticTimesheet | Unit | Pure calc correctness |
+| timesheetModel | Unit + snapshot | Structural guarantees |
+| roleCapabilities | Unit | Role logic stability |
+| useStagedMetaMap | Hook test | Derived map integrity |
+| DayEntryPanel staging flow | Integration | End-to-end UX semantics |
 
----
-## Invariants & Design Decisions
-- Base (committed) data is immutable for the UI until a successful commit; staging drafts never mutate `dataMap` directly.
-- A staging entry’s `base` snapshot never changes after first staging to prevent op flip-flopping (e.g., create→update).
-- Calendar & grids avoid recomputing diffs per tile; a precomputed staged meta map feeds glow classification.
-- No deletion side-effects are applied visually to base arrays; delete shows as empty tile with red glow.
-- `noop` entries are retained after prior edits to stabilize classification & prevent flicker; filtered from payload/visual diff list.
+Stack: Vitest + React Testing Library.
 
----
-## Information Flow Diagram (Textual)
-```
-[User Edit] → DayEntryPanel local draft → stageDraft() → stagingReducer(entries/op)
-   ├─ StagedChangesPanel (list diffs from staging.entries)
-   ├─ useStagedMetaMap → WorkCalendar / EmployeeMonthGrid (glow)
-   └─ useStableMergedDataMap → DayEntryPanel merged view
+## Performance Considerations
+- Memoize derived maps; stable provider values.
+- Defer heavy diffs until panel open.
+- Avoid merged map computation for all employees at once.
 
-Confirm → buildBatchPayload() → remoteApplyFn(applyStagedToMock) → success: clear staging + (future) refresh base data
-```
+## Open TODOs
+- Domain-ize `Pages/` (auth/appShell split).
+- Real backend integration for staging commit.
+- Accessibility: dialog focus return + ARIA enrichment.
+- Add test matrix (above) to CI.
 
----
-## Extension Points / Future Enhancements
-- Replace mock `applyStagedToMock` with real REST/GraphQL backend connector (transactional batch endpoint).
-- Add optimistic concurrency token per day (hash of base) included in batch payload; server detects conflicts.
-- Introduce unit tests for staging reducer transitions (create→update→noop→rollback sequences).
-- Enable partial commit (selection subset) in StagedChangesPanel.
-- Add offline persistence (localStorage) for staging entries on navigation-away safeguard.
+## Governance (Proposed)
+| Area | Owner (TBD) | Notes |
+|------|-------------|-------|
+| Auth / Providers | <assign> | Token refresh, security |
+| Timesheet Domain | <assign> | Performance & correctness |
+| Shared UI | <assign> | Design consistency |
+| Tooling / Scripts | <assign> | Fast break fix |
 
----
-## Legacy Removal (2025-10-06 Consolidated Refactor)
-All legacy path variants under `src/domains/timesheet/hooks/Timesheet/` have been fully removed. Canonical imports must use the root barrel `@domains/timesheet/hooks` or direct files under `calendar/`, `dayEntry/`, `staging/`, `utils/`.
+## Change Log (Doc)
+- Rewritten for post-clean state.
+- Added provider contracts & import enforcement.
+- Added migration table & test strategy.
+- Consolidated legacy removal narrative.
 
-Eliminated legacy directory tree:
-```
-src/domains/timesheet/hooks/Timesheet/** (entire folder)
-```
-
-Previously removed / superseded components:
-- `Components/Calendar/DayEntryPanel.jsx` (duplicate) → canonical now `domains/timesheet/components/calendar/DayEntryPanel.jsx`
-- `Components/Timesheet/DetailsPanel.jsx` → replaced by `AdminDetailsPanel` + `DayEntryPanel`
-- `Components/Timesheet/StagedChangesPanel.jsx` → moved to `domains/timesheet/components/staging/`
-- `Components/Timesheet/TimesheetStagingBar.jsx` → staging UI consolidated in `StagedChangesPanel` / provider context
-
-Removed (or migrated) hooks & utilities (legacy variants):
-- All files in `hooks/Timesheet/dayEntry/`, `hooks/Timesheet/staging/`, `hooks/Timesheet/utils/`, `hooks/Timesheet/context/`
-- Redundant re-export barrels (`hooks/Timesheet/index.js`)
-
-Canonical utilities retained:
-- `utils/semanticTimesheet.js`
-- `utils/computeDayUsed.js`
-- `utils/timesheetModel.js`
-- `utils/roleCapabilities.js`
-
-Rationale: reduces duplicate logic, prevents accidental mixed imports, clarifies DDD layout.
-
----
-## Cleanup Strategy (Post-Refactor Baseline)
-1. Build dependency graph (import traversal from target pages) → mark reachable.
-2. Collect files in `src` not reachable → manual review to avoid false positives (e.g., dynamic imports, index.js re-exports).
-3. Categorize:
-   - Remove (dead, superseded)
-   - Consolidate (duplicate utilities)
-   - Defer (future feature placeholders, document rationale)
-4. Execute removal in incremental PRs for safer diffs.
-
----
-## Glossary
-- Base Data: Committed authoritative timesheet entries.
-- Draft: Local edited candidate (staged) replacement for a day.
-- Op: Operation classification relative to frozen base (`create|update|delete|noop`).
-- Glow: Visual highlight on a day tile indicating uncommitted change.
-
----
-## Ownership & Contact
-- Timesheet domain & staging: (Assign owner)
-- Auth & Routing: (Assign owner)
-
-(Replace placeholders with actual team/maintainer names.)
-
----
 _End of Architecture Overview_
-
----
-## Modal Day Editing (2025-10-05 Update)
-
-Both employee and admin timesheet pages now use a unified modal dialog (`DayEntryDialog`) for per‑day editing, opened via double‑click on a calendar tile.
-
-### Interaction Changes
-| Page | Previous Behavior | New Behavior |
-|------|-------------------|--------------|
-| DipendenteTimesheet | Inline `DayEntryPanel` beside calendar after selecting a day; double‑click unused | Single click selects day (context hints); double‑click opens `DayEntryDialog` wrapping `DayEntryPanel` (auto staging) |
-| DashboardAmministrazioneTimesheet | Selection + inline `AdminDetailsPanel` editing with embedded entry editor dialogs | Single click selects (emp, day) for context; double‑click opens modal `DayEntryDialog` (for focused editing) while `AdminDetailsPanel` remains for summaries |
-
-1. Reduces layout shift and vertical scroll when editing many days in sequence.
-2. Provides consistent editing affordance across roles (employee vs admin).
-3. Improves isolation of edit state (dialog lifecycle controls staging debounce cleanly).
-4. Prepares ground for future keyboard navigation (enter/space to open, esc to close) and accessibility improvements.
-
-### Technical Notes
-* `DayEntryTile` gained `onDoubleClick` prop; both `WorkCalendar` and `EmployeeMonthGrid` plumb this up as `onDayDoubleClick`.
-* `DayEntryDialog` lazy‑renders `DayEntryPanel` only while open to minimize background effect work.
-* Data passed to the dialog:
-  - Employee page: merged data map (base + potential staging overlay logic internal to panel via context selectors).
-  - Admin page: per‑employee slice of `mergedDataMap`; staging overlay still resolved inside `DayEntryPanel` through `useTimesheetStaging` with provided `employeeId` + `date`.
-
-### Accessibility & TODO
-Planned incremental improvements (not yet implemented):
-* Return focus to originating tile after dialog close for keyboard users.
-* ARIA labels: enrich dialog title to include employee name (admin view) and localized date long-form.
-
-### Migration Considerations
-Existing external references to inline `DayEntryPanel` (if any in future branches) should be updated to use the dialog pattern for consistency. `AdminDetailsPanel` remains for broader monthly stats & multi‑day context; its embedded ad‑hoc editing flows can be gradually deprecated in favor of the modal once parity is confirmed.
-`useDayEditor` centralizes the `(employeeId, date, open)` state for `DayEntryDialog`. Both `DipendenteTimesheet` and `DashboardAmministrazioneTimesheet` invoke `openEditor(empId, date)` on double‑click and pass the returned state into `DayEntryDialog`. Benefits:
-* Eases future enhancements (keyboard shortcuts, deep link to a specific day) by adding logic once.
-* Simplifies accessibility focus return handling in a single place (future improvement).
-
----
-
-## Dipendente vs Dashboard Amministrazione — distinction and guidance
-
-This section clarifies the different responsibilities and expectations for the two timesheet pages so role‑specific logic doesn't leak into shared components.
-
-1) High level intent
-- DipendenteTimesheet: single‑user, inline-friendly, merged editing surface for the authenticated employee. Prioritizes immediate inline feedback and minimal navigation when editing multiple days.
-- DashboardAmministrazioneTimesheet: multi‑employee administrative surface. Prioritizes overview, virtualization, and non‑blocking modal edits for focused changes without reflowing the grid.
-
-2) Responsibilities & data scope
-- DipendenteTimesheet
-  - Scope: `TimesheetProvider(scope='single')` — loads only the current employee's timesheet and may present a merged view (base + draft) in the editor.
-  - Reads: `useStableMergedDataMap` for the editor; calendar tiles display base values but editors show merged drafts for accurate editing.
-  - Writes: `DayEntryPanel` may call `staging.stageDraft` directly; edits are expected to be immediate and visible in the editor.
-
-- DashboardAmministrazioneTimesheet
-  - Scope: `TimesheetProvider(scope='all')` — loads many employees; editing flows must slice data per selected employee to avoid broad recomputation.
-  - Reads: calendar and grid components must read committed base (`tsCtx.dataMap`) and a compact staged meta (`useStagedMetaMap`) for glow indicators. Avoid computing merged maps for all employees.
-  - Writes: edits from `AdminDetailsPanel` or `DayEntryDialog` update staging, but the main grid should not apply merged drafts to all tiles; only the selected employee's dialog/panel should render merged overlays.
-
-3) Staging semantics
-- Keep the invariant: base (committed) data must never be mutated by staging flows; staging reducer maintains drafts separately.
-- Employee page editors can present merged views; admin pages must compute merged overlays lazily and only for the selected context to minimize CPU and memory usage.
-
-4) Performance & rendering guidance
-- Virtualize long lists (already implemented in `EmployeeMonthGrid`) and avoid computing merged data for non‑visible rows.
-- Expose `useStagedMetaMap` as a compact, memoized selector (employeeId -> dateKey -> op) to minimize per‑tile re-renders.
-- Defer expensive aggregations to background effects or memoized hooks and prefer skeletons in modals so the dialog opens instantly while details load.
-
-5) UX & Accessibility expectations
-- DipendenteTimesheet: inline panel should focus the first input on open and support keyboard flows for speedy edits.
-- DashboardAmministrazioneTimesheet: modal editing should focus close/cancel quickly, provide clear aria labels including employee name and date, and return focus to the originating tile when closed.
-
-6) Testing & QA notes
-- Unit test the staging reducer and `useStagedMetaMap` shape to guarantee stable invariants across pages.
-- Add integration/perf tests that emulate large grids to ensure admin flows avoid full merged map computation (smoke test perf targets).
-
-7) Migration & maintenance
-- Reuse `DayEntryPanel` inside `DayEntryDialog` across roles instead of duplicating logic. Any change that would cause the calendar to render merged drafts for all employees should require a performance justification and tests.
-
----
-
-## PM Campo (pmcampo) — current status
-
-The PM Campo page and utilities received a conservative cleanup to avoid heavy rework interrupting timesheet fixes:
-
-- `Pages/Timesheet/PMCampoTimesheet.jsx` is intentionally stubbed with a lightweight placeholder. Routing still returns this page for users with the `PM_CAMPO` role (see `TimesheetRouter.jsx`).
-- PM-specific hooks such as `usePmCampoEditing` remain in `src/Hooks/Timesheet/PMCampoTimesheet/` and are left intact to preserve internal utilities and mocks used by the page during rework.
-- Mock data in `src/mocks/ProjectMock.js` includes seeded groups and operai used by PM Campo flows; these mocks are safe to keep for local testing.
-
-Guidance:
-- If you want to fully remove PM Campo for now, either archive the PM folder (`src/Pages/Timesheet/PMCampoTimesheet.jsx`) to an `archive/` directory or keep the stub to make future restoration trivial.
-- To re-enable PM Campo later, restore the original page implementation or incrementally reintroduce features using `usePmCampoEditing` + the existing mocks, ensuring that heavy computations are deferred and that staging semantics are preserved (base vs draft separation).
-
-Action taken (2025-10-05): the page `Pages/Timesheet/PMCampoTimesheet.jsx` and its hook implementation were moved to `frontend/archive/pmcampo/` to remove them from active routes while preserving the sources for future restoration. `TimesheetRouter.jsx` was updated to stop routing PM_CAMPO users to the archived page.
 
 

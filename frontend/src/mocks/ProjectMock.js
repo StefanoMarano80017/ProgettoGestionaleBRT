@@ -1,8 +1,16 @@
 // Mock giornaliero per dipendenti: genera timesheet per ogni dipendente e commesse assegnate
-
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+// Centralized non-work codes (used across mocks)
+export const NON_WORK = new Set(["FERIE", "MALATTIA", "PERMESSO", "ROL"]);
+
+export const isWorkCode = (c) => c && !NON_WORK.has(String(c).toUpperCase());
+
+// One-time warnings for seed corrections (to avoid log spam)
+let warnedSeedMalattia = false;
+let warnedSeedFerie = false;
 
 // Dipendenti (allineati ai mock UsersMock)
 const EMPLOYEES = [
@@ -129,21 +137,49 @@ for (const emp of EMPLOYEES) {
     const dayRecords = [];
 
     // FERIE (~2%) o MALATTIA (~2%) a giornata intera (solo feriali)
+    // Rules:
+    // - MALATTIA: always 8h and exclusive (no other entries on that day)
+    // - FERIE: either single 8h (60%) or combined non-work parts (40%) such that non-work sum == 8
     const roll = Math.random();
     if (roll < 0.02) {
-      dayRecords.push({
-        dipendente: emp.name,
-        commessa: "FERIE",
-        ore: 8,
-        descrizione: "Giornata di ferie",
-      });
-    } else if (roll < 0.04) {
+      // MALATTIA: single 8h entry
       dayRecords.push({
         dipendente: emp.name,
         commessa: "MALATTIA",
-        ore: getRandomInt(6, 8),
+        ore: 8,
         descrizione: "Malattia",
       });
+    } else if (roll < 0.04) {
+      // FERIE: either single 8h or combination with PERMESSO/ROL summing to 8
+      const ferieRoll = Math.random();
+      if (ferieRoll < 0.6) {
+        // single full day of FERIE
+        dayRecords.push({
+          dipendente: emp.name,
+          commessa: "FERIE",
+          ore: 8,
+          descrizione: "Giornata di ferie",
+        });
+      } else {
+        // combined partial non-work: pick perm and rol such that total non-work == 8
+        const perm = getRandomInt(0, 4);
+        const rol = getRandomInt(0, Math.max(0, 4 - perm));
+        const ferieHours = Math.max(0, 8 - (perm + rol));
+        const parts = [];
+        if (perm > 0) parts.push({ dipendente: emp.name, commessa: "PERMESSO", ore: perm, descrizione: "Permesso parziale" });
+        if (rol > 0) parts.push({ dipendente: emp.name, commessa: "ROL", ore: rol, descrizione: "ROL" });
+        if (ferieHours > 0) parts.push({ dipendente: emp.name, commessa: "FERIE", ore: ferieHours, descrizione: "Ferie (parziale)" });
+        // Ensure sum equals 8 (defensive): if rounding issues occur, adjust FERIE
+        const sumParts = parts.reduce((s, p) => s + (Number(p.ore) || 0), 0);
+        if (sumParts !== 8) {
+          // adjust FERIE entry (or add it) so total is exactly 8
+          const existingFerie = parts.find(p => p.commessa === 'FERIE');
+          if (existingFerie) existingFerie.ore = Math.max(0, existingFerie.ore + (8 - sumParts));
+          else parts.push({ dipendente: emp.name, commessa: 'FERIE', ore: Math.max(0, 8 - sumParts), descrizione: 'Ferie (adjusted)' });
+        }
+        // Push parts as the day's non-work entries (no work entries allowed)
+        parts.forEach(p => dayRecords.push(p));
+      }
     } else {
       // Giorno lavorativo normale
       let targetHours = 8;
@@ -185,6 +221,42 @@ for (const emp of EMPLOYEES) {
     }
 
     if (dayRecords.length > 0) {
+      // --- Seed-time normalization for non-work entries ---
+      // Ensure MALATTIA is exclusive and FERIE/PERMESSO/ROL combos sum to 8
+      const nonWorkParts = dayRecords.filter(r => NON_WORK.has(String(r.commessa)));
+      const malattiaPresent = nonWorkParts.some(r => String(r.commessa).toUpperCase() === 'MALATTIA');
+      if (malattiaPresent && nonWorkParts.length > 1) {
+        if (!warnedSeedMalattia) {
+          console.warn('Seed fix: MALATTIA deve essere esclusiva');
+          warnedSeedMalattia = true;
+        }
+        // Replace dayRecords with single MALATTIA=8
+        dayRecords.length = 0;
+        dayRecords.push({ dipendente: emp.name, commessa: 'MALATTIA', ore: 8, descrizione: 'Malattia (fix seed)' });
+      } else if (nonWorkParts.length > 0) {
+        // If FERIE combos present, ensure FERIE+PERMESSO+ROL == 8
+        const codes = nonWorkParts.map(r => String(r.commessa).toUpperCase());
+        if (codes.includes('FERIE') || codes.includes('PERMESSO') || codes.includes('ROL')) {
+          const perm = nonWorkParts.filter(r => String(r.commessa).toUpperCase() === 'PERMESSO').reduce((s, r) => s + (Number(r.ore) || 0), 0);
+          const rol = nonWorkParts.filter(r => String(r.commessa).toUpperCase() === 'ROL').reduce((s, r) => s + (Number(r.ore) || 0), 0);
+          const ferie = nonWorkParts.filter(r => String(r.commessa).toUpperCase() === 'FERIE').reduce((s, r) => s + (Number(r.ore) || 0), 0);
+          const sum = perm + rol + ferie;
+          if (sum !== 8) {
+            if (!warnedSeedFerie) {
+              console.warn('Seed fix: FERIE/ROL/PERMESSO devono sommare 8');
+              warnedSeedFerie = true;
+            }
+            // Recalculate FERIE = 8 - (perm + rol)
+            const newFerie = Math.max(0, 8 - (perm + rol));
+            // Remove all non-work parts from dayRecords, then re-add only non-zero parts
+            dayRecords = dayRecords.filter(r => !NON_WORK.has(String(r.commessa)));
+            if (perm > 0) dayRecords.push({ dipendente: emp.name, commessa: 'PERMESSO', ore: perm, descrizione: 'Permesso (seed fix)' });
+            if (rol > 0) dayRecords.push({ dipendente: emp.name, commessa: 'ROL', ore: rol, descrizione: 'ROL (seed fix)' });
+            if (newFerie > 0) dayRecords.push({ dipendente: emp.name, commessa: 'FERIE', ore: newFerie, descrizione: 'Ferie (seed fix)' });
+          }
+        }
+      }
+
       // Enrich each record with required canonical fields
       const userMeta = findUserById(emp.id);
       const role = userMeta?.roles?.[0] || 'DIPENDENTE';
@@ -250,6 +322,61 @@ export function sendSegnalazione(employeeId, dateKey, descrizione) {
         reject(e);
       }
     }, 120);
+  });
+}
+
+// NUOVO: batch save timesheet entries for staging confirmation
+export function batchSaveTimesheetEntries(payload) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        payload.forEach(batch => {
+          const { employeeId, updates } = batch;
+          if (!employeeTimesheetMock[employeeId]) {
+            employeeTimesheetMock[employeeId] = {};
+          }
+          
+          updates.forEach(update => {
+            const { dateKey, records } = update;
+            if (records && records.length > 0) {
+                // Add canonical fields to each record
+                const enrichedRecords = records.map((r, idx) => ({
+                  ...r,
+                  userId: employeeId,
+                  userRole: 'DIPENDENTE', // default role
+                  dateKey: dateKey,
+                  id: r.id || `${employeeId}-${dateKey}-${idx}`,
+                  _id: r._id || `${employeeId}-${dateKey}-${idx}`,
+                }));
+
+                // Defensive check: warn if total hours for the day exceed 8
+                // and there are NON_WORK entries (FERIE/MALATTIA/PERMESSO) involved.
+                try {
+                  const total = enrichedRecords.reduce((s, rec) => s + (Number(rec.ore) || 0), 0);
+                  const nonWorkTotal = enrichedRecords
+                    .filter((rec) => NON_WORK.has(String(rec.commessa)))
+                    .reduce((s, rec) => s + (Number(rec.ore) || 0), 0);
+                  const workTotal = total - nonWorkTotal;
+                  if (total > 8 && nonWorkTotal > 0) {
+                    console.warn(`[ProjectMock] Save collision: employee=${employeeId} date=${dateKey} totalHours=${total} (work=${workTotal} nonWork=${nonWorkTotal}). Non-work entries combined with work exceed 8h.`);
+                  }
+                } catch (err) {
+                  // Never fail the save because of logging issues
+                  console.warn('[ProjectMock] Warning check failed', err);
+                }
+
+                employeeTimesheetMock[employeeId][dateKey] = enrichedRecords;
+            } else {
+              // Empty records array means delete the day
+              delete employeeTimesheetMock[employeeId][dateKey];
+            }
+          });
+        });
+        resolve({ success: true, saved: payload.length });
+      } catch (e) {
+        reject(e);
+      }
+    }, 200); // Simulate network delay
   });
 }
 
@@ -332,7 +459,7 @@ export function assignHoursToGroup({ groupId, dateKey, commessa, oreTot }) {
         sumByOp[opId] = (sumByOp[opId] || 0) + (Number(ore) || 0);
       });
   const violator = Object.entries(sumByOp).find(([, h]) => Number(h) > 8);
-      if (violator) return reject(new Error("Superato il limite di 8h considerando le voci personali. Ridurre le ore totali o riassegnare."));
+    if (violator) return reject(new Error("Superato il limite di 8h considerando anche le voci personali (FERIE/MALATTIA/PERMESSO/ROL). Ridurre le ore totali o riassegnare."));
 
       grp.timesheet[dateKey].push({ commessa, oreTot: tot, assegnazione: proposed });
       resolve({ ...grp });
@@ -390,7 +517,7 @@ export function updateGroupDayEntries({ groupId, dateKey, entries }) {
       });
       // Verifica limite 8h
   const violator = Object.entries(sumByOp).find(([, h]) => Number(h) > 8);
-      if (violator) return reject(new Error("Superato il limite di 8h (considerando personale e altri gruppi). Ridurre le ore."));
+    if (violator) return reject(new Error("Superato il limite di 8h considerando anche voci personali e altri gruppi (FERIE/MALATTIA/PERMESSO/ROL). Ridurre le ore."));
 
       // Applica
       grp.timesheet[dateKey] = next;
@@ -455,10 +582,30 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       try {
-        const ALLOWED = new Set(["FERIE", "MALATTIA", "PERMESSO"]);
+        const ALLOWED = new Set(Array.from(NON_WORK));
+
+        // Normalize and sanitize entries: uppercase commessa, positive hours
         const sanitized = (entries || [])
-          .map((e) => ({ commessa: String(e.commessa || ""), ore: Number(e.ore) || 0 }))
+          .map((e) => ({ commessa: String(e.commessa || '').toUpperCase(), ore: Number(e.ore) || 0 }))
           .filter((e) => ALLOWED.has(e.commessa) && e.ore > 0);
+
+        // Rule: If MALATTIA present, it must be the only non-work row and exactly 8h
+        const hasMalattia = sanitized.some(e => e.commessa === 'MALATTIA');
+        if (hasMalattia) {
+          // If any other non-work present -> reject
+          if (sanitized.length > 1) return reject(new Error("MALATTIA è esclusiva e non può coesistere con altre voci non-work."));
+          const m = sanitized.find(e => e.commessa === 'MALATTIA');
+          if (!m || Number(m.ore) !== 8) return reject(new Error("MALATTIA è esclusiva e deve essere 8h"));
+        }
+
+        // If no MALATTIA but FERIE present -> FERIE+PERMESSO+ROL must sum exactly to 8
+        const hasFerie = !hasMalattia && sanitized.some(e => e.commessa === 'FERIE');
+        if (hasFerie) {
+          const nonWorkSum = sanitized
+            .filter(e => ['FERIE', 'PERMESSO', 'ROL'].includes(e.commessa))
+            .reduce((s, e) => s + Number(e.ore || 0), 0);
+          if (nonWorkSum !== 8) return reject(new Error(`Le voci non-work (FERIE/ROL/PERMESSO) devono totalizzare 8h (attuale: ${nonWorkSum}).`));
+        }
 
         // Calcola totale proposto: personale + ore dai gruppi correnti
         let total = sanitized.reduce((s, e) => s + (Number(e.ore) || 0), 0);
@@ -521,18 +668,57 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
       const year = today.getFullYear();
       const start = new Date(year, 0, 1);
       const end = new Date(today);
-      const ALLOWED = ["FERIE", "MALATTIA", "PERMESSO"];
+  const ALLOWED = Array.from(NON_WORK);
       OPERAI.forEach((op) => {
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const key = toKey(d);
           if (isWeekend(d) || holidaySet.has(key)) continue;
           // Probabilità
           const roll = Math.random();
-          let entry = null;
-          if (roll < 0.025) entry = { commessa: "MALATTIA", ore: getRandomInt(6, 8) };
-          else if (roll < 0.055) entry = { commessa: "FERIE", ore: 8 };
-          else if (roll < 0.11) entry = { commessa: "PERMESSO", ore: getRandomInt(1, 4) };
-          if (entry) {
+          // MALATTIA: rare (~2.5%) but when occurs it's always 8h and exclusive
+          if (roll < 0.025) {
+            const entry = { commessa: "MALATTIA", ore: 8 };
+            if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
+            operaioPersonalMock[op.id][key] = [entry];
+          } else if (roll < 0.055) {
+            // FERIE: either single 8h (60%) or a combo of PERMESSO and ROL summing to 8 (40%)
+            const ferieRoll = Math.random();
+            if (ferieRoll < 0.6) {
+              const entry = { commessa: "FERIE", ore: 8 };
+              if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
+              operaioPersonalMock[op.id][key] = [entry];
+            } else {
+              const perm = getRandomInt(0, 4);
+              const rol = getRandomInt(0, Math.max(0, 4 - perm));
+              const ferieHours = Math.max(0, 8 - (perm + rol));
+              const parts = [];
+              if (perm > 0) parts.push({ commessa: "PERMESSO", ore: perm, descrizione: "Permesso parziale" });
+              if (rol > 0) parts.push({ commessa: "ROL", ore: rol, descrizione: "ROL" });
+              if (ferieHours > 0) parts.push({ commessa: "FERIE", ore: ferieHours, descrizione: "Ferie (parziale)" });
+              // Defensive adjustment to ensure exact 8h and seed-time normalization
+              const sumParts = parts.reduce((s, p) => s + (Number(p.ore) || 0), 0);
+              if (sumParts !== 8) {
+                if (!warnedSeedFerie) {
+                  console.warn('Seed fix: FERIE/ROL/PERMESSO devono sommare 8');
+                  warnedSeedFerie = true;
+                }
+                // Recalculate FERIE so total equals 8
+                const newFerie = Math.max(0, 8 - (perm + rol));
+                const normalized = [];
+                if (perm > 0) normalized.push({ commessa: 'PERMESSO', ore: perm, descrizione: 'Permesso parziale (seed fix)' });
+                if (rol > 0) normalized.push({ commessa: 'ROL', ore: rol, descrizione: 'ROL (seed fix)' });
+                if (newFerie > 0) normalized.push({ commessa: 'FERIE', ore: newFerie, descrizione: 'Ferie (seed fix)' });
+                if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
+                if (normalized.length > 0) operaioPersonalMock[op.id][key] = normalized;
+              } else {
+                if (parts.length > 0) {
+                  if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
+                  operaioPersonalMock[op.id][key] = parts;
+                }
+              }
+            }
+          } else if (roll < 0.11) {
+            const entry = { commessa: "PERMESSO", ore: getRandomInt(1, 4) };
             if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
             operaioPersonalMock[op.id][key] = [entry];
           }

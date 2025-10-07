@@ -35,7 +35,7 @@ export default function TimesheetStagingBar({
         ...sx,
       }}
     >
-      <StagedChangesPanel compact maxVisible={5} showLegend {...panelProps} {...panelDirectProps} />
+      <StagedChangesPanel showLegend {...panelProps} {...panelDirectProps} />
     </Paper>
   );
 }

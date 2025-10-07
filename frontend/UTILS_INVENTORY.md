@@ -4,10 +4,11 @@ This document lists utility modules found in the frontend source and describes t
 
 ---
 
-## Calendar utilities
+## Calendar utilities (domain timesheet)
 
-Path: `src/Components/Calendar/utils`
-Barrel: `src/Components/Calendar/utils/index.js` (exports from the files below)
+Canonical Path (post-migration intent): `src/domains/timesheet/components/calendar/utils`
+Legacy Path (still present until Components/ removal): `src/Components/Calendar/utils`
+Barrels: `src/domains/timesheet/components/calendar/utils/index.js`
 
 - `tileStyles.js`
   - Exports:
@@ -64,14 +65,14 @@ Barrel: `src/Components/Calendar/utils/index.js` (exports from the files below)
 
 ## Badge & Avatar utilities
 
-- `src/Components/BadgeCard/utils/badgeUtils.js`
+- `src/shared/components/BadgeCard/utils/badgeUtils.js`
   - Exports:
     - `COMPANY_LOGOS` (frozen mapping)
     - `resolveBadgeData({ props, user })`
   - Purpose: normalize badge data, choose logo fallbacks and holder/company identification.
   - Suggested reuse: `BadgeCard/Badge.jsx`, header badges, or anywhere a company-user badge is rendered.
 
-- `src/Components/Avatar/utils/color.js`
+- `src/shared/components/Avatar/utils/color.js`
   - Exports:
     - `stringToColor(str)`
     - `darkenColor(hex, factor)`
@@ -82,7 +83,7 @@ Barrel: `src/Components/Calendar/utils/index.js` (exports from the files below)
 
 ## Sidebar utilities
 
-- `src/Components/Bars/sidebarUtils.js`
+- `src/shared/components/Bars/sidebarUtils.js`
   - Exports:
     - `getInitials(name, max = 2)`
     - `renderIcon(IconOrElement, sx)`
@@ -96,16 +97,17 @@ Barrel: `src/Components/Calendar/utils/index.js` (exports from the files below)
 
 - `src/mocks/*` — mock data & APIs
   - Files: `ProjectMock.js`, `UsersMock.js`, `EmployeeCommesseMock.js`, `employeeTasksMock.js`, `TimesheetAggregatesMock.js`, `handlers.js`, `browser.js`.
-  - Purpose: mock datasets and async functions used by `useTimesheetApi` and other parts of the app.
+  - Purpose: mock datasets and async functions used by future `useTimesheetApi` implementation and other parts of the app.
   - Suggested reuse: test harnesses, local development; import via `@mocks/*` (project uses `@mocks` alias)
 
 ---
 
 ## Notes and recommendations
 
-- Prefer importing from canonical barrels/aliases when available:
-  - Calendar utils: `@/Components/Calendar/utils` (or future domain relocation)
+Prefer importing from canonical barrels/aliases when available:
+  - Calendar utils: `@domains/timesheet/components/calendar/utils` (NOT legacy Components path)
   - Timesheet domain hooks & utils: `@domains/timesheet/hooks` (barrel) or specific `@domains/timesheet/hooks/utils/*`
+  - Shared visual helpers: `@shared/components/...`
   - Mocks: `@mocks/*`
 
 - Tests (recommended):
@@ -114,12 +116,14 @@ Barrel: `src/Components/Calendar/utils/index.js` (exports from the files below)
   - `computeDayDiff` (all operation classifications)
   - `validateDayHours` (limit boundaries, mixed personal/work hours)
 
-- Consolidation:
-  - All former `Hooks/Timesheet/*` helpers have been migrated or removed. Avoid reintroducing duplicate calendar logic—centralize through the calendar utils barrel.
+Consolidation:
+  - All former `Hooks/Timesheet/*` helpers have been migrated or removed.
+  - Legacy utils under `Components/*` now duplicated under `shared/components/*` — remove legacy copies after grep shows zero imports.
+  - Keep a single source of truth for each group (calendar, badge, sidebar).
 
 - Backward compatibility:
   - Legacy shims removed; any reference to `Hooks/Timesheet` should be considered an error now.
 
 ---
 
-Updated after refactor consolidation on 2025-10-06.
+Updated after refactor consolidation & shared migration on 2025-10-06 (refresh pass 2).

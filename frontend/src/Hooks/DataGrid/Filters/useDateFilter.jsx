@@ -1,3 +1,4 @@
+// LEGACY: moved to @shared/hooks/filters/useDateFilter
 import React, { useState, useMemo, useEffect } from "react";
 import { MenuItem, TextField, Chip, Grid } from "@mui/material";
 

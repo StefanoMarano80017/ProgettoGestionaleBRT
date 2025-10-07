@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 export { default as DayEntryDialog } from './DayEntryDialog.jsx';
 export { default as DayEntryPanel } from './DayEntryPanel.jsx';
 export { default as DayEntryTile } from './DayEntryTile.jsx';
@@ -7,7 +8,7 @@ export { default as MonthSelector } from './MonthSelector.jsx';
 export { default as ProjectSidePanel } from './ProjectSidePanel.jsx';
 export { default as statusConstants } from './statusConstants.js';
 export { default as statusIcons } from './statusIcons.jsx';
-export { default as statusIcons.utils } from './statusIcons.utils.js';
+export { default as statusIconsUtils } from './statusIcons.utils.js';
 export { default as TaskDetailCard } from './TaskDetailCard.jsx';
 export { default as WorkCalendar } from './WorkCalendar.jsx';
 export { default as WorkCalendarGrid } from './WorkCalendarGrid.jsx';

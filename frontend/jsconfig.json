@@ -7,7 +7,11 @@
       "@domains/*": ["domains/*"],
       "@shared/*": ["shared/*"],
       "@mocks/*": ["mocks/*"],
-      "@assets/*": ["assets/*"]
+      "@assets/*": ["assets/*"],
+  // Removed deprecated @components, @hooks, @layouts, @pages after migration
+      "@services/*": ["Services/*"],
+  "@theme/*": ["Theme/*"],
+      "@routes/*": ["Routes/*"]
     }
   },
   "include": ["src"]
