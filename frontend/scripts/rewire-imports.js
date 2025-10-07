@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Modernized rewire-imports script (idempotent). Converts legacy/temporary paths
 // to canonical shared/domains locations. Safe to re-run.
-import { readdirSync, statSync, readFileSync, writeFileSync } from 'fs';
+import { readdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 
-const src = path.resolve(process.cwd(), 'src');
+const src = path.resolve(process.cwd(), 'src'); // eslint-disable-line no-undef
 
 const patterns = [
   // Old dashboard components -> shared
@@ -45,7 +45,7 @@ function processFile(file) {
   if (changed) {
     writeFileSync(file, text, 'utf8');
     modified++;
-    console.log('[rewire] updated', path.relative(process.cwd(), file));
+    console.log('[rewire] updated', path.relative(process.cwd(), file)); // eslint-disable-line no-undef
   }
 }
 

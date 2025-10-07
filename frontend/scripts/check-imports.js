@@ -7,7 +7,7 @@
 import { readdirSync, statSync, readFileSync } from 'fs';
 import path from 'path';
 
-const root = path.resolve(process.cwd(), 'src');
+const root = path.resolve(process.cwd(), 'src'); // eslint-disable-line no-undef
 
 // When the legacy archive has been deleted, set LEGACY_ARCHIVE_PRESENT=false (or rely on default detection)
 const legacyArchivePath = path.join(root, '_legacy_archive');
@@ -70,7 +70,7 @@ for (const f of files) {
 
 if (violations.length) {
   console.error('\nForbidden legacy imports found (', violations.length, '):');
-  const rel = p => path.relative(process.cwd(), p);
+  const rel = p => path.relative(process.cwd(), p); // eslint-disable-line no-undef
   for (const v of violations) {
     console.error(' -', rel(v.file));
     console.error('    pattern :', v.pattern);
@@ -80,7 +80,7 @@ if (violations.length) {
   if (legacyArchiveExists) {
     console.error('Note: _legacy_archive still exists; consider deleting it once all shims are removed.');
   }
-  process.exit(1);
+  process.exit(1); // eslint-disable-line no-undef
 } else {
   console.log('No forbidden legacy imports found.');
   if (legacyArchiveExists) {

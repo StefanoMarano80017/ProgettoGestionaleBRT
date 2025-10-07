@@ -79,11 +79,11 @@ export function DayEntryPanel({
 		const isDeletionAttempt = records.length === 0 && baseCommitted.length > 0 && mergedHash === baseHash;
 		const isPotentialPhantomDeletion = isDeletionAttempt && !userEdited;
 		if (isPotentialPhantomDeletion) {
-			if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Skip phantom deletion staging', { effectiveDate, employeeId }); } catch {} }
+			if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Skip phantom deletion staging', { effectiveDate, employeeId }); } catch {} } // eslint-disable-line no-empty
 			return;
 		}
 		if (!userEdited) {
-			if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Draft differs but no explicit user edit yet – skip staging', { effectiveDate, employeeId }); } catch {} }
+			if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Draft differs but no explicit user edit yet – skip staging', { effectiveDate, employeeId }); } catch {} } // eslint-disable-line no-empty
 			return;
 		}
 		if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -107,7 +107,7 @@ export function DayEntryPanel({
 				}
 			}
 			
-			if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Stage draft', { effectiveDate, employeeId, action: records.length === 0 ? 'delete' : 'upsert', count: records.length }); } catch {} }
+			if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Stage draft', { effectiveDate, employeeId, action: records.length === 0 ? 'delete' : 'upsert', count: records.length }); } catch {} } // eslint-disable-line no-empty
 			staging.stageDraft(employeeId, effectiveDate, payload);
 			userEditRef.current = false;
 		}, 450);

@@ -10,12 +10,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import UndoIcon from '@mui/icons-material/Undo';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { useTimesheetStaging, useTimesheetContext, useTimesheetApi } from '@domains/timesheet/hooks';
+import { useTimesheetStaging, useOptionalTimesheetContext, useTimesheetApi } from '@domains/timesheet/hooks';
 import { computeDayDiff, summarizeDayDiff } from '@domains/timesheet/hooks/utils/timesheetModel.js';
 
 export default function StagedChangesPanel({ showLegend = true }) {
   const staging = useTimesheetStaging();
-  const ctx = (typeof useTimesheetContext === 'function') ? (() => { try { return useTimesheetContext(); } catch { return null; } })() : null;
+  const ctx = useOptionalTimesheetContext();
   const { api } = useTimesheetApi();
 
   const ordered = staging?.order || [];
@@ -196,13 +196,21 @@ export default function StagedChangesPanel({ showLegend = true }) {
         autoHideDuration={3500}
         onClose={closeSnack}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{
+          '& .MuiSnackbarContent-root': {
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+            boxShadow: 3,
+            borderRadius: 1
+          }
+        }}
         message={
           <Stack direction="row" spacing={1} alignItems="center">
             {snack.kind === 'commit' && <CheckCircleOutlineIcon fontSize="small" color="success" />}
             {snack.kind === 'rollback' && <UndoIcon fontSize="small" color="warning" />}
             {snack.kind === 'revert' && <CloseIcon fontSize="small" color="info" />}
             {snack.kind === 'error' && <ErrorOutlineIcon fontSize="small" color="error" />}
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>{snack.msg}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>{snack.msg}</Typography>
           </Stack>
         }
       />

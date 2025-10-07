@@ -1,8 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Container, Alert, Typography, Snackbar, Paper, ButtonGroup, Button } from '@mui/material';
+import { Box, Container, Alert, Typography, Snackbar, Paper, ButtonGroup, Button, Stack } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import PageHeader from '@shared/components/PageHeader';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import UndoIcon from '@mui/icons-material/Undo';
+import CloseIcon from '@mui/icons-material/Close';
 // navigation icons removed — period controls live inside the dashboard now
 import BadgeCard from '@shared/components/BadgeCard/Badge';
 import TimesheetStagingBar from '@domains/timesheet/components/staging/TimesheetStagingBar';
@@ -13,7 +17,6 @@ import { TimesheetProvider, useTimesheetContext, useReferenceData, useTimesheetS
 import { findUserById } from '@mocks/UsersMock';
 import useAuth from '@/domains/auth/hooks/useAuth';
 import useDayEditor from '@domains/timesheet/hooks/useDayEditor';
-import useMonthCompleteness from '@domains/timesheet/hooks/useMonthCompleteness';
 import useEmployeeTimesheetLoader from '@domains/timesheet/hooks/useEmployeeTimesheetLoader';
 import useStableMergedDataMap from '@domains/timesheet/hooks/useStableMergedDataMap';
 import useStagedMetaMap from '@domains/timesheet/hooks/staging/useStagedMetaMap';
@@ -28,34 +31,10 @@ function InnerDipendente({ employeeId }) {
   const dayEditor = useDayEditor();
   // External draft tracking removed; DayEntryPanel now manages draft & staging internally
 
-  // NOTE: useMonthCompleteness migrated to a minimal version returning { filled, working, ratio } only.
-  // Previous missing days logic removed; for now compute a simple previous-month missing count separately (placeholder).
-  const prevMonthDate = useMemo(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d; }, []);
-  const completeness = useMonthCompleteness();
-  const missingPrev = [];
-  const missingPrevSet = [];
-  const { commesse: commesseList, loading: commesseLoading } = useReferenceData({
-    commesse: true,
-    personale: false,
-    pmGroups: false,
-    employeeId
-  });
-
-  // Editing & auto staging are internal to DayEntryPanel; this page only selects a day and shows staging panel.
-
   // Merged data view (base + staging overlay + local drafts) using new staging selectors
   const { mergedData } = useStableMergedDataMap({ dataMap: ctx?.dataMap || {}, staging, employeeId, mode: 'single' });
   const stagedMetaAll = useStagedMetaMap(staging);
   const stagedMeta = useMemo(() => stagedMetaAll[employeeId] || {}, [stagedMetaAll, employeeId]);
-
-  // Error boundary for data loading
-  if (!ctx) {
-    return (
-      <Alert severity="error" sx={{ m: 2 }}>
-        Errore nel caricamento del contesto timesheet. Riprova più tardi.
-      </Alert>
-    );
-  }
 
   const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const isBadgiatoToday = useMemo(
@@ -73,6 +52,25 @@ function InnerDipendente({ employeeId }) {
 
   // Toast state (kept for potential errors / info)
   const [toast, setToast] = useState({ open: false, msg: '', severity: 'info' });
+
+  const { commesse: commesseList, loading: commesseLoading } = useReferenceData({
+    commesse: true,
+    personale: false,
+    pmGroups: false,
+    employeeId
+  });
+
+  // Placeholder for missing days logic (currently disabled)
+  const missingPrevSet = new Set();
+
+  // Error boundary for data loading
+  if (!ctx) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        Errore nel caricamento del contesto timesheet. Riprova più tardi.
+      </Alert>
+    );
+  }
 
   return (
     <Box sx={{ bgcolor: 'background.default', height: '100vh', overflow: 'auto' }}>
@@ -104,12 +102,6 @@ function InnerDipendente({ employeeId }) {
 
         {/* Status Alerts Section */}
         <Box sx={{ mb: 3 }}>
-          {/* Placeholder warning: disabled until extended completeness hook restored */}
-          {false && missingPrev.length > 0 && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              Attenzione: non hai completato il mese precedente ({missingPrev.length} giorni mancanti).
-            </Alert>
-          )}
           {/* Move: show 'Seleziona un giorno' immediately under the previous-month warning */}
           { !selectedDay && (
             <Alert severity="info" sx={{ textAlign: 'left' }}> Seleziona un giorno. </Alert>
@@ -201,21 +193,6 @@ function InnerDipendente({ employeeId }) {
             commesse={commesseList}
           />
       </Container>
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={() => setToast(s => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <MuiAlert
-          onClose={() => setToast(s => ({ ...s, open: false }))}
-          severity={toast.severity}
-          elevation={6}
-          variant="filled"
-        >
-          {toast.msg}
-        </MuiAlert>
-      </Snackbar>
     </Box>
   );
 }

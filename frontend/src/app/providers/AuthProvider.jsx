@@ -3,6 +3,7 @@ import { authenticate } from "@mocks/UsersMock";
 
 // Renamed from app/layouts/AuthContext.jsx to app/providers/AuthProvider.jsx
 // Provides authentication context (user, token, role helpers)
+// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = React.createContext(null);
 
 export function AuthProvider({ children }) {

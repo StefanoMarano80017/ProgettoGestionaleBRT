@@ -30,7 +30,7 @@ export function useTimesheetStaging() {
 	const stageDraft = useCallback((employeeId, dateKey, draftRecords, opts) => {
 		if (!upsert) return;
 		const base = getBaseDay(employeeId, dateKey);
-		if (DEBUG_TS) { try { console.debug('[staging] stageDraft request', { employeeId, dateKey, baseLen: base?.length || 0, draftLen: draftRecords?.length || 0, origin: opts?.origin }); } catch {} }
+		if (DEBUG_TS) { try { console.debug('[staging] stageDraft request', { employeeId, dateKey, baseLen: base?.length || 0, draftLen: draftRecords?.length || 0, origin: opts?.origin }); } catch {} } // eslint-disable-line no-empty
 		upsert(employeeId, dateKey, base, draftRecords);
 	}, [getBaseDay, upsert]);
 

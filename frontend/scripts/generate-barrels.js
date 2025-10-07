@@ -2,7 +2,7 @@
 import { readdirSync, statSync, writeFileSync, readFileSync } from 'fs';
 import path from 'path';
 
-const root = path.resolve(process.cwd(), 'src');
+const root = path.resolve(process.cwd(), 'src'); // eslint-disable-line no-undef
 const INDEX = 'index.js';
 
 function toIdentifier(name) {
@@ -21,7 +21,7 @@ function generateBarrel(dir) {
     const id = toIdentifier(base);
     const fullPath = path.join(dir, f.name);
     let source = '';
-    try { source = readFileSync(fullPath, 'utf8'); } catch {}
+    try { source = readFileSync(fullPath, 'utf8'); } catch {} // eslint-disable-line no-empty
     const hasDefault = /export\s+default\s+/m.test(source);
     if (hasDefault) {
       lines.push(`export { default as ${id} } from './${base}';`);
@@ -33,13 +33,13 @@ function generateBarrel(dir) {
   }
   for (const d of subdirs) {
     const subIndex = path.join(dir, d.name, INDEX);
-    try { statSync(subIndex); lines.push(`export * from './${d.name}';`); } catch {}
+    try { statSync(subIndex); lines.push(`export * from './${d.name}';`); } catch {} // eslint-disable-line no-empty
   }
   lines.push('');
   const content = lines.join('\n');
   const target = path.join(dir, INDEX);
   let existing = '';
-  try { existing = readFileSync(target, 'utf8'); } catch {}
+  try { existing = readFileSync(target, 'utf8'); } catch {} // eslint-disable-line no-empty
   if (existing === content) return;
   writeFileSync(target, content, 'utf8');
   console.log('[barrel] updated', path.relative(root, target));

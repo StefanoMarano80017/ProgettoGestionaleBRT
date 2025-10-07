@@ -3,6 +3,7 @@ import { ThemeProvider as MUIThemeProvider, CssBaseline, createTheme, useMediaQu
 import appTheme from "@/shared/theme/MainTheme";
 
 // Renamed from app/layouts/ThemeContext.jsx to app/providers/ThemeProvider.jsx
+// eslint-disable-next-line react-refresh/only-export-components
 export const ThemeCtx = React.createContext(null);
 
 export function ThemeProvider({ children }) {
