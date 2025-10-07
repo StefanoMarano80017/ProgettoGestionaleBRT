@@ -14,7 +14,6 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
-
 package com.brt.TimesheetService.projection;
 
 import java.time.LocalDate;
@@ -23,12 +22,13 @@ import java.util.List;
 import com.brt.TimesheetService.model.TimesheetDay;
 
 public record TimesheetDayProjection(
-    LocalDate date,
-    String employeeName,
-    String status,
-    String absence,
-    List<TimesheetItemProjection> items
-) {
+        LocalDate date,
+        String employeeName,
+        String status,
+        String absence,
+        List<TimesheetItemProjection> items
+        ) {
+
     public static TimesheetDayProjection fromEntity(TimesheetDay day) {
         return new TimesheetDayProjection(
                 day.getDate(),

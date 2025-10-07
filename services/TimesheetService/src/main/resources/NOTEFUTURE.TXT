@@ -1,0 +1,352 @@
+Per ora commesse e employee sono salvati in un db locale poiché siamo in una prima fase di sviluppo, 
+come dovrei muovermi in futuro quando avrò i servizi che li gestiscono e dovrò solo usare loro dati ? 
+devo mantenere dei dati in locale per le query in questo servizio
+
+Ottima domanda! Stai pensando bene all'architettura futura. Ti spiego le **strategie più comuni** per gestire questa transizione:
+
+## 🎯 Strategia consigliata: **Cache-Aside Pattern con sync periodico**
+
+Quando avrai i servizi esterni, dovrai:
+
+1. **Mantenere tabelle locali** (read-only) per le query JOIN veloci
+2. **Sincronizzare** periodicamente i dati dai servizi master
+3. **Cachare** in Redis per ridurre chiamate REST## 📊 Riepilogo strategia
+
+### **FASE 1 (ORA)** - Sviluppo
+```
+TimesheetService → DB locale (commesse, employees, timesheet)
+```
+
+### **FASE 2 (FUTURO)** - Produzione
+```
+TimesheetService
+  ↓
+  ├─ Timesheet: DB locale (master)
+  ├─ Commesse: API REST → Redis cache → DB locale (fallback)
+  └─ Employees: API REST → Redis cache → DB locale (fallback)
+```
+
+## ✅ Vantaggi di mantenere DB locale:
+
+1. **Query JOIN veloci** - non devi fare 3 chiamate REST per ogni timesheet
+2. **Resilienza** - se i servizi esterni sono down, hai i dati in cache locale
+3. **Performance** - le paginazioni restano velocissime
+4. **Trasparenza** - il `TimesheetService` non cambia quando migri
+
+## 🔄 Checklist migrazione futura:
+
+- [ ] Crea `CommessaApiClient` con `RestClient`
+- [ ] Implementa `CommessaSyncService` con `@Scheduled`
+- [ ] Aggiungi Redis per cache distribuite
+- [ ] Configura timeout e retry logic per API calls
+- [ ] Aggiungi monitoring per sync failures
+- [ ] Modifica tabelle locali: aggiungi `last_sync_at` e `READ ONLY` constraints
+
+## ⚠️ Importante:
+
+- Le tabelle locali diventano **read-only** per questo service
+- Usa `@Scheduled` per sync automatico (non real-time)
+- Redis cache riduce chiamate REST per singole letture
+- DB locale garantisce sempre dati disponibili (eventual consistency)
+
+Vuoi che ti mostri come implementare il **circuit breaker** per le chiamate API o come gestire il **conflict resolution** se i dati cambiano durante il sync? 🔧
+
+
+// ============================================================
+// ARCHITETTURA FUTURA: Integrazione con servizi esterni
+// ============================================================
+
+package com.brt.TimesheetService.service;
+
+import java.time.Duration;
+import java.util.Optional;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
+
+// ============================================================
+// 1. COMMESSA SERVICE - Provider Pattern
+// ============================================================
+
+/**
+ * Il service diventa un "provider" che astrae la fonte dati.
+ * Oggi: DB locale
+ * Domani: REST API + Redis cache + DB locale read-only
+ */
+@Service
+public class CommessaService {
+    
+    private final CommessaRepository localRepository;  // Tabella locale read-only
+    private final CommessaApiClient apiClient;         // Client REST al servizio master
+    private final CommessaSyncService syncService;     // Sincronizzazione periodica
+    
+    // FASE 1 (OGGI): Usa solo DB locale
+    // FASE 2 (FUTURO): Usa API + cache + fallback su DB locale
+    
+    /**
+     * Recupera una commessa.
+     * FASE 1: dal DB locale
+     * FASE 2: da Redis cache → API REST → DB locale (fallback)
+     */
+    @Cacheable(value = "commesse", key = "#code")
+    @Transactional(readOnly = true)
+    public Commessa getCommessa(String code) {
+        // FASE 2: Prova prima l'API del servizio master
+        try {
+            Optional<Commessa> fromApi = apiClient.getCommessaByCode(code);
+            if (fromApi.isPresent()) {
+                return fromApi.get();
+            }
+        } catch (Exception e) {
+            log.warn("Servizio commesse non disponibile, uso cache locale", e);
+        }
+        
+        // Fallback: DB locale (sempre aggiornato da sync periodico)
+        return localRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Commessa " + code + " non trovata"));
+    }
+}
+
+// ============================================================
+// 2. COMMESSA API CLIENT - REST Client
+// ============================================================
+
+@Service
+public class CommessaApiClient {
+    
+    private final RestClient restClient;
+    
+    public CommessaApiClient(RestClient.Builder builder) {
+        this.restClient = builder
+                .baseUrl("http://commessa-service:8080")
+                .defaultHeader("Content-Type", "application/json")
+                .build();
+    }
+    
+    public Optional<Commessa> getCommessaByCode(String code) {
+        try {
+            CommessaDTO dto = restClient.get()
+                    .uri("/api/commesse/{code}", code)
+                    .retrieve()
+                    .body(CommessaDTO.class);
+            
+            return Optional.ofNullable(dto).map(this::toEntity);
+        } catch (Exception e) {
+            log.error("Errore chiamata API commesse: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+    
+    private Commessa toEntity(CommessaDTO dto) {
+        return Commessa.builder()
+                .id(dto.getId())
+                .code(dto.getCode())
+                .build();
+    }
+}
+
+// ============================================================
+// 3. SYNC SERVICE - Aggiornamento periodico DB locale
+// ============================================================
+
+/**
+ * Sincronizza il DB locale con il servizio master.
+ * Questo garantisce che le query JOIN siano veloci anche senza chiamate REST.
+ */
+@Service
+public class CommessaSyncService {
+    
+    private final CommessaRepository localRepository;
+    private final CommessaApiClient apiClient;
+    
+    /**
+     * Esegue sync ogni 30 minuti (configurabile).
+     * In caso di fallimento, il DB locale mantiene i dati precedenti.
+     */
+    @Scheduled(fixedDelayString = "${sync.commesse.interval:1800000}") // 30 min
+    @Transactional
+    public void syncCommesseFromMaster() {
+        log.info("[SYNC] Avvio sincronizzazione commesse dal servizio master");
+        long start = System.currentTimeMillis();
+        
+        try {
+            // Recupera tutte le commesse dal servizio master
+            List<CommessaDTO> commesseDaMaster = apiClient.getAllCommesse();
+            
+            // Aggiorna o inserisci nel DB locale
+            for (CommessaDTO dto : commesseDaMaster) {
+                localRepository.findByCode(dto.getCode())
+                        .ifPresentOrElse(
+                                existing -> updateLocalCommessa(existing, dto),
+                                () -> createLocalCommessa(dto)
+                        );
+            }
+            
+            // Rimuovi commesse che non esistono più nel master
+            cleanupDeletedCommesse(commesseDaMaster);
+            
+            long duration = System.currentTimeMillis() - start;
+            log.info("[SYNC] Sincronizzazione completata in {} ms. Totale: {}", 
+                    duration, commesseDaMaster.size());
+            
+        } catch (Exception e) {
+            log.error("[SYNC] Errore durante sincronizzazione: {}", e.getMessage(), e);
+            // Il DB locale mantiene i dati precedenti
+        }
+    }
+    
+    private void updateLocalCommessa(Commessa existing, CommessaDTO dto) {
+        // Aggiorna solo se necessario (evita write inutili)
+        if (!existing.getCode().equals(dto.getCode())) {
+            existing.setCode(dto.getCode());
+            localRepository.save(existing);
+        }
+    }
+    
+    private void createLocalCommessa(CommessaDTO dto) {
+        Commessa newCommessa = Commessa.builder()
+                .code(dto.getCode())
+                .build();
+        localRepository.save(newCommessa);
+    }
+    
+    private void cleanupDeletedCommesse(List<CommessaDTO> commesseDaMaster) {
+        Set<String> activeCodes = commesseDaMaster.stream()
+                .map(CommessaDTO::getCode)
+                .collect(Collectors.toSet());
+        
+        localRepository.findAll().forEach(local -> {
+            if (!activeCodes.contains(local.getCode())) {
+                log.info("[SYNC] Rimozione commessa obsoleta: {}", local.getCode());
+                localRepository.delete(local);
+            }
+        });
+    }
+}
+
+// ============================================================
+// 4. EMPLOYEE SERVICE - Stesso pattern
+// ============================================================
+
+@Service
+public class EmployeeService {
+    
+    private final EmployeeRepository localRepository;
+    private final EmployeeApiClient apiClient;
+    
+    @Cacheable(value = "employees", key = "#id")
+    @Transactional(readOnly = true)
+    public Employee getEmployee(Long id) {
+        // Prova API → fallback DB locale
+        try {
+            Optional<Employee> fromApi = apiClient.getEmployeeById(id);
+            if (fromApi.isPresent()) {
+                return fromApi.get();
+            }
+        } catch (Exception e) {
+            log.warn("Servizio employee non disponibile, uso cache locale", e);
+        }
+        
+        return localRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee " + id + " non trovato"));
+    }
+}
+
+// ============================================================
+// 5. TIMESHEET SERVICE - Rimane invariato!
+// ============================================================
+
+/**
+ * Il TimesheetService NON cambia!
+ * Continua a usare employeeRepository.findById() e getCommessa()
+ * che internamente gestiranno API + cache + DB locale in modo trasparente.
+ */
+@Service
+public class TimesheetApplicationService {
+    
+    private final EmployeeRepository employeeRepository;
+    private final CommessaService commessaService;
+    
+    // Questo codice NON cambia in futuro
+    private Employee getEmployeeOrThrow(Long employeeId) {
+        return employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee " + employeeId));
+    }
+    
+    // Le query JOIN continuano a funzionare sul DB locale
+    public Page<TimesheetDayProjection> getTimesheets(...) {
+        // SELECT * FROM timesheet_day 
+        // JOIN employee ON ... 
+        // JOIN commessa ON ...
+        // → Veloce perché usa tabelle locali sincronizzate
+    }
+}
+
+// ============================================================
+// 6. APPLICATION.YML - Configurazione
+// ============================================================
+
+/*
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/timesheet_db
+  
+  # Redis per cache distribuite (commesse, employees)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+# Configurazione sync periodico
+sync:
+  commesse:
+    interval: 1800000  # 30 minuti
+  employees:
+    interval: 3600000  # 60 minuti
+
+# URL servizi master
+services:
+  commessa:
+    url: http://commessa-service:8080
+    timeout: 5s
+  employee:
+    url: http://employee-service:8080
+    timeout: 5s
+*/
+
+// ============================================================
+// 7. SCHEMA DB - Tabelle locali read-only
+// ============================================================
+
+/*
+-- Tabella commesse locale (read-only per questo service)
+CREATE TABLE commessa (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    last_sync_at TIMESTAMP,  -- Quando è stata sincronizzata
+    CONSTRAINT uk_commessa_code UNIQUE (code)
+);
+
+-- Tabella employees locale (read-only per questo service)
+CREATE TABLE employee (
+    id BIGSERIAL PRIMARY KEY,
+    nome VARCHAR(100),
+    cognome VARCHAR(100),
+    last_sync_at TIMESTAMP,
+    -- Altri campi necessari per le query
+    CONSTRAINT uk_employee_id UNIQUE (id)
+);
+
+-- Timesheet rimane master locale
+CREATE TABLE timesheet_day (
+    id BIGSERIAL PRIMARY KEY,
+    employee_id BIGINT NOT NULL REFERENCES employee(id),
+    date DATE NOT NULL,
+    -- ...
+);
+
+CREATE INDEX idx_timesheet_employee_date ON timesheet_day(employee_id, date);
+*/

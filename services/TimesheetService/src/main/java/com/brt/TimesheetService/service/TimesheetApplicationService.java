@@ -2,8 +2,10 @@ package com.brt.TimesheetService.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,16 +17,17 @@ import org.springframework.transaction.annotation.Transactional;
 import com.brt.TimesheetService.dto.TimesheetDayDTO;
 import com.brt.TimesheetService.dto.TimesheetItemDTO;
 import com.brt.TimesheetService.exception.ResourceNotFoundException;
+import com.brt.TimesheetService.exception.TimesheetValidationException;
 import com.brt.TimesheetService.model.AbsenceType;
 import com.brt.TimesheetService.model.Employee;
 import com.brt.TimesheetService.model.TimesheetDay;
-import com.brt.TimesheetService.model.TimesheetItem;
 import com.brt.TimesheetService.projection.TimesheetDayProjection;
 import com.brt.TimesheetService.projection.TimesheetItemProjection;
 import com.brt.TimesheetService.repository.EmployeeRepository;
 import com.brt.TimesheetService.repository.TimesheetDayRepository;
 import com.brt.TimesheetService.service.Validator.OperationContext;
 import com.brt.TimesheetService.service.Validator.TimesheetValidator;
+import com.brt.TimesheetService.service.caching.TimesheetCacheManager;
 
 @Service
 @Transactional
@@ -36,42 +39,23 @@ public class TimesheetApplicationService {
     private final EmployeeRepository employeeRepository;
     private final TimesheetDomainService domainService;
     private final TimesheetValidator validator;
+    private final TimesheetCacheManager cacheManager;
 
-    public TimesheetApplicationService(TimesheetDayRepository timesheetDayRepository,
-                                       EmployeeRepository employeeRepository,
-                                       TimesheetDomainService domainService,
-                                       TimesheetValidator validator) {
+    public TimesheetApplicationService(
+            TimesheetDayRepository timesheetDayRepository,
+            EmployeeRepository employeeRepository,
+            TimesheetDomainService domainService,
+            TimesheetValidator validator
+    ) {
         this.timesheetDayRepository = timesheetDayRepository;
         this.employeeRepository = employeeRepository;
         this.domainService = domainService;
         this.validator = validator;
+        this.cacheManager = new TimesheetCacheManager();
     }
 
     // ============================================================
-    // TEMPLATE METHOD BASE CON LOGGING E GESTIONE ERRORI
-    // ============================================================
-    private <R> R executeSafely(String operationName, Function<Void, R> operation) {
-        log.info("[{}] Avvio operazione timesheet", operationName);
-        long start = System.currentTimeMillis();
-        try {
-            R result = operation.apply(null);
-            long duration = System.currentTimeMillis() - start;
-            log.info("[{}] Completato con successo in {} ms", operationName, duration);
-            return result;
-        } catch (ResourceNotFoundException e) {
-            log.warn("[{}] Risorsa non trovata: {}", operationName, e.getMessage());
-            throw e;
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            log.warn("[{}] Errore di validazione: {}", operationName, e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("[{}] Errore imprevisto: {}", operationName, e.getMessage(), e);
-            throw new TimesheetOperationException("Errore durante l’operazione " + operationName, e);
-        }
-    }
-
-    // ============================================================
-    // UTILITY DI BASE
+    // METODI UTILITY
     // ============================================================
     private Employee getEmployeeOrThrow(Long employeeId) {
         return employeeRepository.findById(employeeId)
@@ -80,8 +64,7 @@ public class TimesheetApplicationService {
 
     private TimesheetDay getTimesheetDayOrThrow(Employee employee, LocalDate date) {
         return timesheetDayRepository.findByEmployeeAndDate(employee, date)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Timesheet non trovato per " + employee.getId() + " il giorno " + date));
+                .orElseThrow(() -> new ResourceNotFoundException("Timesheet non trovato per " + employee.getId() + " il giorno " + date));
     }
 
     private boolean isTimesheetDayExists(Employee employee, LocalDate date) {
@@ -89,186 +72,319 @@ public class TimesheetApplicationService {
     }
 
     // ============================================================
-    // TEMPLATE METHODS PER AZIONI SPECIFICHE
+    // METODI TEMPLATE GENERICI
     // ============================================================
-    private <R> R executeOnTimesheet(
-        Long employeeId, 
-        LocalDate date,
-        OperationContext context,
-        Function<TimesheetDay, R> action,
-        String opName
+    private <R> R executeSafely(String opName, Supplier<R> operation) {
+        log.info("[{}] Avvio operazione", opName);
+        long start = System.currentTimeMillis();
+        try {
+            R result = operation.get();
+            log.info("[{}] Completato in {} ms", opName, System.currentTimeMillis() - start);
+            return result;
+        } catch (Exception e) {
+            log.error("[{}] Errore: {}", opName, e.getMessage(), e);
+            throw new TimesheetValidationException("Errore in " + opName, e);
+        }
+    }
+
+    // ---------------- Lettura con cache ----------------
+    private TimesheetDayProjection executeOnTimesheetReadOnly(
+            Long employeeId,
+            LocalDate date,
+            OperationContext context,
+            String opName
     ) {
-        return executeSafely(opName, ignored -> {
+        return executeSafely(opName, () -> {
             Employee employee = getEmployeeOrThrow(employeeId);
-            TimesheetDay day = getTimesheetDayOrThrow(employee, date);
+            // Recupera entity dalla cache o repository
+            Optional<TimesheetDay> optDay = cacheManager.getDay(employeeId, date);
+            TimesheetDay day;
+            if (optDay.isPresent()) {
+                day = optDay.get();
+            } else {
+                day = getTimesheetDayOrThrow(employee, date);
+                // Metti in cache dopo aver recuperato dal DB
+                cacheManager.putDay(employeeId, date, day);
+            }
+            // Valida SEMPRE, anche se viene dalla cache
             validator.validateRules(day, context, employee);
-            action.apply(day);  
-            TimesheetDay saved = timesheetDayRepository.save(day);    // salva e aggiorna 
-            return (R) TimesheetDayProjection.fromEntity(saved);      // restituisce l'oggetto finale
+            return TimesheetDayProjection.fromEntity(day);
         });
     }
 
-    private <R> R executeOnNewTimesheet(
-        Long employeeId, 
-        LocalDate date,
-        OperationContext context,
-        Function<TimesheetDay, R> action,
-        String opName
+    // ---------------- Scrittura/aggiornamento con cache ----------------
+    private <R> R executeOnTimesheet(
+            Long employeeId,
+            LocalDate date,
+            OperationContext context,
+            BiFunction<TimesheetDay, Employee, R> operation,
+            String opName
     ) {
-        return executeSafely(opName, ignored -> {
+        return executeSafely(opName, () -> {
             Employee employee = getEmployeeOrThrow(employeeId);
-            if (isTimesheetDayExists(employee, date)) {
-                throw new IllegalStateException("Il timesheet esiste già per il giorno " + date);
-            }
-            TimesheetDay day = TimesheetDay.builder().employee(employee).date(date).build();
+
+            // Invalida PRIMA della modifica per evitare race conditions
+            cacheManager.invalidateDay(employeeId, date);
+
+            // Recupera dal repository (non dalla cache, l'abbiamo invalidata)
+            TimesheetDay day = getTimesheetDayOrThrow(employee, date);
+
+            // Valida i permessi di accesso e condizioni
             validator.validateRules(day, context, employee);
-            R result = action.apply(day);      // <-- ora R può essere TimesheetDayProjection
-            timesheetDayRepository.save(day);   // salva sempre il day nel DB
+
+            // Esegue l'operazione (che può modificare il day e restituire un risultato)
+            R result = operation.apply(day, employee);
+
+            // Salva nel DB
+            TimesheetDay savedDay = timesheetDayRepository.save(day);
+
+            // Aggiorna la cache DOPO il salvataggio
+            cacheManager.putDay(employeeId, date, savedDay);
+
             return result;
         });
     }
 
-    private <R> Page<R> executeOnTimesheetPaged(
-        Long employeeId,
-        Pageable pageable,
-        Function<TimesheetDay, R> mapper,
-        BiFunction<Employee, Pageable, Page<TimesheetDay>> queryFn,
-        String opName
+    private <R> R executeOnNewTimesheet(
+            Long employeeId,
+            LocalDate date,
+            OperationContext context,
+            BiFunction<TimesheetDay, Employee, R> operation,
+            String opName
     ) {
-        return executeSafely(opName, ignored -> {
+        return executeSafely(opName, () -> {
             Employee employee = getEmployeeOrThrow(employeeId);
-            Page<TimesheetDay> page = queryFn.apply(employee, pageable);
-            return page.map(mapper);
+
+            if (isTimesheetDayExists(employee, date)) {
+                throw new IllegalStateException("Il timesheet esiste già per il giorno " + date);
+            }
+
+            TimesheetDay day = TimesheetDay.builder().employee(employee).date(date).build();
+            validator.validateRules(day, context, employee);
+
+            // Esegue l'operazione
+            R result = operation.apply(day, employee);
+
+            TimesheetDay savedDay = timesheetDayRepository.save(day);
+
+            // Invalida i range DOPO aver salvato
+            cacheManager.putDay(employeeId, date, savedDay);
+            cacheManager.invalidateRangeCachesContaining(employeeId, date);
+
+            return result;
+        });
+    }
+
+    // ---------------- Pagine / range ----------------
+    private <R> Page<R> executeOnTimesheetPaged(
+            Long employeeId,
+            Pageable pageable,
+            Function<TimesheetDay, R> mapper,
+            BiFunction<Employee, Pageable, Page<TimesheetDay>> queryFn,
+            LocalDate startDate,
+            LocalDate endDate,
+            String opName
+    ) {
+        return executeSafely(opName, () -> {
+            Employee employee = getEmployeeOrThrow(employeeId);
+
+            // Prova a recuperare dalla cache
+            return cacheManager
+                    .getRange(employeeId, startDate, endDate, pageable.getPageNumber(), pageable.getPageSize())
+                    .map(page -> page.map(mapper)) // se presente in cache, mappa direttamente
+                    .orElseGet(() -> {
+                        // altrimenti recupera dal repository
+                        Page<TimesheetDay> newPage = queryFn.apply(employee, pageable);
+                        // salva nella cache e aggiorna indice
+                        cacheManager.putRange(employeeId, startDate, endDate, pageable.getPageNumber(), pageable.getPageSize(), newPage);
+                        return newPage.map(mapper);
+                    });
         });
     }
 
     // ============================================================
-    // ACTION METHODS (USERS / ADMIN)
+    // METODI PUBBLICI
     // ============================================================
     public TimesheetDayProjection getTimesheet(Long employeeId, LocalDate date) {
-        return executeOnTimesheet(employeeId, date, OperationContext.ADMIN, TimesheetDayProjection::fromEntity, "getTimesheet[admin]");
+        return executeOnTimesheetReadOnly(
+                employeeId,
+                date,
+                OperationContext.ADMIN,
+                "getTimesheet[admin]"
+        );
     }
 
     public TimesheetDayProjection getTimesheetEmployee(Long employeeId, LocalDate date) {
-        return executeOnTimesheet(employeeId, date, OperationContext.USER, TimesheetDayProjection::fromEntity, "getTimesheet[user]");
+        return executeOnTimesheetReadOnly(
+                employeeId,
+                date,
+                OperationContext.USER,
+                "getTimesheet[user]"
+        );
     }
 
-    public Page<TimesheetDayProjection> getTimesheets(
-        Long employeeId,
-        LocalDate startDate,
-        LocalDate endDate,
-        Pageable pageable
-    ) {
-        LocalDate[] dateRange = validator.parseDateRange(startDate, endDate);
-        return executeOnTimesheetPaged(employeeId, pageable, TimesheetDayProjection::fromEntity,
-                (employee, p) -> timesheetDayRepository.findByEmployeeAndDateBetween(employee, dateRange[0], dateRange[1], p),
-                "getTimesheets[range]");
+    public Page<TimesheetDayProjection> getTimesheets(Long employeeId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        LocalDate[] range = validator.parseDateRange(startDate, endDate);
+        return executeOnTimesheetPaged(
+                employeeId,
+                pageable,
+                TimesheetDayProjection::fromEntity,
+                (emp, pg) -> timesheetDayRepository.findByEmployeeAndDateBetween(emp, range[0], range[1], pg),
+                range[0],
+                range[1],
+                "getTimesheets[range]"
+        );
     }
 
-    // ============================================================
-    // CREATE / UPDATE / DELETE TIMESHEET
-    // ============================================================
     public TimesheetDayProjection saveTimesheetUser(Long employeeId, LocalDate date, TimesheetDayDTO dto) {
-        Employee employee = getEmployeeOrThrow(employeeId);
-        if (isTimesheetDayExists(employee, date)) {
-            return executeOnTimesheet(employeeId, date, OperationContext.USER, day -> {
-                TimesheetDay updated = domainService.updateTimesheet(day, dto);
-                return TimesheetDayProjection.fromEntity(updated);
-            }, "saveTimesheetUser[update]");
-        }
-        return executeOnNewTimesheet(employeeId, date, OperationContext.USER, day -> {
-            TimesheetDay created = domainService.createTimesheet(day, dto);
-            return TimesheetDayProjection.fromEntity(created);
-        }, "saveTimesheetUser[create]");
+        return saveTimesheet(employeeId, date, dto, OperationContext.USER, "saveTimesheetUser");
     }
 
     public TimesheetDayProjection saveTimesheetAdmin(Long employeeId, LocalDate date, TimesheetDayDTO dto) {
-        Employee employee = getEmployeeOrThrow(employeeId);
-        if (isTimesheetDayExists(employee, date)) {
-            return executeOnTimesheet(employeeId, date, OperationContext.ADMIN, day -> {
-                TimesheetDay updated = domainService.updateTimesheet(day, dto);
-                return TimesheetDayProjection.fromEntity(updated);
-            }, "saveTimesheetAdmin[update]");
-        }
-        return executeOnNewTimesheet(employeeId, date, OperationContext.ADMIN, day -> {
-            TimesheetDay created = domainService.createTimesheet(day, dto);
-            return TimesheetDayProjection.fromEntity(created);
-        }, "saveTimesheetAdmin[create]");
+        return saveTimesheet(employeeId, date, dto, OperationContext.ADMIN, "saveTimesheetAdmin");
     }
 
-    public void deleteTimesheetUser(Long employeeId, LocalDate date) {
-        executeOnTimesheet(employeeId, date, OperationContext.USER, day -> {
-            timesheetDayRepository.delete(day);
-            return null;
-        }, "deleteTimesheetUser");
-    }
-
-    public void deleteTimesheetAdmin(Long employeeId, LocalDate date) {
-        executeOnTimesheet(employeeId, date, OperationContext.ADMIN, day -> {
-            timesheetDayRepository.delete(day);
-            return null;
-        }, "deleteTimesheetAdmin");
-    }
-
-    // ============================================================
-    // ASSENZE
-    // ============================================================
-    public TimesheetDayProjection setAbsence(Long employeeId, LocalDate date, TimesheetDayDTO dto) {
-        return executeOnNewTimesheet(employeeId, date, OperationContext.ADMIN_SET_ABSENCE, day -> {
-            TimesheetDay updated = domainService.setAbsence(day, dto.getAbsenceTypeEnum());
-            return TimesheetDayProjection.fromEntity(updated);
-        }, "setAbsence");
-    }
-
-    public List<TimesheetDayProjection> setAbsences(Long employeeId, LocalDate startDate, LocalDate endDate, AbsenceType absenceType) {
-        return executeSafely("setAbsences", ignored -> {
+    private TimesheetDayProjection saveTimesheet(
+            Long employeeId,
+            LocalDate date,
+            TimesheetDayDTO dto,
+            OperationContext context,
+            String opNamePrefix
+    ) {
+        return executeSafely(opNamePrefix, () -> {
             Employee employee = getEmployeeOrThrow(employeeId);
-            if(startDate == null) throw new IllegalStateException("startDate è null"); 
-            if(endDate == null) throw new IllegalStateException("endDate è null"); 
-            if(endDate.isAfter(startDate)) throw new IllegalStateException("endDate avviene prima di startDate");
-            for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-                if (isTimesheetDayExists(employee, date)) {
-                    throw new IllegalStateException("Il timesheet del " + date + " esiste già");
-                }
+            if (isTimesheetDayExists(employee, date)) {
+                return executeOnTimesheet(
+                        employeeId,
+                        date,
+                        context,
+                        (day, emp) -> TimesheetDayProjection.fromEntity(domainService.updateTimesheet(day, dto)),
+                        opNamePrefix + "[update]"
+                );
+            } else {
+                return executeOnNewTimesheet(
+                        employeeId,
+                        date,
+                        context,
+                        (day, emp) -> TimesheetDayProjection.fromEntity(domainService.createTimesheet(day, dto)),
+                        opNamePrefix + "[create]"
+                );
             }
-            List<TimesheetDay> days = domainService.setAbsences(employee, startDate, endDate, absenceType);
-            return timesheetDayRepository.saveAll(days)
-                    .stream()
-                    .map(TimesheetDayProjection::fromEntity)
-                    .toList();
         });
     }
 
+    public void deleteTimesheetUser(Long employeeId, LocalDate date) {
+        executeOnTimesheet(
+                employeeId,
+                date,
+                OperationContext.USER,
+                (day, emp) -> {
+                    timesheetDayRepository.delete(day);
+                    cacheManager.invalidateDay(employeeId, date);
+                    return null;
+                },
+                "deleteTimesheetUser"
+        );
+    }
+
+    public void deleteTimesheetAdmin(Long employeeId, LocalDate date) {
+        executeOnTimesheet(
+                employeeId,
+                date,
+                OperationContext.ADMIN,
+                (day, emp) -> {
+                    timesheetDayRepository.delete(day);
+                    cacheManager.invalidateDay(employeeId, date);
+                    return null;
+                },
+                "deleteTimesheetAdmin"
+        );
+    }
+
     // ============================================================
-    // ITEMS OPERATIONS
+    // METODI item
     // ============================================================
     public TimesheetItemProjection addOrCreateItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
-        return executeOnTimesheet(employeeId, date, OperationContext.USER, day -> {
-            TimesheetItem item = domainService.addItem(day, dto);
-            return TimesheetItemProjection.fromEntity(item);
-        }, "addOrCreateItem");
+        return executeOnTimesheet(
+                employeeId,
+                date,
+                OperationContext.USER,
+                (day, emp) -> TimesheetItemProjection.fromEntity(domainService.addItem(day, dto)),
+                "addOrCreateItem"
+        );
     }
 
     public TimesheetItemProjection putItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
-        return executeOnTimesheet(employeeId, date, OperationContext.USER, day -> {
-            TimesheetItem item = domainService.putItem(day, dto);
-            return TimesheetItemProjection.fromEntity(item);
-        }, "putItem");
+        return executeOnTimesheet(
+                employeeId,
+                date,
+                OperationContext.USER,
+                (day, emp) -> TimesheetItemProjection.fromEntity(domainService.putItem(day, dto)),
+                "putItem"
+        );
     }
 
-    public TimesheetItemProjection deleteItem(Long employeeId, LocalDate date, Long itemId) {
-        return executeOnTimesheet(employeeId, date, OperationContext.USER, day -> {
-            domainService.deleteItem(day, itemId);
-            return null;
-        }, "deleteItem");
+    public void deleteItem(Long employeeId, LocalDate date, Long itemId) {
+        executeOnTimesheet(
+                employeeId,
+                date,
+                OperationContext.USER,
+                (day, emp) -> {
+                    domainService.deleteItem(day, itemId);
+                    return null;
+                },
+                "deleteItem"
+        );
     }
 
     // ============================================================
-    // EXCEPTION CUSTOM
+    // METODI ASSENZE
     // ============================================================
-    public static class TimesheetOperationException extends RuntimeException {
-        public TimesheetOperationException(String message, Throwable cause) {
-            super(message, cause);
-        }
+    public TimesheetDayProjection setAbsence(Long employeeId, LocalDate date, TimesheetDayDTO dto) {
+        return executeOnNewTimesheet(
+                employeeId,
+                date,
+                OperationContext.ADMIN_SET_ABSENCE,
+                (day, emp) -> TimesheetDayProjection.fromEntity(domainService.setAbsence(day, dto.getAbsenceTypeEnum())),
+                "setAbsence"
+        );
+    }
+
+    @Transactional
+    public List<TimesheetDayProjection> setAbsences(Long employeeId, LocalDate startDate, LocalDate endDate, AbsenceType absenceType) {
+        return executeSafely("setAbsences", () -> {
+            Employee employee = getEmployeeOrThrow(employeeId);
+
+            if (startDate == null || endDate == null) {
+                throw new TimesheetValidationException("startDate o endDate non possono essere null");
+            }
+            if (startDate.isAfter(endDate)) {
+                throw new TimesheetValidationException("startDate deve precedere endDate");
+            }
+
+            // Invalida tutti i giorni del range PRIMA delle modifiche
+            LocalDate current = startDate;
+            while (!current.isAfter(endDate)) {
+                cacheManager.invalidateDay(employeeId, current);
+                current = current.plusDays(1);
+            }
+
+            // Esegue la modifica batch
+            List<TimesheetDay> days = domainService.setAbsences(employee, startDate, endDate, absenceType);
+
+            // Salva tutti i giorni
+            List<TimesheetDay> savedDays = timesheetDayRepository.saveAll(days);
+
+            // Aggiorna la cache per tutti i giorni salvati
+            for (TimesheetDay day : savedDays) {
+                cacheManager.putDay(employeeId, day.getDate(), day);
+            }
+
+            // Invalida le cache range che intersecano questo periodo
+            cacheManager.invalidateRangeCachesContaining(employeeId, startDate);
+            cacheManager.invalidateRangeCachesContaining(employeeId, endDate);
+
+            return savedDays.stream().map(TimesheetDayProjection::fromEntity).toList();
+        });
     }
 }

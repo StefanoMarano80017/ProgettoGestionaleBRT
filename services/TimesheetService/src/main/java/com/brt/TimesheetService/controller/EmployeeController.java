@@ -17,7 +17,6 @@ import com.brt.TimesheetService.exception.ResourceNotFoundException;
 import com.brt.TimesheetService.model.Employee;
 import com.brt.TimesheetService.service.EmployeeService;
 
-
 @RestController
 @RequestMapping("/employees")
 public class EmployeeController {
@@ -30,17 +29,17 @@ public class EmployeeController {
 
     @GetMapping
     public ResponseEntity<List<EmployeeDTO>> getAllEmployees() {
-        List<EmployeeDTO> employees = employeeService.findAll().stream()
-                .map(EmployeeDTO::fromEntity)
-                .collect(Collectors.toList());
+        List<EmployeeDTO> employees = employeeService.findAll().stream().map(EmployeeDTO::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(employees);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeDTO> getEmployee(@PathVariable Long id) {
-        EmployeeDTO dto = employeeService.findById(id)
-                .map(EmployeeDTO::fromEntity)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + id));
+        Employee employee = employeeService.findById(id);
+        if (employee == null) {
+            throw new ResourceNotFoundException("Employee not found: " + id);
+        }
+        EmployeeDTO dto = EmployeeDTO.fromEntity(employee);
         return ResponseEntity.ok(dto);
     }
 
