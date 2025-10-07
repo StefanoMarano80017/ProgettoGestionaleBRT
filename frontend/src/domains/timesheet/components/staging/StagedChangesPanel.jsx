@@ -1,24 +1,19 @@
 // Minimal, clean staging panel implementation.
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Stack, Typography, Button, Divider, Chip, Tooltip, Menu, MenuItem, IconButton, Snackbar } from '@mui/material';
+import { Box, Stack, Typography, Button, Chip, Tooltip, Snackbar, Divider } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import EditOutlinedIcon from '@mui/icons-material/ModeEditOutline';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import UndoIcon from '@mui/icons-material/Undo';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTimesheetStaging, useTimesheetContext, useTimesheetApi } from '@domains/timesheet/hooks';
 import { computeDayDiff, summarizeDayDiff } from '@domains/timesheet/hooks/utils/timesheetModel.js';
 
-export default function StagedChangesPanel({
-  compact = false,
-  maxVisible = 10,
-  showLegend = true,
-  enableOverflow = true,
-  showActions = true,
-}) {
+export default function StagedChangesPanel({ showLegend = true }) {
   const staging = useTimesheetStaging();
   const ctx = (typeof useTimesheetContext === 'function') ? (() => { try { return useTimesheetContext(); } catch { return null; } })() : null;
   const { api } = useTimesheetApi();
@@ -27,151 +22,175 @@ export default function StagedChangesPanel({
   const entries = staging?.entries || {};
 
   const flat = useMemo(() => {
-    const items = [];
+    if (!ordered.length) return [];
     const nameById = {};
     (ctx?.employees || []).forEach(e => { if (e && e.id) nameById[e.id] = e.name || e.dipendente || e.id; });
-    ordered.forEach(key => {
+    return ordered.map(key => {
       const [empId, dateKey] = key.split('|');
       const entry = entries[empId]?.[dateKey];
-      if (!entry || entry.op === 'noop') return;
-      items.push({ key, employeeId: empId, employeeName: nameById[empId] || empId, dateKey, ...entry });
-    });
-    return items;
+      return entry && entry.op !== 'noop' ? { key, employeeId: empId, employeeName: nameById[empId] || empId, dateKey, ...entry } : null;
+    }).filter(Boolean);
   }, [ordered, entries, ctx]);
-
-  // Local UI state for overflow menu & snack feedback (declare hooks before any conditional return)
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const openOverflow = Boolean(anchorEl);
-  const handleOpenOverflow = (e) => setAnchorEl(e.currentTarget);
-  const handleCloseOverflow = () => setAnchorEl(null);
 
   const [snack, setSnack] = React.useState({ open: false, kind: 'info', msg: '' });
   const openSnack = (msg, kind = 'info') => setSnack({ open: true, kind, msg });
   const closeSnack = () => setSnack(s => ({ ...s, open: false }));
 
-  if (!flat.length) {
-    return (
-      <Box sx={{ p: 1 }}>
-        <Typography variant={compact ? 'caption' : 'body2'} color="text.secondary">Nessuna modifica in staging.</Typography>
-      </Box>
-    );
-  }
-
-  const visible = flat.slice(0, maxVisible);
-
-  const removeEntry = (item, { rollback = false } = {}) => {
-    if (!staging) return;
-    if (rollback) staging.rollback(item.employeeId, item.dateKey);
-    else staging.rollback(item.employeeId, item.dateKey); // minimal rollback acts as remove
-    openSnack(rollback ? 'Ripristinato il giorno' : 'Modifica annullata', rollback ? 'rollback' : 'revert');
-  };
-
-  const confirmAll = async () => {
-    if (!staging?.confirmAll) return;
+  const destage = (item) => {
+    if (!staging || !item) return;
     try {
-      await staging.confirmAll(async (payload) => {
-        if (api?.batchSaveTimesheetEntries) {
-          await api.batchSaveTimesheetEntries(payload);
-        }
-      });
-      openSnack('Modifiche confermate', 'commit');
+      if (typeof staging.rollbackEntry === 'function') staging.rollbackEntry(item.employeeId, item.dateKey);
+      else if (typeof staging.discardEntry === 'function') staging.discardEntry(item.employeeId, item.dateKey);
+      else if (typeof staging.resetEntry === 'function') staging.resetEntry(item.employeeId, item.dateKey);
+      openSnack('Modifica rimossa', 'revert');
     } catch (e) {
-      console.error('confirmAll failed', e);
-      openSnack('Errore durante il salvataggio', 'error');
+      console.error('Destage failed', e);
+      openSnack('Errore rimozione', 'error');
     }
   };
 
   const clearAll = () => {
-    staging?.clearAll ? staging.clearAll() : staging?.discardAll?.();
-    openSnack('Tutte le modifiche locali annullate', 'rollback');
+    staging?.discardAll?.();
+    openSnack('Tutte le modifiche annullate', 'rollback');
   };
 
-  const extra = flat.length - visible.length;
+  const confirmAll = async () => {
+    if (!staging?.confirmAll || !flat.length) return;
+    try {
+      await staging.confirmAll(async (payload) => {
+        if (!api?.batchSaveTimesheetEntries) {
+          throw new Error('API di salvataggio non disponibile');
+        }
+        await api.batchSaveTimesheetEntries(payload);
+      });
+      openSnack('Modifiche confermate con successo', 'commit');
+    } catch (e) {
+      console.error('confirmAll failed', e);
+      const errorMsg = e.message?.includes('API') ? 'Servizio non disponibile' : 'Errore durante il salvataggio';
+      openSnack(errorMsg + '. Riprova.', 'error');
+    }
+  };
+
+  // Legend helper
+  const chipStyle = (theme, paletteKey) => ({
+    bgcolor: alpha(theme.palette[paletteKey].main, 0.15),
+    borderColor: theme.palette[paletteKey].main,
+    color: theme.palette[paletteKey].dark,
+    '& .MuiChip-deleteIcon': {
+      color: theme.palette[paletteKey].main,
+      opacity: 0.8,
+      '&:hover': { color: theme.palette[paletteKey].dark }
+    }
+  });
+
+  const Legend = showLegend ? (
+    <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.75 }}>
+      <Chip size="small" label="Nuovo" icon={<AddCircleOutlineIcon fontSize="inherit" />} variant="outlined" sx={(t) => chipStyle(t, 'success')} />
+      <Chip size="small" label="Modificato" icon={<EditOutlinedIcon fontSize="inherit" />} variant="outlined" sx={(t) => chipStyle(t, 'warning')} />
+      <Chip size="small" label="Eliminato" icon={<DeleteOutlineIcon fontSize="inherit" />} variant="outlined" sx={(t) => chipStyle(t, 'error')} />
+    </Stack>
+  ) : null;
+
+  const ConfirmButtons = (
+        <Stack direction="row" justifyContent="flex-end" spacing={1}>
+          <Button variant="outlined" size="small" onClick={clearAll} disabled={!flat.length}>Annulla</Button>
+          <Button variant="contained" size="small" onClick={confirmAll} disabled={!flat.length}>Conferma</Button>
+        </Stack>
+  );
+  // (Removed early return to keep layout consistent even with 0 changes)
+
+  // Utility: format dates as gg-MM-yyyy (Italian)
+  const formatDateIt = (value) => {
+    if (!value) return value;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) { // yyyy-MM-dd
+      const [y, m, d] = value.split('-');
+      return `${d}-${m}-${y}`;
+    }
+    // Try Date fallback
+    const dt = new Date(value);
+    if (!isNaN(dt)) {
+      const d = String(dt.getDate()).padStart(2, '0');
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const y = dt.getFullYear();
+      return `${d}-${m}-${y}`;
+    }
+    return value;
+  };
 
   return (
-    <Stack spacing={1} sx={{ width: '100%' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="subtitle2">Modifiche in sospeso ({flat.length})</Typography>
-        {flat.length > maxVisible && <Chip size="small" label={`+${flat.length - maxVisible} altre`} />}
-      </Stack>
-      <Divider />
-      <Stack spacing={0.75}>
-        {visible.map((item, idx) => {
-          const diff = computeDayDiff(item.base || [], item.draft);
-          let chipColor = 'default';
-          if (diff.type === 'day-delete') chipColor = 'error';
-          else if (diff.type === 'new-day') chipColor = 'success';
-          else if (diff.type === 'delete-only') chipColor = 'error';
-          const tooltipContent = (
-            <Box sx={{ p: 0.5 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{item.employeeName}</Typography>
-              <Typography variant="caption" color="text.secondary">{item.dateKey}</Typography>
-              <Divider sx={{ my: 0.5 }} />
-              <Typography variant="caption">{summarizeDayDiff(diff)}</Typography>
-              {diff.changes?.length > 0 && (
-                <Box sx={{ mt: 0.5, maxHeight: 140, overflow: 'auto' }}>
-                  {diff.changes.slice(0, 6).map((c, i) => (
-                    <Typography key={i} variant="caption" sx={{ display: 'block' }}>
-                      {c.type === 'insert' && `+ ${c.after?.commessa || ''} ${c.after?.ore || 0}h`}
-                      {c.type === 'delete' && `− ${c.before?.commessa || ''} ${c.before?.ore || 0}h`}
-                      {c.type === 'update' && `${c.before?.commessa || ''} ${c.before?.ore || 0}h → ${c.after?.commessa || ''} ${c.after?.ore || 0}h`}
-                    </Typography>
-                  ))}
-                  {diff.changes.length > 6 && <Typography variant="caption">…</Typography>}
-                </Box>
-              )}
-            </Box>
-          );
-          return (
-            <Stack key={item.key} direction="row" spacing={1} alignItems="center" sx={{ fontSize: 12 }}>
-              <Tooltip title={tooltipContent} placement="top" arrow>
-                <Chip size="small" label={item.dateKey} color={chipColor} variant="outlined" />
-              </Tooltip>
-              <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>{summarizeDayDiff(diff)}</Typography>
-              <IconButton size="small" onClick={() => removeEntry(item)} aria-label="annulla modifica">
-                <CloseIcon fontSize="inherit" />
-              </IconButton>
-              <IconButton size="small" onClick={() => removeEntry(item, { rollback: true })} aria-label="ripristina base">
-                <UndoIcon fontSize="inherit" />
-              </IconButton>
-            </Stack>
-          );
-        })}
-      </Stack>
-      <Divider />
-      {showActions && (
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" size="small" onClick={confirmAll} disabled={!flat.length}>Conferma tutto</Button>
-          <Button variant="outlined" size="small" onClick={clearAll} disabled={!flat.length}>Scarta tutto</Button>
-          {enableOverflow && extra > 0 && (
-            <Button size="small" onClick={handleOpenOverflow}>{`+${extra}`}</Button>
-          )}
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, width: '100%' }}>
+      {/* Left description + legend */}
+      <Box sx={{ flex: '0 0 250px', maxWidth: 280 }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+          <Typography variant="subtitle2">Staging Timesheet</Typography>
+          <Chip size="small" label={flat.length} sx={(t) => ({ height: 20, fontSize: 11, bgcolor: alpha(t.palette.info.main, 0.15), border: '1px solid '+t.palette.info.light })} />
         </Stack>
-      )}
-      {enableOverflow && (
-        <Menu anchorEl={anchorEl} open={openOverflow} onClose={handleCloseOverflow} onClick={(e) => e.stopPropagation()}>
-          {flat.slice(maxVisible).map((item, idx) => {
+        <Typography variant="caption" color="text.secondary" component="p">
+          Le modifiche vengono accumulate prima del salvataggio definitivo.
+        </Typography>
+        {/* Legend moved under changes box */}
+      </Box>
+
+      {/* Right chips area with fixed size and horizontal buttons */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <Box
+          sx={{
+            position: 'relative',
+            p: 0.5,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            bgcolor: 'background.paper',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 0.75,
+            overflowY: 'auto',
+            maxHeight: 35,
+            minHeight: 35,
+            alignItems: 'center',
+          }}
+        >
+          {flat.map((item) => {
             const diff = computeDayDiff(item.base || [], item.draft);
+            let paletteKey = 'default';
+            let icon = null;
+            if (['new-day'].includes(diff.type)) { paletteKey = 'success'; icon = <AddCircleOutlineIcon fontSize="inherit" />; }
+            else if (['day-delete', 'delete-only'].includes(diff.type)) { paletteKey = 'error'; icon = <DeleteOutlineIcon fontSize="inherit" />; }
+            else if (['mixed', 'update', 'update-only'].includes(diff.type)) { paletteKey = 'warning'; icon = <EditOutlinedIcon fontSize="inherit" />; }
+            const summary = summarizeDayDiff(diff);
             return (
-              <MenuItem key={item.key + idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5 }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
-                  <Chip size="small" label={item.dateKey} />
-                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>{summarizeDayDiff(diff)}</Typography>
-                  <IconButton size="small" onClick={() => { removeEntry(item); }}><CloseIcon fontSize="inherit" /></IconButton>
-                  <IconButton size="small" onClick={() => { removeEntry(item, { rollback: true }); }}><UndoIcon fontSize="inherit" /></IconButton>
-                </Stack>
-              </MenuItem>
+              <Tooltip
+                key={item.key}
+                title={
+                  <Box sx={{ p: 0.5 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>{formatDateIt(item.dateKey)}</Typography>
+                    <Divider sx={{ my: 0.5 }} />
+                    <Typography variant="caption">{summary}</Typography>
+                  </Box>
+                }
+                arrow
+              >
+                <Chip
+                  size="small"
+                  label={formatDateIt(item.dateKey)}
+                  onDelete={(e) => { e.stopPropagation(); destage(item); }}
+                  deleteIcon={<CloseIcon />}
+                  icon={icon}
+                  variant="outlined"
+                  sx={(theme) => (paletteKey === 'default' ? { bgcolor: theme.palette.action.hover } : chipStyle(theme, paletteKey))}
+                />
+              </Tooltip>
             );
           })}
-        </Menu>
-      )}
-      {showLegend && (
-        <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
-          <Chip size="small" label="new-day" color="success" variant="outlined" />
-          <Chip size="small" label="day-delete" color="error" variant="outlined" />
-          <Chip size="small" label="mixed/update/delete-only" variant="outlined" />
-        </Stack>
-      )}
+          {!flat.length && (
+            <Stack alignItems="center" justifyContent="center" sx={{ width: '100%', opacity: 0.7 }}>
+              <Typography variant="caption" color="text.secondary">Nessuna modifica</Typography>
+            </Stack>
+          )}
+        </Box>
+        <Box display="flex" justifyContent="space-between" sx={{ pt: 1 }}>{Legend} {ConfirmButtons} </Box>
+      </Box>
+
       <Snackbar
         open={snack.open}
         autoHideDuration={3500}
@@ -187,14 +206,10 @@ export default function StagedChangesPanel({
           </Stack>
         }
       />
-    </Stack>
+    </Box>
   );
 }
 
 StagedChangesPanel.propTypes = {
-  compact: PropTypes.bool,
-  maxVisible: PropTypes.number,
   showLegend: PropTypes.bool,
-  enableOverflow: PropTypes.bool,
-  showActions: PropTypes.bool,
 };

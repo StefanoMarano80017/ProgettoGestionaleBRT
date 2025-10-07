@@ -44,9 +44,18 @@ function InnerDipendente({ employeeId }) {
   // Editing & auto staging are internal to DayEntryPanel; this page only selects a day and shows staging panel.
 
   // Merged data view (base + staging overlay + local drafts) using new staging selectors
-  const { mergedData } = useStableMergedDataMap({ dataMap: ctx.dataMap, staging, employeeId, mode: 'single' });
+  const { mergedData } = useStableMergedDataMap({ dataMap: ctx?.dataMap || {}, staging, employeeId, mode: 'single' });
   const stagedMetaAll = useStagedMetaMap(staging);
   const stagedMeta = useMemo(() => stagedMetaAll[employeeId] || {}, [stagedMetaAll, employeeId]);
+
+  // Error boundary for data loading
+  if (!ctx) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        Errore nel caricamento del contesto timesheet. Riprova più tardi.
+      </Alert>
+    );
+  }
 
   const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const isBadgiatoToday = useMemo(

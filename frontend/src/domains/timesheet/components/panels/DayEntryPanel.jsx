@@ -12,6 +12,7 @@ import PropTypes from 'prop-types';
 import computeDayUsed from '@domains/timesheet/hooks/utils/computeDayUsed.js';
 import { semanticHash } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
 import { useTimesheetStaging } from '@domains/timesheet/hooks/staging';
+import { validateDayRecords, validateEmployeeId, validateDateKey } from '@domains/timesheet/hooks/utils/timesheetValidation.js';
 
 export function DayEntryPanel({
 	selectedDay,
@@ -68,7 +69,7 @@ export function DayEntryPanel({
 	}, [mergedRecords]);
 
 	useEffect(() => {
-		if (!autoStage || !employeeId || !effectiveDate) return;
+		if (!autoStage || !employeeId || !effectiveDate || !staging.stageDraft) return;
 		const draftHash = semanticHash(records);
 		const mergedHash = semanticHash(mergedRecords);
 		const baseHash = semanticHash(baseCommitted);
@@ -88,6 +89,24 @@ export function DayEntryPanel({
 		if (debounceRef.current) clearTimeout(debounceRef.current);
 		debounceRef.current = setTimeout(() => {
 			const payload = records.length === 0 ? [] : records;
+			
+			// Validate before staging
+			if (!validateEmployeeId(employeeId)) {
+				console.warn('[DayEntryPanel] Invalid employeeId, skipping staging');
+				return;
+			}
+			if (!validateDateKey(effectiveDate)) {
+				console.warn('[DayEntryPanel] Invalid dateKey, skipping staging');
+				return;
+			}
+			if (payload.length > 0) {
+				const validation = validateDayRecords(payload, maxHoursPerDay);
+				if (!validation.valid) {
+					console.warn('[DayEntryPanel] Invalid records, skipping staging:', validation.error);
+					return;
+				}
+			}
+			
 			if (DEBUG_TS) { try { console.debug('[DayEntryPanel] Stage draft', { effectiveDate, employeeId, action: records.length === 0 ? 'delete' : 'upsert', count: records.length }); } catch {} }
 			staging.stageDraft(employeeId, effectiveDate, payload);
 			userEditRef.current = false;
