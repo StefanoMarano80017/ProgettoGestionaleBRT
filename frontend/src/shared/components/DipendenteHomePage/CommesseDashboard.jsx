@@ -74,6 +74,20 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 		});
 		return acc;
 	}, [data, range]);
+	const periodDisplay = useMemo(() => {
+		if (period === 'week') {
+			const start = range.start.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+			const end = range.end.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+			return `${start} - ${end}`;
+		}
+		if (period === 'month') {
+			return range.start.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+		}
+		if (period === 'year') {
+			return range.start.getFullYear().toString();
+		}
+		return '';
+	}, [period, range]);
 	const handleSelectCommessa = (comm) => {
 		const next = selectedCommessa === comm ? null : comm;
 		setSelectedCommessa(next);
@@ -81,15 +95,11 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 	};
 	return (
 		<Paper sx={{ p: 2, borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+			<Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, fontStyle: 'italic' }}>
+				Dashboard delle commesse: visualizza l'istogramma delle ore lavorate, il riepilogo con ferie/malattie/permessi, 
+				i controlli per cambiare periodo (settimana/mese/anno), e l'elenco delle commesse assegnate con statistiche dettagliate.
+			</Typography>
 			<Stack spacing={1} sx={{ height: '100%' }}>
-				<Stack direction="row" justifyContent="space-between" alignItems="center">
-					<Box />
-					<ButtonGroup size="small" variant="outlined">
-						<Button onClick={() => onPeriodChange && onPeriodChange('week')} variant={period === 'week' ? 'contained' : 'outlined'}>Settimana</Button>
-						<Button onClick={() => onPeriodChange && onPeriodChange('month')} variant={period === 'month' ? 'contained' : 'outlined'}>Mese</Button>
-						<Button onClick={() => onPeriodChange && onPeriodChange('year')} variant={period === 'year' ? 'contained' : 'outlined'}>Anno</Button>
-					</ButtonGroup>
-				</Stack>
 				<Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
 					<Box sx={{ flex: '1 1 280px', minWidth: 0, minHeight: 220, display: 'flex', alignItems: 'flex-start' }}>
 						{chartData.labels && chartData.labels.length ? (
@@ -106,12 +116,83 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 							</Box>
 						)}
 					</Box>
-					<Box sx={{ width: { xs: '100%', sm: 180 }, bgcolor: 'background.paper', p: 2, borderRadius: 1 }}>
-						<Typography variant="subtitle2" sx={{ mb: 1 }}>Riepilogo</Typography>
-						<Stack spacing={1}>
-							<Chip size="small" label={`Ferie: ${riepilogo.ferie.days || 0}g (${riepilogo.ferie.hours || 0}h)`} icon={<BeachAccessIcon fontSize="small" />} color="primary" sx={{ borderRadius: 1 }} />
-							<Chip size="small" label={`Malattia: ${riepilogo.malattia.days || 0}g (${riepilogo.malattia.hours || 0}h)`} icon={<LocalHospitalIcon fontSize="small" />} color="success" sx={{ borderRadius: 1 }} />
-							<Chip size="small" label={`Permesso: ${riepilogo.permesso.days || 0}g (${riepilogo.permesso.hours || 0}h)`} icon={<EventAvailableIcon fontSize="small" />} color="warning" sx={{ borderRadius: 1 }} />
+					<Box sx={{ width: { xs: '100%', sm: 320 }, bgcolor: 'background.paper', p: 2, borderRadius: 1 }}>
+						<Stack spacing={2}>
+							<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+								<Typography variant="subtitle2">Riepilogo</Typography>
+								<ButtonGroup size="small" variant="outlined" sx={{ 
+									'& .MuiButton-root': { 
+										fontSize: '0.7rem', 
+										padding: '2px 8px',
+										minWidth: 'auto',
+										borderRadius: 1
+									}
+								}}>
+									<Button onClick={() => onPeriodChange && onPeriodChange('week')} variant={period === 'week' ? 'contained' : 'outlined'}>Settimana</Button>
+									<Button onClick={() => onPeriodChange && onPeriodChange('month')} variant={period === 'month' ? 'contained' : 'outlined'}>Mese</Button>
+									<Button onClick={() => onPeriodChange && onPeriodChange('year')} variant={period === 'year' ? 'contained' : 'outlined'}>Anno</Button>
+								</ButtonGroup>
+							</Box>
+							<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+								Periodo: {periodDisplay}
+							</Typography>
+							<Stack spacing={1}>
+								<Chip size="small" label={`Ferie: ${riepilogo.ferie.days || 0}g (${riepilogo.ferie.hours || 0}h)`} icon={<BeachAccessIcon fontSize="small" />} color="primary" sx={{ borderRadius: 1, maxWidth: 'fit-content' }} />
+								<Chip size="small" label={`Malattia: ${riepilogo.malattia.days || 0}g (${riepilogo.malattia.hours || 0}h)`} icon={<LocalHospitalIcon fontSize="small" />} color="success" sx={{ borderRadius: 1, maxWidth: 'fit-content' }} />
+								<Chip size="small" label={`Permesso: ${riepilogo.permesso.days || 0}g (${riepilogo.permesso.hours || 0}h)`} icon={<EventAvailableIcon fontSize="small" />} color="warning" sx={{ borderRadius: 1, maxWidth: 'fit-content' }} />
+							</Stack>
+							{chartData.labels && chartData.labels.length > 0 && (
+								<Box>
+									<Typography variant="caption" sx={{ color: 'text.secondary', mb: 1 }}>Legenda Istogramma:</Typography>
+									<Box sx={{
+										display: 'grid',
+										gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+										gap: 0.5,
+										maxHeight: '120px',
+										overflowY: 'auto',
+										paddingRight: 1,
+										'&::-webkit-scrollbar': {
+											width: '4px',
+										},
+										'&::-webkit-scrollbar-track': {
+											backgroundColor: 'rgba(0,0,0,0.1)',
+											borderRadius: '2px',
+										},
+										'&::-webkit-scrollbar-thumb': {
+											backgroundColor: 'rgba(0,0,0,0.3)',
+											borderRadius: '2px',
+											'&:hover': {
+												backgroundColor: 'rgba(0,0,0,0.5)',
+											}
+										}
+									}}>
+										{chartData.series.map((s, index) => (
+											<Chip
+												key={s.id}
+												size="small"
+												label={`${s.label}: ${chartData.values[index] || 0}h`}
+												sx={{
+													backgroundColor: s.color,
+													color: 'white',
+													borderRadius: 0.5,
+													fontSize: '0.7rem',
+													height: '20px',
+													padding: '0 6px',
+													justifyContent: 'flex-start',
+													width: '100%',
+													minWidth: 0,
+													'& .MuiChip-label': {
+														padding: '0 4px',
+														overflow: 'hidden',
+														textOverflow: 'ellipsis',
+														whiteSpace: 'nowrap'
+													}
+												}}
+											/>
+										))}
+									</Box>
+								</Box>
+							)}
 						</Stack>
 					</Box>
 				</Stack>

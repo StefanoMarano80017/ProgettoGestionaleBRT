@@ -128,7 +128,7 @@ export function WorkCalendar({
   const gridRef = React.useRef(null);
 
   return (
-    <Box sx={{ width: "100%", position: 'relative', bgcolor: 'background.default', borderRadius: 1, p: 2, height: '100%', boxShadow: 2, transition: 'box-shadow 160ms ease, transform 160ms ease', '&:hover': { boxShadow: 6 } }}>
+    <Box sx={{ width: "100%", position: 'relative', bgcolor: 'background.default', borderRadius: 1, p: 2, height: '100%' }}>
       {/* Selettore mese */}
       <MonthSelector
         year={currentYear}
@@ -221,7 +221,7 @@ export function WorkCalendar({
       
 
       {/* Legenda icone/stati */}
-      <Box sx={{ mt: 2 }}>
+      <Box>
         <TileLegend />
       </Box>
     </Box>
