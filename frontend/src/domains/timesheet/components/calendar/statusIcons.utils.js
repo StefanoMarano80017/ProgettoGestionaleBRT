@@ -1,4 +1,4 @@
-import { WarningAmber, Celebration, BeachAccess, LocalHospital, EventAvailable, CheckCircle, AccessTime } from '@mui/icons-material';
+import { WarningAmber, Celebration, BeachAccess, LocalHospital, EventAvailable, CheckCircle, AccessTime, Block } from '@mui/icons-material';
 import { DayStatus } from './statusConstants';
 
 // Utility exports (no JSX) — return Icon component and props so callers render
@@ -11,6 +11,7 @@ export const statusIconComponents = Object.freeze({
   [DayStatus.Permesso]: EventAvailable,
   [DayStatus.Complete]: CheckCircle,
   [DayStatus.Partial]: AccessTime,
+  [DayStatus.NonWorkFull]: Block,
 });
 
 export function getStatusIconInfo(theme, status, size = 'small') {
@@ -34,6 +35,9 @@ export function getStatusIconInfo(theme, status, size = 'small') {
       return { Icon: CheckCircle, props: useMuiSmall ? { fontSize: 'small', sx: { color: theme.palette.success.main } } : { sx: sxFor({ color: theme.palette.success.main }) } };
     case DayStatus.Partial:
       return { Icon: AccessTime, props: useMuiSmall ? { fontSize: 'small', sx: { color: theme.palette.warning.main } } : { sx: sxFor({ color: theme.palette.warning.main }) } };
+    case DayStatus.NonWorkFull:
+      // full non-work day — use a distinct neutral/dark badge (Block icon)
+      return { Icon: Block, props: useMuiSmall ? { fontSize: 'small', sx: { color: theme.palette.text.secondary } } : { sx: sxFor({ color: theme.palette.text.secondary }) } };
     case DayStatus.Future:
     default:
       return { Icon: null, props: {} };

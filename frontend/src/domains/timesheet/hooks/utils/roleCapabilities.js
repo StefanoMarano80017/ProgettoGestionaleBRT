@@ -13,6 +13,9 @@ export function getRoleCapabilities(role) {
 
 export const rolesWithPersonalEntries = ['dipendente'];
 
+export const canEditPersonalAbsences = (role) =>
+	["DIPENDENTE","PM_CAMPO","COORDINATORE","AMMINISTRATORE"].includes(String(role || '').toUpperCase());
+
 export function filterEntriesByRole(role, entries, currentUserId) {
 	const caps = getRoleCapabilities(role);
 	if (caps.canViewAll || caps.canEditAll) return entries;

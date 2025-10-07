@@ -1,7 +1,11 @@
-import React, { useRef, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Skeleton, Box } from '@mui/material';
+import React, { useRef, useEffect, useState } from 'react';
+import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Skeleton, Box, Button, Stack } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DayEntryPanel from './DayEntryPanel';
+import PersonalAbsenceEditor from '../panels/PersonalAbsenceEditor';
+import useAuth from '@/domains/auth/hooks/useAuth';
+import { rolesWithPersonalEntries, getRoleCapabilities, canEditPersonalAbsences } from '@domains/timesheet/hooks/utils/roleCapabilities';
+import { useTimesheetStaging } from '@domains/timesheet/hooks/staging';
 
 /**
  * DayEntryDialog
@@ -16,6 +20,10 @@ export default function DayEntryDialog({
   data,
   commesse,
 }) {
+  const [openAbsenceEditor, setOpenAbsenceEditor] = useState(false);
+  const [absenceDraft, setAbsenceDraft] = useState(null);
+  const staging = useTimesheetStaging();
+  const { user } = useAuth();
   const closeBtnRef = useRef(null);
   const titleId = 'day-entry-dialog-title';
   const descId = 'day-entry-dialog-description';
@@ -29,6 +37,8 @@ export default function DayEntryDialog({
 
   const longDate = date ? new Date(date).toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
   const empLabel = employeeName ? ` – ${employeeName}` : '';
+  const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
+  const canOpenAbsenceEditor = userRoles.some((r) => canEditPersonalAbsences(r) || rolesWithPersonalEntries.includes(String(r).toLowerCase()) || getRoleCapabilities(r)?.canEditAll || getRoleCapabilities(r)?.canEditOwn);
 
   return (
     <Dialog
@@ -41,6 +51,11 @@ export default function DayEntryDialog({
     >
       <DialogTitle id={titleId} sx={{ pr: 5 }}>
         {longDate}{empLabel}
+        {canOpenAbsenceEditor && (
+          <Stack direction="row" spacing={1} sx={{ position: 'absolute', left: 16, top: 8 }}>
+            <Button size="small" variant="outlined" onClick={() => setOpenAbsenceEditor(true)}>Assenza personale</Button>
+          </Stack>
+        )}
         <IconButton
           aria-label="Chiudi"
           onClick={onClose}
@@ -69,6 +84,26 @@ export default function DayEntryDialog({
             data={data}
             commesse={commesse}
             maxHoursPerDay={8}
+          />
+        )}
+        {/* PersonalAbsenceEditor rendered as a step inside the same dialog */}
+        {openAbsenceEditor && (
+          <PersonalAbsenceEditor
+            employeeId={employeeId}
+            employeeName={employeeName}
+            dateKey={date}
+            initial={data?.[date] || []}
+            onChangeDraft={(d) => setAbsenceDraft(d)}
+            onCancel={() => { setOpenAbsenceEditor(false); setAbsenceDraft(null); }}
+            onConfirm={() => {
+              // Stage the draft and close editor
+              const draft = absenceDraft || [];
+              if (staging && typeof staging.stageDraft === 'function') {
+                staging.stageDraft(employeeId, date, draft, { origin: 'day-entry-dialog.personal-absence' });
+              }
+              setOpenAbsenceEditor(false);
+              setAbsenceDraft(null);
+            }}
           />
         )}
       </DialogContent>
