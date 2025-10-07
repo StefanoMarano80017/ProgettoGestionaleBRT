@@ -253,6 +253,44 @@ export function sendSegnalazione(employeeId, dateKey, descrizione) {
   });
 }
 
+// NUOVO: batch save timesheet entries for staging confirmation
+export function batchSaveTimesheetEntries(payload) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        payload.forEach(batch => {
+          const { employeeId, updates } = batch;
+          if (!employeeTimesheetMock[employeeId]) {
+            employeeTimesheetMock[employeeId] = {};
+          }
+          
+          updates.forEach(update => {
+            const { dateKey, records } = update;
+            if (records && records.length > 0) {
+              // Add canonical fields to each record
+              const enrichedRecords = records.map((r, idx) => ({
+                ...r,
+                userId: employeeId,
+                userRole: 'DIPENDENTE', // default role
+                dateKey: dateKey,
+                id: r.id || `${employeeId}-${dateKey}-${idx}`,
+                _id: r._id || `${employeeId}-${dateKey}-${idx}`,
+              }));
+              employeeTimesheetMock[employeeId][dateKey] = enrichedRecords;
+            } else {
+              // Empty records array means delete the day
+              delete employeeTimesheetMock[employeeId][dateKey];
+            }
+          });
+        });
+        resolve({ success: true, saved: payload.length });
+      } catch (e) {
+        reject(e);
+      }
+    }, 200); // Simulate network delay
+  });
+}
+
 // === PM CAMPO: Gruppi ===
 let nextGroupId = 1;
 export function createPmGroup({ name, members = [], azienda }) {

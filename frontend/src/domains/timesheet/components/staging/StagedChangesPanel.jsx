@@ -9,7 +9,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { useTimesheetStaging, useTimesheetContext } from '@domains/timesheet/hooks';
+import { useTimesheetStaging, useTimesheetContext, useTimesheetApi } from '@domains/timesheet/hooks';
 import { computeDayDiff, summarizeDayDiff } from '@domains/timesheet/hooks/utils/timesheetModel.js';
 
 export default function StagedChangesPanel({
@@ -21,6 +21,7 @@ export default function StagedChangesPanel({
 }) {
   const staging = useTimesheetStaging();
   const ctx = (typeof useTimesheetContext === 'function') ? (() => { try { return useTimesheetContext(); } catch { return null; } })() : null;
+  const { api } = useTimesheetApi();
 
   const ordered = staging?.order || [];
   const entries = staging?.entries || {};
@@ -68,7 +69,11 @@ export default function StagedChangesPanel({
   const confirmAll = async () => {
     if (!staging?.confirmAll) return;
     try {
-      await staging.confirmAll();
+      await staging.confirmAll(async (payload) => {
+        if (api?.batchSaveTimesheetEntries) {
+          await api.batchSaveTimesheetEntries(payload);
+        }
+      });
       openSnack('Modifiche confermate', 'commit');
     } catch (e) {
       console.error('confirmAll failed', e);

@@ -44,9 +44,7 @@ function InnerDipendente({ employeeId }) {
   // Editing & auto staging are internal to DayEntryPanel; this page only selects a day and shows staging panel.
 
   // Merged data view (base + staging overlay + local drafts) using new staging selectors
-  // Base data only (no staging overlay) for calendar display
   const { mergedData } = useStableMergedDataMap({ dataMap: ctx.dataMap, staging, employeeId, mode: 'single' });
-  const baseData = useMemo(() => ctx.dataMap?.[employeeId] || {}, [ctx.dataMap, employeeId]);
   const stagedMetaAll = useStagedMetaMap(staging);
   const stagedMeta = useMemo(() => stagedMetaAll[employeeId] || {}, [stagedMetaAll, employeeId]);
 
@@ -141,7 +139,7 @@ function InnerDipendente({ employeeId }) {
             {/* Period controls (moved from dashboard) */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }} />
             <WorkCalendar
-              data={baseData}
+              data={mergedData}
               selectedDay={selectedDay}
               onDaySelect={setSelectedDay}
               onDayDoubleClick={(d) => { setSelectedDay(d); dayEditor.openEditor(employeeId, d); }}
