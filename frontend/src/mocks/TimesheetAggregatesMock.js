@@ -2,13 +2,16 @@ import { getAllEmployeeTimesheets } from "@mocks/ProjectMock";
 import { ROLES } from "@mocks/UsersMock";
 import { rolesWithPersonalEntries } from "@domains/timesheet/hooks/utils/roleCapabilities.js";
 
+// Filtra i codici di lavoro escludendo sempre FERIE/MALATTIA/PERMESSO
 const isWorkCode = (c) => c && !["FERIE", "MALATTIA", "PERMESSO"].includes(String(c).toUpperCase());
+
 const sameMonth = (dateKey, year, month0) => {
   const [yy, mm] = dateKey.split("-").map(Number);
   return yy === year && mm === month0 + 1;
 };
 
 // Aggregato mensile per un dipendente: totale e per-commessa
+// FIRMA INALTERATA - mantiene compatibilità completa con codice esistente
 export async function getEmployeeMonthSummary(employeeId, year, month) {
   const tsMap = await getAllEmployeeTimesheets();
   const ts = tsMap[employeeId] || {};
@@ -20,11 +23,16 @@ export async function getEmployeeMonthSummary(employeeId, year, month) {
     if (!sameMonth(key, year, month)) return;
     (records || []).forEach((r) => {
       const ore = Number(r?.ore || 0);
+      // Ignora sempre FERIE/MALATTIA/PERMESSO e ore non valide
       if (!isWorkCode(r?.commessa) || ore <= 0) return;
+      
       // Defensive: only count if employee role allowed personal entries (for future role injection)
       // In current mock dataset we don't store role on entries; assumption: employeeId represents a personal-entry role.
       // If future enrichment adds r.userRole, enforce rolesWithPersonalEntries here:
       if (r.userRole && !rolesWithPersonalEntries.has(r.userRole)) return;
+      
+      // I campi opzionali (servizioId, sottocommessaId, note, etc.) sono ignorati per gli aggregati
+      // TODO: Future enhancement - breakdown by servizioId per analisi dettagliate per servizio
       total += ore;
       byCommessa.set(r.commessa, (byCommessa.get(r.commessa) || 0) + ore);
     });
@@ -38,6 +46,7 @@ export async function getEmployeeMonthSummary(employeeId, year, month) {
 }
 
 // Aggregato mensile globale per commessa (su un insieme di dipendenti filtrato)
+// FIRMA INALTERATA - mantiene compatibilità completa con codice esistente
 export async function getGlobalMonthByCommessa({ year, month, employeeIds = [], filterCommessa = "" }) {
   const tsMap = await getAllEmployeeTimesheets();
   const set = new Set(employeeIds);
@@ -50,8 +59,12 @@ export async function getGlobalMonthByCommessa({ year, month, employeeIds = [], 
       if (!sameMonth(key, year, month)) return;
       (records || []).forEach((r) => {
         const ore = Number(r?.ore || 0);
+        // Ignora sempre FERIE/MALATTIA/PERMESSO e ore non valide
         if (!isWorkCode(r?.commessa) || ore <= 0) return;
         if (r.userRole && !rolesWithPersonalEntries.has(r.userRole)) return;
+        
+        // I campi opzionali (servizioId, sottocommessaId, note, etc.) non influiscono sui totali
+        // TODO: Future enhancement - aggregazione per servizioId per breakdown dettagliati
         agg.set(r.commessa, (agg.get(r.commessa) || 0) + ore);
       });
     });
