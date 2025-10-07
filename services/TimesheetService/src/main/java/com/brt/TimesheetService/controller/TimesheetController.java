@@ -3,7 +3,6 @@ package com.brt.TimesheetService.controller;
 import java.time.LocalDate;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +21,7 @@ import com.brt.TimesheetService.dto.TimesheetItemDTO;
 import com.brt.TimesheetService.projection.TimesheetDayProjection;
 import com.brt.TimesheetService.projection.TimesheetItemProjection;
 import com.brt.TimesheetService.service.TimesheetApplicationService;
+import com.brt.TimesheetService.util.PageableUtils;
 
 @RestController
 @RequestMapping("/employees/{employeeId}/timesheets")
@@ -35,24 +35,23 @@ public class TimesheetController {
 
     @GetMapping
     public ResponseEntity<Page<TimesheetDayProjection>> getTimesheets(
-        @PathVariable Long employeeId,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-        @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size,
-        @RequestParam(required = false) String sortBy,
-        @RequestParam(required = false) String direction
+            @PathVariable Long employeeId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String direction
     ) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageableUtils.createSafePageable(page, size, sortBy, direction);
         Page<TimesheetDayProjection> projections = timesheetApplicationService.getTimesheets(employeeId, startDate, endDate, pageable);
         return ResponseEntity.ok(projections);
     }
 
-
     @GetMapping("/{date}")
     public ResponseEntity<TimesheetDayProjection> getTimesheet(
-        @PathVariable Long employeeId, 
-        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @PathVariable Long employeeId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         TimesheetDayProjection projection = timesheetApplicationService.getTimesheet(employeeId, date);
         return ResponseEntity.ok(projection);
@@ -60,9 +59,9 @@ public class TimesheetController {
 
     @PostMapping("/{date}")
     public ResponseEntity<TimesheetDayProjection> saveTimesheet(
-        @PathVariable Long employeeId,
-        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-        @RequestBody TimesheetDayDTO dto
+            @PathVariable Long employeeId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestBody TimesheetDayDTO dto
     ) {
         dto.setDate(date);
         TimesheetDayProjection saved = timesheetApplicationService.saveTimesheetUser(employeeId, date, dto);
@@ -71,8 +70,8 @@ public class TimesheetController {
 
     @DeleteMapping("/{date}")
     public ResponseEntity<Void> deleteTimesheet(
-        @PathVariable Long employeeId, 
-        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @PathVariable Long employeeId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         timesheetApplicationService.deleteTimesheetUser(employeeId, date);
         return ResponseEntity.noContent().build();
@@ -81,10 +80,10 @@ public class TimesheetController {
     // POST semantics: nel dominio, la creazione di un item sulla stessa commessa
     // equivale a un "merge" (aggiunta ore) invece che un duplicato.
     @PostMapping("/{date}/items")
-    public ResponseEntity<TimesheetItemProjection> addItem( 
-        @PathVariable Long employeeId,
-        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-        @RequestBody TimesheetItemDTO itemDTO
+    public ResponseEntity<TimesheetItemProjection> addItem(
+            @PathVariable Long employeeId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestBody TimesheetItemDTO itemDTO
     ) {
         TimesheetItemProjection saved = timesheetApplicationService.addOrCreateItem(employeeId, date, itemDTO);
         return ResponseEntity.status(201).body(saved);
@@ -92,19 +91,19 @@ public class TimesheetController {
 
     @PutMapping("/{date}/items")
     public ResponseEntity<TimesheetItemProjection> updateItem(
-        @PathVariable Long employeeId,
-        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-        @RequestBody TimesheetItemDTO itemDTO
-    ) {                                                           
+            @PathVariable Long employeeId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestBody TimesheetItemDTO itemDTO
+    ) {
         TimesheetItemProjection updated = timesheetApplicationService.putItem(employeeId, date, itemDTO);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{date}/items/{itemId}")
     public ResponseEntity<Void> deleteItem(
-        @PathVariable Long employeeId, 
-        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-        @PathVariable Long itemId
+            @PathVariable Long employeeId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @PathVariable Long itemId
     ) {
         timesheetApplicationService.deleteItem(employeeId, date, itemId);
         return ResponseEntity.noContent().build();

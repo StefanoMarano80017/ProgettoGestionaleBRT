@@ -67,15 +67,21 @@ public class ReportService {
 
     @FunctionalInterface
     private interface ReportQueryExecutor<T> {
+
         Page<T> execute(LocalDate start, LocalDate end, Pageable pageable);
     }
 
     // =============================================================
     // METODI PUBBLICI DI BUSINESS
     // =============================================================
-
-    /** Ore totali per commessa con lista di dipendenti */
-    public Page<CommessaHoursDTO> getTotalHoursByCommessa(LocalDate startDate, LocalDate endDate, Pageable pageable) {
+    /**
+     * Ore totali per commessa con lista di dipendenti
+     */
+    public Page<CommessaHoursDTO> getTotalHoursByCommessa(
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
         return executeReportQuery(
                 startDate,
                 endDate,
@@ -96,9 +102,15 @@ public class ReportService {
         );
     }
 
-    /** Ore totali per ogni dipendente in una commessa specifica */
+    /**
+     * Ore totali per ogni dipendente in una commessa specifica
+     */
     public Page<EmployeeCommessaHoursProjection> getTotalHoursPerEmployeeForCommessa(
-            String commessaCode, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+            String commessaCode,
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
         return executeReportQuery(
                 startDate,
                 endDate,
@@ -109,8 +121,14 @@ public class ReportService {
         );
     }
 
-    /** Ore totali per dipendente su tutte le commesse */
-    public Page<EmployeeTotalHoursProjection> getTotalHoursByEmployee(LocalDate startDate, LocalDate endDate, Pageable pageable) {
+    /**
+     * Ore totali per dipendente su tutte le commesse
+     */
+    public Page<EmployeeTotalHoursProjection> getTotalHoursByEmployee(
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
         return executeReportQuery(
                 startDate,
                 endDate,
@@ -121,8 +139,14 @@ public class ReportService {
         );
     }
 
-    /** Report giornaliero per tutte le commesse */
-    public Page<DailyHoursReportProjection> getReportGroupedByCommessaOptimized(LocalDate startDate, LocalDate endDate, Pageable pageable) {
+    /**
+     * Report giornaliero per tutte le commesse
+     */
+    public Page<DailyHoursReportProjection> getReportGroupedByCommessaOptimized(
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
         return executeReportQuery(
                 startDate,
                 endDate,
@@ -133,8 +157,15 @@ public class ReportService {
         );
     }
 
-    /** Report giornaliero per una singola commessa */
-    public Page<DailyHoursReportProjection> getReportForSingleCommessa(String commessaCode, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+    /**
+     * Report giornaliero per una singola commessa
+     */
+    public Page<DailyHoursReportProjection> getReportForSingleCommessa(
+            String commessaCode,
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
         return executeReportQuery(
                 startDate,
                 endDate,
@@ -145,9 +176,16 @@ public class ReportService {
         );
     }
 
-    /** Ore per un dipendente su una specifica commessa */
+    /**
+     * Ore per un dipendente su una specifica commessa
+     */
     public Page<EmployeeCommessaHoursProjection> getEmployeeHoursForCommessa(
-            Long employeeId, String commessaCode, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+            Long employeeId,
+            String commessaCode,
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
         return executeReportQuery(
                 startDate,
                 endDate,
@@ -158,9 +196,15 @@ public class ReportService {
         );
     }
 
-    /** Ore per un dipendente su tutte le commesse */
+    /**
+     * Ore per un dipendente su tutte le commesse
+     */
     public Page<EmployeeCommessaHoursProjection> getEmployeeHoursAllCommesse(
-            Long employeeId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+            Long employeeId,
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
         return executeReportQuery(
                 startDate,
                 endDate,
