@@ -14,8 +14,7 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
-
-package com.brt.TimesheetService.service.Validator;
+package com.brt.TimesheetService.modules.timesheet.application.validator;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -24,14 +23,14 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.brt.TimesheetService.model.Employee;
-import com.brt.TimesheetService.model.TimesheetDay;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetDay;
+import com.brt.TimesheetService.modules.user.domain.Employee;
 
 @Component
 public class TimesheetValidator {
 
     private final Map<OperationContext, List<TimesheetValidationRule>> rulesByContext;
-    
+
     public TimesheetValidator(
             AbsenceConsistencyRule absenceConsistencyRule,
             CurrentMonthRule currentMonthRule,
@@ -41,17 +40,17 @@ public class TimesheetValidator {
         // Iniezione delle regole e mappatura per contesto
         this.rulesByContext = Map.of(
                 OperationContext.USER, List.of(
-                    absenceConsistencyRule,     // Se setto l'assenza, non ci devono essere ore lavorate
-                    currentMonthRule,           // Non posso modificare mesi diversi da quello corrente
-                    futureDateRule,             // Non posso modificare giorni futuri
-                    ownershipRule               // Posso modificare solo i miei timesheet
+                        absenceConsistencyRule, // Se setto l'assenza, non ci devono essere ore lavorate
+                        currentMonthRule, // Non posso modificare mesi diversi da quello corrente
+                        futureDateRule, // Non posso modificare giorni futuri
+                        ownershipRule // Posso modificare solo i miei timesheet
                 ),
                 OperationContext.ADMIN, List.of(
-                    absenceConsistencyRule,      // Se setto l'assenza, non ci devono essere ore lavorate
-                    futureDateRule               // Non posso modificare giorni futuri
+                        absenceConsistencyRule, // Se setto l'assenza, non ci devono essere ore lavorate
+                        futureDateRule // Non posso modificare giorni futuri
                 ),
                 OperationContext.ADMIN_SET_ABSENCE, List.of(
-                    absenceConsistencyRule      // Se setto l'assenza, non ci devono essere ore lavorate
+                        absenceConsistencyRule // Se setto l'assenza, non ci devono essere ore lavorate
                 )
         );
     }
@@ -64,17 +63,14 @@ public class TimesheetValidator {
         rules.forEach(r -> r.validate(day, currentUser));
     }
 
-
     /**
      * Metodo di utilità per interpretare i parametri di filtro delle date.
      * Restituisce un array di due LocalDate: [startDate, endDate].
      *
-     * Logica:
-     *  - Se start ed end sono forniti, li usa direttamente.
-     *  - Se solo uno dei due è fornito, completa l'altro in modo coerente:
-     *      → start = dato, end = oggi (se end mancante)
-     *      → start = inizio mese corrente (se start mancante)
-     *  - Se nessuno è fornito, usa il mese corrente come intervallo.
+     * Logica: - Se start ed end sono forniti, li usa direttamente. - Se solo
+     * uno dei due è fornito, completa l'altro in modo coerente: → start = dato,
+     * end = oggi (se end mancante) → start = inizio mese corrente (se start
+     * mancante) - Se nessuno è fornito, usa il mese corrente come intervallo.
      */
     public LocalDate[] parseDateRange(LocalDate start, LocalDate end) {
         LocalDate rangeStart;

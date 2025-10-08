@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.repository;
+package com.brt.TimesheetService.modules.timesheet.infrastructure;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -8,8 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.brt.TimesheetService.model.Employee;
-import com.brt.TimesheetService.model.TimesheetDay;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetDay;
+import com.brt.TimesheetService.modules.user.domain.Employee;
 
 public interface TimesheetDayRepository extends JpaRepository<TimesheetDay, Long> {
 

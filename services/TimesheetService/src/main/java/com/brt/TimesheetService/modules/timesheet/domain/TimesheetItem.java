@@ -1,6 +1,8 @@
-package com.brt.TimesheetService.model;
+package com.brt.TimesheetService.modules.timesheet.domain;
 
 import java.math.BigDecimal;
+
+import com.brt.TimesheetService.modules.commessa.domain.Commessa;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.service.caching;
+package com.brt.TimesheetService.modules.timesheet.application.caching;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -20,7 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 
-import com.brt.TimesheetService.model.TimesheetDay;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetDay;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;

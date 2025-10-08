@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.interceptor;
+package com.brt.TimesheetService.shared.Interceptor;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -22,10 +22,9 @@ import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Interceptor globale per formattare automaticamente le risposte paginabili.
- * 
- * Trasforma ResponseEntity<Page<?>> in un JSON arricchito con:
- *  - metadati (page, size, sort, filters)
- *  - link assoluti (self, next, prev)
+ *
+ * Trasforma ResponseEntity<Page<?>> in un JSON arricchito con: - metadati
+ * (page, size, sort, filters) - link assoluti (self, next, prev)
  */
 @Component
 public class PaginationResponseInterceptor implements ResponseBodyAdvice<Object> {
@@ -41,12 +40,12 @@ public class PaginationResponseInterceptor implements ResponseBodyAdvice<Object>
 
     @Override
     public Object beforeBodyWrite(
-                                    Object body,
-                                    MethodParameter returnType,
-                                    MediaType selectedContentType,
-                                    Class selectedConverterType,
-                                    ServerHttpRequest serverRequest,
-                                    ServerHttpResponse response
+            Object body,
+            MethodParameter returnType,
+            MediaType selectedContentType,
+            Class selectedConverterType,
+            ServerHttpRequest serverRequest,
+            ServerHttpResponse response
     ) {
 
         // Recupera la HttpServletRequest dal contesto
@@ -64,7 +63,7 @@ public class PaginationResponseInterceptor implements ResponseBodyAdvice<Object>
         return body;
     }
 
-     public static <T> ResponseEntity<Map<String, Object>> build(Page<T> page, HttpServletRequest request) {
+    public static <T> ResponseEntity<Map<String, Object>> build(Page<T> page, HttpServletRequest request) {
 
         Map<String, Object> response = new HashMap<>();
 
@@ -117,7 +116,9 @@ public class PaginationResponseInterceptor implements ResponseBodyAdvice<Object>
 
     // Estrae i filtri dalla query string (esclude page e size)
     private static Map<String, String> extractFilters(HttpServletRequest request) {
-        if (request.getParameterMap().isEmpty()) return Map.of();
+        if (request.getParameterMap().isEmpty()) {
+            return Map.of();
+        }
         return request.getParameterMap().entrySet().stream()
                 .filter(e -> !e.getKey().equalsIgnoreCase("page") && !e.getKey().equalsIgnoreCase("size"))
                 .collect(Collectors.toMap(

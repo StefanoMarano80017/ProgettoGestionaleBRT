@@ -1,11 +1,4 @@
-package com.brt.TimesheetService.modules.user.
-
-interface
-  ;
-
-import com.brt.TimesheetService.model.Employee;
-import com.brt.TimesheetService.service.EmployeeService;
-
+package com.brt.TimesheetService.modules.user.controller;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,9 +12,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.brt.TimesheetService.dto.EmployeeDTO;
-
-import com.brt.TimesheetService.exception.ResourceNotFoundException;
+import com.brt.TimesheetService.modules.user.application.EmployeeService;
+import com.brt.TimesheetService.modules.user.domain.Employee;
+import com.brt.TimesheetService.shared.dto.EmployeeDTO;
+import com.brt.TimesheetService.shared.exception.ResourceNotFoundException;
 
 @RestController
 @RequestMapping("/employees")

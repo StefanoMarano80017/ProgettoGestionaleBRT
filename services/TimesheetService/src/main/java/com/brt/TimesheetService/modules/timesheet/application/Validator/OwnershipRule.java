@@ -14,16 +14,17 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
-
-package com.brt.TimesheetService.service.Validator;
+package com.brt.TimesheetService.modules.timesheet.application.validator;
 
 import org.springframework.stereotype.Component;
-import com.brt.TimesheetService.model.TimesheetDay;
-import com.brt.TimesheetService.model.Employee; 
-import com.brt.TimesheetService.exception.TimesheetValidationException;
+
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetDay;
+import com.brt.TimesheetService.modules.user.domain.Employee;
+import com.brt.TimesheetService.shared.exception.TimesheetValidationException;
 
 @Component
 public class OwnershipRule implements TimesheetValidationRule {
+
     @Override
     public void validate(TimesheetDay day, Employee currentUser) {
         if (currentUser == null || !day.getEmployee().getId().equals(currentUser.getId())) {

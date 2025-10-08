@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.service;
+package com.brt.TimesheetService.modules.timesheet.application;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -11,13 +11,13 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import com.brt.TimesheetService.dto.CommessaHoursDTO;
-import com.brt.TimesheetService.exception.ReportProcessingException;
-import com.brt.TimesheetService.projection.DailyHoursReportProjection;
-import com.brt.TimesheetService.projection.EmployeeCommessaHoursProjection;
-import com.brt.TimesheetService.projection.EmployeeTotalHoursProjection;
-import com.brt.TimesheetService.repository.TimesheetItemRepository;
-import com.brt.TimesheetService.service.Validator.TimesheetValidator;
+import com.brt.TimesheetService.modules.timesheet.application.validator.TimesheetValidator;
+import com.brt.TimesheetService.modules.timesheet.infrastructure.TimesheetItemRepository;
+import com.brt.TimesheetService.shared.dto.CommessaHoursDTO;
+import com.brt.TimesheetService.shared.exception.ReportProcessingException;
+import com.brt.TimesheetService.shared.projection.DailyHoursReportProjection;
+import com.brt.TimesheetService.shared.projection.EmployeeCommessaHoursProjection;
+import com.brt.TimesheetService.shared.projection.EmployeeTotalHoursProjection;
 
 @Service
 public class ReportService {
@@ -143,24 +143,6 @@ public class ReportService {
     }
 
     /**
-     * Report giornaliero per tutte le commesse
-     */
-    public Page<DailyHoursReportProjection> getReportGroupedByCommessaOptimized(
-            LocalDate startDate,
-            LocalDate endDate,
-            Pageable pageable
-    ) {
-        return executeReportQuery(
-                startDate,
-                endDate,
-                pageable,
-                (s, e, p) -> timesheetItemRepository.aggregateDailyHoursAllCommesse(s, e, p),
-                Function.identity(),
-                "getReportGroupedByCommessaOptimized"
-        );
-    }
-
-    /**
      * Report giornaliero per una singola commessa
      */
     public Page<DailyHoursReportProjection> getReportForSingleCommessa(
@@ -176,6 +158,24 @@ public class ReportService {
                 (s, e, p) -> timesheetItemRepository.aggregateDailyHoursByCommessaAndDate(commessaCode, s, e, p),
                 Function.identity(),
                 "getReportForSingleCommessa[" + commessaCode + "]"
+        );
+    }
+
+    /**
+     * Report giornaliero per tutte le commesse
+     */
+    public Page<DailyHoursReportProjection> getReportForAllCommessa(
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
+        return executeReportQuery(
+                startDate,
+                endDate,
+                pageable,
+                (s, e, p) -> timesheetItemRepository.aggregateDailyHoursAllCommesseByDate(s, e, p),
+                Function.identity(),
+                "getReportForAllCommessa"
         );
     }
 

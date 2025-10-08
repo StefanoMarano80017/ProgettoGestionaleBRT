@@ -1,6 +1,6 @@
 package com.brt.TimesheetService.shared.dto;
 
-import com.brt.TimesheetService.model.Employee;
+import com.brt.TimesheetService.modules.user.domain.Employee;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

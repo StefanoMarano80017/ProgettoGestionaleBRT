@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.controller;
+package com.brt.TimesheetService.modules.timesheet.controller;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.brt.TimesheetService.dto.TimesheetDayDTO;
-import com.brt.TimesheetService.model.AbsenceType;
-import com.brt.TimesheetService.projection.TimesheetDayProjection;
-import com.brt.TimesheetService.service.TimesheetApplicationService;
+import com.brt.TimesheetService.modules.timesheet.application.TimesheetApplicationService;
+import com.brt.TimesheetService.modules.timesheet.domain.AbsenceType;
+import com.brt.TimesheetService.shared.dto.TimesheetDayDTO;
+import com.brt.TimesheetService.shared.projection.TimesheetDayProjection;
 
 @RestController
 @RequestMapping("/admin")

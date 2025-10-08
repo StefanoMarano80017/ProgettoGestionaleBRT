@@ -16,13 +16,6 @@
  */
 package com.brt.TimesheetService.modules.commessa.application;
 
-import com.brt.TimesheetService.modules.commessa.infrastructure.CommessaRepository;
-import com.brt.TimesheetService.modules.commessa.domain.Commessa;
-
-import com.brt.TimesheetService.shared.dto.CommessaDTO;
-import com.brt.TimesheetService.shared.exception.CommessaServiceException;
-import com.brt.TimesheetService.shared.exception.ResourceNotFoundException;
-
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -34,6 +27,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.brt.TimesheetService.modules.commessa.domain.Commessa;
+import com.brt.TimesheetService.modules.commessa.infrastructure.CommessaRepository;
+import com.brt.TimesheetService.shared.dto.CommessaDTO;
+import com.brt.TimesheetService.shared.exception.CommessaServiceException;
+import com.brt.TimesheetService.shared.exception.ResourceNotFoundException;
 
 /**
  * Servizio per la gestione delle Commessa con logging, validazioni, gestione
@@ -89,8 +88,7 @@ public class CommessaService {
             if (id == null) {
                 throw new IllegalArgumentException("L'id non può essere nullo");
             }
-            return commessaRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Commessa non trovata con id: " + id));
+            return commessaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Commessa non trovata con id: " + id));
         });
     }
 

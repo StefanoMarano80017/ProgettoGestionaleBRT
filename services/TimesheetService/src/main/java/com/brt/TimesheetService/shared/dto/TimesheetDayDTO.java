@@ -3,8 +3,8 @@ package com.brt.TimesheetService.shared.dto;
 import java.time.LocalDate;
 import java.util.List;
 
-import com.brt.TimesheetService.model.AbsenceType;
-import com.brt.TimesheetService.model.TimesheetStatus;
+import com.brt.TimesheetService.modules.timesheet.domain.AbsenceType;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.AllArgsConstructor;
@@ -30,7 +30,8 @@ public class TimesheetDayDTO {
         if (absenceTypeStr == null || absenceTypeStr.isEmpty()) {
             return AbsenceType.NONE; // default
 
-                }try {
+        }
+        try {
             return AbsenceType.valueOf(absenceTypeStr.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Tipo di assenza non valido: " + absenceTypeStr);

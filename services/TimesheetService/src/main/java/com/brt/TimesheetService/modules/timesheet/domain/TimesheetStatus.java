@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.model;
+package com.brt.TimesheetService.modules.timesheet.domain;
 
 public enum TimesheetStatus {
     EMPTY,

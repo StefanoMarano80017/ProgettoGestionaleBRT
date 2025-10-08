@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.repository;
+package com.brt.TimesheetService.modules.timesheet.infrastructure;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -11,12 +11,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.brt.TimesheetService.model.TimesheetDay;
-import com.brt.TimesheetService.model.TimesheetItem;
-import com.brt.TimesheetService.projection.CommessaHoursProjection;
-import com.brt.TimesheetService.projection.DailyHoursReportProjection;
-import com.brt.TimesheetService.projection.EmployeeCommessaHoursProjection;
-import com.brt.TimesheetService.projection.EmployeeTotalHoursProjection;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetDay;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetItem;
+import com.brt.TimesheetService.shared.projection.CommessaHoursProjection;
+import com.brt.TimesheetService.shared.projection.DailyHoursReportProjection;
+import com.brt.TimesheetService.shared.projection.EmployeeCommessaHoursProjection;
+import com.brt.TimesheetService.shared.projection.EmployeeTotalHoursProjection;
 
 @Repository
 public interface TimesheetItemRepository extends JpaRepository<TimesheetItem, Long> {
@@ -24,7 +24,6 @@ public interface TimesheetItemRepository extends JpaRepository<TimesheetItem, Lo
     // ====================================================
     // OPERAZIONI DI BASE
     // ====================================================
-    
     Page<TimesheetItem> findByTimesheetDay(TimesheetDay timesheetDay, Pageable pageable);
 
     @Modifying
@@ -39,50 +38,83 @@ public interface TimesheetItemRepository extends JpaRepository<TimesheetItem, Lo
     // QUERIES REPORT CON PROJECTIONS
     // ====================================================
     // Ore totali per dipendente
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.EmployeeTotalHoursProjection(
-            e.id, e.name, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.timesheetDay td
-        JOIN td.employee e
-        WHERE td.date BETWEEN :startDate AND :endDate
-        GROUP BY e.id, e.name
-    """)
-    Page<EmployeeTotalHoursProjection> aggregateHoursByEmployee(@Param("startDate") LocalDate startDate,
-                                                                @Param("endDate") LocalDate endDate, Pageable pageable);
+    @Query(
+            value = """
+            SELECT new com.brt.TimesheetService.shared.projection.EmployeeTotalHoursProjection(
+                e.id, e.name, SUM(ti.hours)
+            )
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            WHERE td.date BETWEEN :startDate AND :endDate
+            GROUP BY e.id, e.name
+        """,
+            countQuery = """
+            SELECT COUNT(DISTINCT e.id)
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            WHERE td.date BETWEEN :startDate AND :endDate
+        """
+    )
+    Page<EmployeeTotalHoursProjection> aggregateHoursByEmployee(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable);
 
     // Ore totali per commessa (employeeNames separato)
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.CommessaHoursProjection(
-            c.id, c.code, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.commessa c
-        JOIN ti.timesheetDay td
-        WHERE td.date BETWEEN :startDate AND :endDate
-        GROUP BY c.id, c.code
-    """)
+    @Query(
+            value = """
+            SELECT new com.brt.TimesheetService.shared.projection.CommessaHoursProjection(
+                c.id, c.code, SUM(ti.hours)
+            )
+            FROM TimesheetItem ti
+            JOIN ti.commessa c
+            JOIN ti.timesheetDay td
+            WHERE td.date BETWEEN :startDate AND :endDate
+            GROUP BY c.id, c.code
+        """,
+            countQuery = """
+            SELECT COUNT(DISTINCT c.id)
+            FROM TimesheetItem ti
+            JOIN ti.commessa c
+            JOIN ti.timesheetDay td
+            WHERE td.date BETWEEN :startDate AND :endDate
+        """
+    )
     Page<CommessaHoursProjection> aggregateHoursByCommessa(
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate,
-        Pageable pageable
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
     );
 
     // Totale ore per una singola commessa (per tutti i dipendenti)
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.CommessaHoursProjection(
-            c.id, c.code, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.commessa c
-        JOIN ti.timesheetDay td
-        WHERE c.code = :commessaCode
-        AND td.date BETWEEN :startDate AND :endDate
-        GROUP BY c.id, c.code
-    """)
+    @Query(
+            value = """
+            SELECT new com.brt.TimesheetService.shared.projection.CommessaHoursProjection(
+                c.id, c.code, SUM(ti.hours)
+            )
+            FROM TimesheetItem ti
+            JOIN ti.commessa c
+            JOIN ti.timesheetDay td
+            WHERE c.code = :commessaCode
+            AND td.date BETWEEN :startDate AND :endDate
+            GROUP BY c.id, c.code
+        """,
+            countQuery = """
+            SELECT COUNT(DISTINCT c.id)
+            FROM TimesheetItem ti
+            JOIN ti.commessa c
+            JOIN ti.timesheetDay td
+            WHERE c.code = :commessaCode
+            AND td.date BETWEEN :startDate AND :endDate
+        """
+    )
     Page<CommessaHoursProjection> aggregateHoursForSingleCommessa(
-        @Param("commessaCode") String commessaCode,
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate,
-        Pageable pageable
+            @Param("commessaCode") String commessaCode,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
     );
 
     // Lista dipendenti distinti per una commessa
@@ -95,138 +127,169 @@ public interface TimesheetItemRepository extends JpaRepository<TimesheetItem, Lo
         WHERE c.id = :commessaId AND td.date BETWEEN :startDate AND :endDate
     """)
     List<String> findDistinctEmployeeNamesByCommessaAndDate(
-        @Param("commessaId") Long commessaId,
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate
+            @Param("commessaId") Long commessaId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
     );
 
     // ====================================================
     // DAILY HOURS QUERIES
     // ====================================================
-
-    // Aggregazione per tutte le commesse
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.DailyHoursReportProjection(
-            td.date, e.id, e.name, c.id, c.code, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.timesheetDay td
-        JOIN td.employee e
-        JOIN ti.commessa c
-        WHERE td.date BETWEEN :startDate AND :endDate
-        GROUP BY c.id, c.code, td.date, e.id, e.name
-        ORDER BY c.code, td.date, e.name
-    """)
-    Page<DailyHoursReportProjection> aggregateDailyHoursAllCommesse( @Param("startDate") LocalDate startDate,
-                                                                     @Param("endDate") LocalDate endDate, Pageable pageable);
-
     // Aggregazione per tutte le commesse con filtro data
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.DailyHoursReportProjection(
-            td.date, e.id, e.name, c.id, c.code, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.timesheetDay td
-        JOIN td.employee e
-        JOIN ti.commessa c
-        WHERE td.date BETWEEN :startDate AND :endDate
-        GROUP BY c.id, c.code, td.date, e.id, e.name
-        ORDER BY c.code, td.date, e.name
-    """)
+    @Query(
+            value = """
+            SELECT new com.brt.TimesheetService.shared.projection.DailyHoursReportProjection(
+                td.date, e.id, e.name, c.id, c.code, SUM(ti.hours)
+            )
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE td.date BETWEEN :startDate AND :endDate
+            GROUP BY c.id, c.code, td.date, e.id, e.name
+            ORDER BY c.code, td.date, e.name
+        """,
+            countQuery = """
+            SELECT COUNT(DISTINCT c.id, td.date, e.id)
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE td.date BETWEEN :startDate AND :endDate
+        """
+    )
     Page<DailyHoursReportProjection> aggregateDailyHoursAllCommesseByDate(
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate,
-        Pageable pageable
-    );
-
-    // Aggregazione per una sola commessa
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.DailyHoursReportProjection(
-            td.date, e.id, e.name, c.id, c.code, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.timesheetDay td
-        JOIN td.employee e
-        JOIN ti.commessa c
-        WHERE c.code = :commessaCode
-        GROUP BY c.id, c.code, td.date, e.id, e.name
-        ORDER BY td.date, e.name
-    """)
-    Page<DailyHoursReportProjection> aggregateDailyHoursByCommessa(
-        @Param("commessaCode") String commessaCode,
-        Pageable pageable
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
     );
 
     // Aggregazione per una sola commessa filtrata per codice e date
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.DailyHoursReportProjection(
-            td.date, e.id, e.name, c.id, c.code, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.timesheetDay td
-        JOIN td.employee e
-        JOIN ti.commessa c
-        WHERE c.code = :commessaCode AND td.date BETWEEN :startDate AND :endDate
-        GROUP BY c.id, c.code, td.date, e.id, e.name
-        ORDER BY td.date, e.name
-    """)
+    @Query(
+            value = """
+            SELECT new com.brt.TimesheetService.shared.projection.DailyHoursReportProjection(
+                td.date, e.id, e.name, c.id, c.code, SUM(ti.hours)
+            )
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE c.code = :commessaCode
+            AND td.date BETWEEN :startDate AND :endDate
+            GROUP BY c.id, c.code, td.date, e.id, e.name
+            ORDER BY td.date, e.name
+        """,
+            countQuery = """
+            SELECT COUNT(DISTINCT c.id, td.date, e.id)
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE c.code = :commessaCode
+            AND td.date BETWEEN :startDate AND :endDate
+        """
+    )
     Page<DailyHoursReportProjection> aggregateDailyHoursByCommessaAndDate(
-        @Param("commessaCode") String commessaCode,
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate,
-        Pageable pageable
+            @Param("commessaCode") String commessaCode,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
     );
 
     // Ore di un dipendente su tutte le commesse in un intervallo di date
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.EmployeeCommessaHoursProjection(
-            e.id, e.name, null, null, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.timesheetDay td
-        JOIN td.employee e
-        WHERE e.id = :employeeId
-        AND td.date BETWEEN :startDate AND :endDate
-        GROUP BY e.id, e.name
-    """)
+    @Query(
+            value = """
+            SELECT new com.brt.TimesheetService.shared.projection.EmployeeCommessaHoursProjection(
+                e.id, e.name, c.id, c.code, SUM(ti.hours)
+            )
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE e.id = :employeeId
+            AND td.date BETWEEN :startDate AND :endDate
+            GROUP BY e.id, e.name, c.id, c.code
+        """,
+            countQuery = """
+            SELECT COUNT(DISTINCT e.id, c.id)
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE e.id = :employeeId
+            AND td.date BETWEEN :startDate AND :endDate
+        """
+    )
     Page<EmployeeCommessaHoursProjection> getHoursByEmployeeAllCommesse(
-        @Param("employeeId") Long employeeId,
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate,
-        Pageable pageable
+            @Param("employeeId") Long employeeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
     );
 
     // Ore di un dipendente su una commessa in un intervallo di date
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.EmployeeCommessaHoursProjection(
-            e.id, e.name, c.id, c.code, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.timesheetDay td
-        JOIN td.employee e
-        JOIN ti.commessa c
-        WHERE e.id = :employeeId
-        AND c.code = :commessaCode
-        AND td.date BETWEEN :startDate AND :endDate
-        GROUP BY e.id, e.name, c.id, c.code
-    """)
+    @Query(
+            value = """
+            SELECT new com.brt.TimesheetService.shared.projection.EmployeeCommessaHoursProjection(
+                e.id, e.name, c.id, c.code, SUM(ti.hours)
+            )
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE e.id = :employeeId
+            AND c.code = :commessaCode
+            AND td.date BETWEEN :startDate AND :endDate
+            GROUP BY e.id, e.name, c.id, c.code
+        """,
+            countQuery = """
+            SELECT COUNT(DISTINCT e.id, c.id)
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE e.id = :employeeId
+            AND c.code = :commessaCode
+            AND td.date BETWEEN :startDate AND :endDate
+        """
+    )
     Page<EmployeeCommessaHoursProjection> getHoursByEmployeeAndCommessa(
-        @Param("employeeId") Long employeeId,
-        @Param("commessaCode") String commessaCode,
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate,
-        Pageable pageable
+            @Param("employeeId") Long employeeId,
+            @Param("commessaCode") String commessaCode,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
     );
+
     // Ore totali dei dipendenti per una singola commessa
-    @Query("""
-        SELECT new com.brt.TimesheetService.projection.EmployeeCommessaHoursProjection(
-            e.id, e.name, c.id, c.code, SUM(ti.hours))
-        FROM TimesheetItem ti
-        JOIN ti.timesheetDay td
-        JOIN td.employee e
-        JOIN ti.commessa c
-        WHERE c.code = :commessaCode
-        AND td.date BETWEEN :startDate AND :endDate
-        GROUP BY e.id, e.name, c.id, c.code
-    """)
+    @Query(
+            value = """
+            SELECT new com.brt.TimesheetService.shared.projection.EmployeeCommessaHoursProjection(
+                e.id, e.name, c.id, c.code, SUM(ti.hours)
+            )
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE c.code = :commessaCode
+            AND td.date BETWEEN :startDate AND :endDate
+            GROUP BY e.id, e.name, c.id, c.code
+        """,
+            countQuery = """
+            SELECT COUNT(DISTINCT e.id, c.id)
+            FROM TimesheetItem ti
+            JOIN ti.timesheetDay td
+            JOIN td.employee e
+            JOIN ti.commessa c
+            WHERE c.code = :commessaCode
+            AND td.date BETWEEN :startDate AND :endDate
+        """
+    )
     Page<EmployeeCommessaHoursProjection> getTotalHoursPerEmployeeForCommessa(
-        @Param("commessaCode") String commessaCode,
-        @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate,
-        Pageable pageable
+            @Param("commessaCode") String commessaCode,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable
     );
+
 }

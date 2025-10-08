@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.config;
+package com.brt.TimesheetService.shared.config;
 
 import java.util.concurrent.TimeUnit;
 

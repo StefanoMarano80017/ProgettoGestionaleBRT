@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.controller;
+package com.brt.TimesheetService.modules.timesheet.controller;
 
 import java.time.LocalDate;
 
@@ -16,12 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.brt.TimesheetService.dto.TimesheetDayDTO;
-import com.brt.TimesheetService.dto.TimesheetItemDTO;
-import com.brt.TimesheetService.projection.TimesheetDayProjection;
-import com.brt.TimesheetService.projection.TimesheetItemProjection;
-import com.brt.TimesheetService.service.TimesheetApplicationService;
-import com.brt.TimesheetService.util.PageableUtils;
+import com.brt.TimesheetService.modules.timesheet.application.TimesheetApplicationService;
+import com.brt.TimesheetService.shared.dto.TimesheetDayDTO;
+import com.brt.TimesheetService.shared.dto.TimesheetItemDTO;
+import com.brt.TimesheetService.shared.projection.TimesheetDayProjection;
+import com.brt.TimesheetService.shared.projection.TimesheetItemProjection;
+import com.brt.TimesheetService.shared.util.PageableUtils;
 
 @RestController
 @RequestMapping("/employees/{employeeId}/timesheets")

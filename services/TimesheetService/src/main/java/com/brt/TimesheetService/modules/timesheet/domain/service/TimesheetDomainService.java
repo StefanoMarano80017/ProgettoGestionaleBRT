@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.service;
+package com.brt.TimesheetService.modules.timesheet.domain.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -12,17 +12,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.brt.TimesheetService.dto.TimesheetDayDTO;
-import com.brt.TimesheetService.dto.TimesheetItemDTO;
-import com.brt.TimesheetService.exception.ResourceNotFoundException;
-import com.brt.TimesheetService.exception.TimesheetValidationException;
-import com.brt.TimesheetService.model.AbsenceType;
-import com.brt.TimesheetService.model.Commessa;
-import com.brt.TimesheetService.model.Employee;
-import com.brt.TimesheetService.model.TimesheetDay;
-import com.brt.TimesheetService.model.TimesheetItem;
-import com.brt.TimesheetService.model.TimesheetStatus;
-import com.brt.TimesheetService.repository.CommessaRepository;
+import com.brt.TimesheetService.modules.commessa.domain.Commessa;
+import com.brt.TimesheetService.modules.commessa.infrastructure.CommessaRepository;
+import com.brt.TimesheetService.modules.timesheet.domain.AbsenceType;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetDay;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetItem;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetStatus;
+import com.brt.TimesheetService.modules.user.domain.Employee;
+import com.brt.TimesheetService.shared.dto.TimesheetDayDTO;
+import com.brt.TimesheetService.shared.dto.TimesheetItemDTO;
+import com.brt.TimesheetService.shared.exception.ResourceNotFoundException;
+import com.brt.TimesheetService.shared.exception.TimesheetValidationException;
 
 /**
  * Domain service che contiene la logica di business pura per il timesheet.

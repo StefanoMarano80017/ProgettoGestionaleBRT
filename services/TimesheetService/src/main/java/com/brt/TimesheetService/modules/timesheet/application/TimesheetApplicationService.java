@@ -1,4 +1,4 @@
-package com.brt.TimesheetService.service;
+package com.brt.TimesheetService.modules.timesheet.application;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -14,20 +14,21 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.brt.TimesheetService.dto.TimesheetDayDTO;
-import com.brt.TimesheetService.dto.TimesheetItemDTO;
-import com.brt.TimesheetService.exception.ResourceNotFoundException;
-import com.brt.TimesheetService.exception.TimesheetValidationException;
-import com.brt.TimesheetService.model.AbsenceType;
-import com.brt.TimesheetService.model.Employee;
-import com.brt.TimesheetService.model.TimesheetDay;
-import com.brt.TimesheetService.projection.TimesheetDayProjection;
-import com.brt.TimesheetService.projection.TimesheetItemProjection;
-import com.brt.TimesheetService.repository.EmployeeRepository;
-import com.brt.TimesheetService.repository.TimesheetDayRepository;
-import com.brt.TimesheetService.service.Validator.OperationContext;
-import com.brt.TimesheetService.service.Validator.TimesheetValidator;
-import com.brt.TimesheetService.service.caching.TimesheetCacheManager;
+import com.brt.TimesheetService.modules.timesheet.application.caching.TimesheetCacheManager;
+import com.brt.TimesheetService.modules.timesheet.application.validator.OperationContext;
+import com.brt.TimesheetService.modules.timesheet.application.validator.TimesheetValidator;
+import com.brt.TimesheetService.modules.timesheet.domain.AbsenceType;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetDay;
+import com.brt.TimesheetService.modules.timesheet.domain.service.TimesheetDomainService;
+import com.brt.TimesheetService.modules.timesheet.infrastructure.TimesheetDayRepository;
+import com.brt.TimesheetService.modules.user.domain.Employee;
+import com.brt.TimesheetService.modules.user.infrastructure.EmployeeRepository;
+import com.brt.TimesheetService.shared.dto.TimesheetDayDTO;
+import com.brt.TimesheetService.shared.dto.TimesheetItemDTO;
+import com.brt.TimesheetService.shared.exception.ResourceNotFoundException;
+import com.brt.TimesheetService.shared.exception.TimesheetValidationException;
+import com.brt.TimesheetService.shared.projection.TimesheetDayProjection;
+import com.brt.TimesheetService.shared.projection.TimesheetItemProjection;
 
 @Service
 @Transactional

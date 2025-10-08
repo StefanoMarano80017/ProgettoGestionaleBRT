@@ -1,8 +1,10 @@
-package com.brt.TimesheetService.model;
+package com.brt.TimesheetService.modules.timesheet.domain;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.brt.TimesheetService.modules.user.domain.Employee;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -27,11 +29,11 @@ import lombok.Setter;
 
 @Entity
 @Table(
-    name = "timesheet_days",
-    uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"employee_id", "date"})
-    }, 
-    schema = "public"
+        name = "timesheet_days",
+        uniqueConstraints = {
+            @UniqueConstraint(columnNames = {"employee_id", "date"})
+        },
+        schema = "public"
 )
 @Getter
 @Setter

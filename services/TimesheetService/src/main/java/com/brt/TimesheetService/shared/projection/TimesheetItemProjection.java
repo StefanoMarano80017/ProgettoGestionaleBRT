@@ -14,19 +14,19 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
-
-package com.brt.TimesheetService.projection;
+package com.brt.TimesheetService.shared.projection;
 
 import java.math.BigDecimal;
 
-import com.brt.TimesheetService.model.TimesheetItem;
+import com.brt.TimesheetService.modules.timesheet.domain.TimesheetItem;
 
 public record TimesheetItemProjection(
-    Long id,
-    String description,
-    BigDecimal hours,
-    String commessaCode
-) {
+        Long id,
+        String description,
+        BigDecimal hours,
+        String commessaCode
+        ) {
+
     public static TimesheetItemProjection fromEntity(TimesheetItem item) {
         return new TimesheetItemProjection(
                 item.getId(),
