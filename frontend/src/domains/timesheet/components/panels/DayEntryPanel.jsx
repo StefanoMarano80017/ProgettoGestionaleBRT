@@ -3,8 +3,10 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { DEBUG_TS } from '@config/debug';
 import { Box, Stack, Typography, Button, Tooltip, Alert, Divider, Chip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import PersonOffIcon from '@mui/icons-material/PersonOff';
 import EntryListItem from "@shared/components/Entries/EntryListItem"; // TODO: consider domain move
 import EditEntryDialog from "@shared/dialogs/EditEntryDialog";
+import PersonalAbsenceEditor from './PersonalAbsenceEditor';
 import ConfirmDialog from "@shared/components/ConfirmDialog";
 import Paper from '@mui/material/Paper';
 import { useDayEntryDerived, useConfirmDelete } from '@domains/timesheet/hooks/dayEntry';
@@ -117,12 +119,17 @@ export function DayEntryPanel({
 	useEffect(() => { if (typeof onDraftChange === 'function') onDraftChange(records); }, [records, onDraftChange]);
 
 	const [dialog, setDialog] = useState({ open: false, mode: 'add', index: null, current: null });
+	const [absenceEditorOpen, setAbsenceEditorOpen] = useState(false);
 	const canAddMore = totalHours < maxHoursPerDay;
 
 	const startAdd = useCallback(() => {
 		if (!canAddMore) return;
 		setDialog({ open: true, mode: 'add', index: null, current: { commessa: commesse[0] || '', ore: 1, descrizione: '' } });
 	}, [canAddMore, commesse]);
+
+	const startPersonalAbsence = useCallback(() => {
+		setAbsenceEditorOpen(true);
+	}, []);
 
 	const startEdit = useCallback((idx) => {
 		const rec = records[idx];
@@ -199,13 +206,18 @@ export function DayEntryPanel({
 		<Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
 			<Stack direction="row" justifyContent="space-between" alignItems="center">
 				{!readOnly && (
-					<Tooltip title={editing.canAddMore ? '' : `Hai già ${maxHoursPerDay}h inserite: puoi modificare le righe esistenti`}>
-						<span>
-							<Button variant="contained" size="small" startIcon={<AddIcon />} onClick={editing.startAdd} disabled={!editing.canAddMore}>
-								Aggiungi voce
-							</Button>
-						</span>
-					</Tooltip>
+					<Stack direction="row" spacing={1}>
+						<Tooltip title={editing.canAddMore ? '' : `Hai già ${maxHoursPerDay}h inserite: puoi modificare le righe esistenti`}>
+							<span>
+								<Button variant="contained" size="small" startIcon={<AddIcon />} onClick={editing.startAdd} disabled={!editing.canAddMore}>
+									Aggiungi voce
+								</Button>
+							</span>
+						</Tooltip>
+						<Button variant="outlined" size="small" startIcon={<PersonOffIcon />} onClick={startPersonalAbsence}>
+							Assenza personale
+						</Button>
+					</Stack>
 				)}
 			</Stack>
 			<Divider />
@@ -243,6 +255,23 @@ export function DayEntryPanel({
 					dayUsed={computeDayUsed(records, editing.dialog.current, editing.dialog.mode, editing.dialog.index)}
 					onClose={editing.closeDialog}
 					onSave={(entry) => editing.commit(entry)}
+				/>
+			)}
+			{absenceEditorOpen && (
+				<PersonalAbsenceEditor
+					employeeId={employeeId}
+					dateKey={effectiveDate}
+					initial={mergedRecords}
+					onChangeDraft={(d) => { /* no-op for now */ }}
+					onCancel={() => setAbsenceEditorOpen(false)}
+					onConfirm={(rows) => {
+						// Build draft rows: remove existing non-work rows and append these
+						const other = records.filter(r => !['FERIE','MALATTIA','PERMESSO','ROL'].includes(String(r.commessa).toUpperCase()));
+						const draft = [...other, ...rows.map((r, idx) => ({ ...r, id: `draft-${idx}-${r.commessa}`, descrizione: r.descrizione || '' }))];
+						// Stage the draft
+						if (staging && typeof staging.stageDraft === 'function') staging.stageDraft(employeeId, effectiveDate, draft, { origin: 'personal-absence-editor' });
+						setAbsenceEditorOpen(false);
+					}}
 				/>
 			)}
 		</Box>

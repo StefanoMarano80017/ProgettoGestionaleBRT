@@ -9,6 +9,8 @@
 // - today: Date instance (optional, defaults to now)
 //
 // Output: { status, showHours, iconTopRight }
+import { NON_WORK_CODES } from '@domains/timesheet/hooks/utils/timesheetModel';
+
 export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, isHoliday, today = new Date() }) {
   // Normalize totals
   const totalHours = (dayData || []).reduce((sum, rec) => sum + (Number(rec?.ore) || 0), 0);
@@ -44,15 +46,24 @@ export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, is
   if (!dayData || dayData.length === 0) {
     return { status: undefined, showHours: false, iconTopRight: false };
   }
+  // Check for full non-work day (sum of NON_WORK codes == 8) first
+  const nonWorkTotal = (dayData || []).reduce((s, rec) => {
+    const code = String(rec?.commessa || '').toUpperCase();
+    if (NON_WORK_CODES.includes(code)) return s + (Number(rec?.ore) || 0);
+    return s;
+  }, 0);
+  if (nonWorkTotal === 8) {
+    return { status: 'non-work-full', showHours: false, iconTopRight: false };
+  }
 
-  // Special commesse
-  if (dayData.some((rec) => rec.commessa === 'FERIE')) {
+  // Special commesse (individual types)
+  if (dayData.some((rec) => String(rec?.commessa || '').toUpperCase() === 'FERIE')) {
     return { status: 'ferie', showHours: false, iconTopRight: false };
   }
-  if (dayData.some((rec) => rec.commessa === 'MALATTIA')) {
+  if (dayData.some((rec) => String(rec?.commessa || '').toUpperCase() === 'MALATTIA')) {
     return { status: 'malattia', showHours: false, iconTopRight: false };
   }
-  if (dayData.some((rec) => rec.commessa === 'PERMESSO')) {
+  if (dayData.some((rec) => String(rec?.commessa || '').toUpperCase() === 'PERMESSO')) {
     return { status: 'permesso', showHours: true, iconTopRight: true };
   }
 

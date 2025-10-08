@@ -11,10 +11,14 @@
 
 import { semanticEqualArray } from './semanticTimesheet.js';
 
-// Canonical non-work codes for timesheet UI and validation
-export const NON_WORK = ["FERIE", "MALATTIA", "PERMESSO", "ROL"];
+// Codici non lavorativi gestiti a livello di dominio (usati in mock e UI)
+export const NON_WORK_CODES = ["FERIE", "MALATTIA", "PERMESSO", "ROL"];
 
-export const isWorkCode = (c) => c && !NON_WORK.includes(String(c).toUpperCase());
+export const isWorkCode = (c) => {
+  if (!c && c !== 0) return false;
+  const code = String(c).toUpperCase();
+  return !NON_WORK_CODES.includes(code);
+};
 
 const recKey = (r, idx) => (r && r._id) ? r._id : `idx:${idx}`;
 

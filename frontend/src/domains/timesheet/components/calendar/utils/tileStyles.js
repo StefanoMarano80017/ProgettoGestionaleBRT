@@ -89,6 +89,11 @@ export function getTileSx(theme, {
       case 'ferie':
         backgroundColor = alpha(theme.palette.customPink?.main || theme.palette.secondary.main, 0.10);
         break;
+      case 'non-work-full':
+        // Distinct soft gray/neutral background to indicate a full non-work day (committed or staged)
+        backgroundColor = alpha(theme.palette.action.disabledBackground || theme.palette.grey[200], 0.12);
+        border = `1px solid ${theme.palette.action.disabledBackground || theme.palette.grey[300]}`;
+        break;
       case 'malattia':
         backgroundColor = alpha(theme.palette.success.main, 0.12);
         break;

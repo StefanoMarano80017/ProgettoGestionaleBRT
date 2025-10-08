@@ -168,8 +168,8 @@ export async function getVacationBalances({ year, employeeIds = [], quotaAnnuaHo
     const user = findUserById(empId) || {};
 
     // Sum all FERIE in the given year
-    let usedHours = 0;
-    let rolHours = 0;
+  let usedHours = 0;
+  let rolHours = 0;
     Object.entries(ts).forEach(([dateKey, records]) => {
       if (dateKey.endsWith('_segnalazione')) return;
       // Ensure year match
@@ -193,7 +193,8 @@ export async function getVacationBalances({ year, employeeIds = [], quotaAnnuaHo
       quotaAnnuaHours: Number(quotaAnnuaHours) || 160,
       usedHours,
       residualHours: residual,
-      rolHours,
+      // rolHours intentionally omitted from the public shape to keep this API
+      // focused on FERIE balances. If callers need rol details, use absence summaries.
     });
   }
 

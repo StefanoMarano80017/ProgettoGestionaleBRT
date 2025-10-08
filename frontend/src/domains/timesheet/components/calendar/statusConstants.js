@@ -5,6 +5,7 @@ export const DayStatus = Object.freeze({
   Ferie: 'ferie',
   Malattia: 'malattia',
   Permesso: 'permesso',
+  NonWorkFull: 'non-work-full',
   Complete: 'complete',
   Partial: 'partial',
   Future: 'future',

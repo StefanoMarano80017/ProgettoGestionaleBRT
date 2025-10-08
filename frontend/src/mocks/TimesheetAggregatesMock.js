@@ -18,9 +18,9 @@ export async function getEmployeeMonthSummary(employeeId, year, month, opts = {}
   const byCommessa = new Map();
   let total = 0;
   const includeNonWork = Boolean(opts.includeNonWork);
-  const nonWorkCounts = { total: 0 };
-  // initialize counters for known NON_WORK codes (keeps future-proof for ROL etc.)
-  Array.from(NON_WORK).forEach((k) => { nonWorkCounts[k] = 0; });
+  // When requested, return an explicit nonWork breakdown used by HR/ADMIN
+  // Keep a fixed set of keys so API shape is stable: total, FERIE, MALATTIA, PERMESSO, ROL
+  const nonWorkCounts = { total: 0, FERIE: 0, MALATTIA: 0, PERMESSO: 0, ROL: 0 };
 
   Object.entries(ts).forEach(([key, records]) => {
     if (key.endsWith("_segnalazione")) return;
@@ -32,6 +32,7 @@ export async function getEmployeeMonthSummary(employeeId, year, month, opts = {}
       if (!isWorkCode(codice)) {
         if (includeNonWork && ore > 0) {
           nonWorkCounts.total += ore;
+          // Only accumulate into known keys (FERIE/MALATTIA/PERMESSO/ROL).
           if (nonWorkCounts.hasOwnProperty(codice)) nonWorkCounts[codice] += ore;
         }
         return;
@@ -68,8 +69,7 @@ export async function getGlobalMonthByCommessa({ year, month, employeeIds = [], 
   const set = new Set(employeeIds);
   const agg = new Map();
   const includeNonWork = Boolean(opts.includeNonWork);
-  const nonWorkCounts = { total: 0 };
-  Array.from(NON_WORK).forEach((k) => { nonWorkCounts[k] = 0; });
+  const nonWorkCounts = { total: 0, FERIE: 0, MALATTIA: 0, PERMESSO: 0, ROL: 0 };
 
   Object.entries(tsMap).forEach(([empId, ts]) => {
     if (set.size && !set.has(empId)) return;
@@ -110,6 +110,9 @@ export async function getGlobalMonthByCommessa({ year, month, employeeIds = [], 
   // If includeNonWork is requested, attach a nonWork property to the returned array
   // so callers that expect an array still work, while advanced callers can read rows.nonWork.
   if (includeNonWork) {
+    // Attach nonWork as a property on the returned array to preserve the
+    // original array shape while offering HR aggregates. Do NOT inject
+    // these values into the rows themselves (per the API constraint).
     rows.nonWork = nonWorkCounts;
   }
 
