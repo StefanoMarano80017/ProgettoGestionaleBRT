@@ -24,6 +24,7 @@ import com.brt.TimesheetService.modules.timesheet.domain.TimesheetItem;
 import com.brt.TimesheetService.modules.timesheet.infrastructure.TimesheetDayRepository;
 import com.brt.TimesheetService.modules.user.domain.Employee;
 import com.brt.TimesheetService.modules.user.infrastructure.EmployeeRepository;
+import com.brt.TimesheetService.shared.dto.TimesheetItemDTO;
 import com.brt.TimesheetService.shared.exception.ResourceNotFoundException;
 import com.brt.TimesheetService.shared.exception.TimesheetValidationException;
 import com.brt.TimesheetService.shared.projection.TimesheetDayProjection;
@@ -89,6 +90,14 @@ public abstract class BaseTimesheetService {
 
     protected boolean isTimesheetDayExists(Employee employee, LocalDate date) {
         return timesheetDayRepository.existsByEmployeeAndDate(employee, date);
+    }
+
+    protected Long getTimesheetItemIdOrThrow(TimesheetItemDTO dto) {
+        Long itemId = dto.getId() != null ? dto.getId() : null;
+        if (itemId == null) {
+            throw new ResourceNotFoundException("Timesheet con item id nullo");
+        }
+        return itemId;
     }
 
     /**

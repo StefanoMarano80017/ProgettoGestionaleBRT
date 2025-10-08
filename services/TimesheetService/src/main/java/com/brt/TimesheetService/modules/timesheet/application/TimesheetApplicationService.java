@@ -95,11 +95,11 @@ public class TimesheetApplicationService extends BaseTimesheetService {
     }
 
     public TimesheetDayProjection saveTimesheetUser(Long employeeId, LocalDate date, TimesheetDayDTO dto) {
-        return saveTimesheet(employeeId, date, dto, OperationContext.USER, "saveTimesheetUser");
+        return saveTimesheet(employeeId, date, dto, OperationContext.USER);
     }
 
     public TimesheetDayProjection saveTimesheetAdmin(Long employeeId, LocalDate date, TimesheetDayDTO dto) {
-        return saveTimesheet(employeeId, date, dto, OperationContext.ADMIN, "saveTimesheetAdmin");
+        return saveTimesheet(employeeId, date, dto, OperationContext.ADMIN);
     }
 
     /**
@@ -110,8 +110,7 @@ public class TimesheetApplicationService extends BaseTimesheetService {
             Long employeeId,
             LocalDate date,
             TimesheetDayDTO dto,
-            OperationContext context,
-            String opNamePrefix
+            OperationContext context
     ) {
         Employee employee = getEmployeeOrThrow(employeeId);
         String lockKey = employeeId + "_" + date;
@@ -119,59 +118,43 @@ public class TimesheetApplicationService extends BaseTimesheetService {
             // Check existence dentro il lock
             boolean exists = isTimesheetDayExists(employee, date);
             if (exists) {
+                log.trace("Timesheet esistente -> update");
                 return executeOnTimesheet(
                         employeeId,
                         date,
                         context,
                         (day, emp) -> domainService.updateTimesheet(day, dto),
-                        opNamePrefix + "[update]"
+                        "saveTimesheet" + "[update]"
                 );
             } else {
+                log.trace("Timesheet non esistente -> create");
                 return executeOnNewTimesheet(
                         employeeId,
                         date,
                         context,
                         (day, emp) -> domainService.createTimesheet(day, dto),
-                        opNamePrefix + "[create]"
+                        "saveTimesheet" + "[create]"
                 );
             }
         });
     }
 
     public void deleteTimesheetUser(Long employeeId, LocalDate date) {
-        String lockKey = employeeId + "_" + date;
-        withLock(lockKey, () -> {
-            Employee employee = getEmployeeOrThrow(employeeId);
-            // CRITICAL: Fresh read dal DB DENTRO il lock
-            TimesheetDay day = getTimesheetDayOrThrow(employee, date);
-            // Validazione con stato fresco
-            validator.validateRules(day, OperationContext.USER, employee);
-            // Invalida cache PRIMA della modifica 
-            cacheManager.invalidateDay(employeeId, date);
-            log.trace("[{}] Cache invalidata per employeeId={}, date={}", "deleteTimesheetUser", employeeId, date);
-            // Esegue la modifica
-            timesheetDayRepository.delete(day);
-            // Invalida range cache FUORI dal critica path per performance
-            CompletableFuture.runAsync(() -> {
-                try {
-                    cacheManager.invalidateRangeCachesContaining(employeeId, date);
-                    log.trace("[{}] Range cache invalidate per date={}", "deleteTimesheetUser", date);
-                } catch (Exception e) {
-                    log.warn("[{}] Fallita invalidazione range cache: {}",
-                            "deleteTimesheetUser", e.getMessage());
-                }
-            });
-        });
+        deleteTimesheet(employeeId, date, OperationContext.USER);
     }
 
     public void deleteTimesheetAdmin(Long employeeId, LocalDate date) {
+        deleteTimesheet(employeeId, date, OperationContext.ADMIN);
+    }
+
+    private void deleteTimesheet(long employeeId, LocalDate date, OperationContext context) {
         String lockKey = employeeId + "_" + date;
         withLock(lockKey, () -> {
             Employee employee = getEmployeeOrThrow(employeeId);
             // CRITICAL: Fresh read dal DB DENTRO il lock
             TimesheetDay day = getTimesheetDayOrThrow(employee, date);
             // Validazione con stato fresco
-            validator.validateRules(day, OperationContext.ADMIN, employee);
+            validator.validateRules(day, context, employee);
             // Invalida cache PRIMA della modifica 
             cacheManager.invalidateDay(employeeId, date);
             log.trace("[{}] Cache invalidata per employeeId={}, date={}", "deleteTimesheetUser", employeeId, date);
@@ -208,7 +191,7 @@ public class TimesheetApplicationService extends BaseTimesheetService {
         return executeOnTimesheetItem(
                 employeeId,
                 date,
-                dto.getId(),
+                getTimesheetItemIdOrThrow(dto),
                 OperationContext.USER,
                 (day, item) -> domainService.putItem(day, dto),
                 "updateItem"
