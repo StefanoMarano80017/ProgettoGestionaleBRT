@@ -4,74 +4,28 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Function;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.brt.TimesheetService.modules.timesheet.application.validator.TimesheetValidator;
 import com.brt.TimesheetService.modules.timesheet.infrastructure.TimesheetItemRepository;
 import com.brt.TimesheetService.shared.dto.CommessaHoursDTO;
-import com.brt.TimesheetService.shared.exception.ReportProcessingException;
 import com.brt.TimesheetService.shared.projection.DailyHoursReportProjection;
 import com.brt.TimesheetService.shared.projection.EmployeeCommessaHoursProjection;
 import com.brt.TimesheetService.shared.projection.EmployeeTotalHoursProjection;
 
 @Service
-public class ReportService {
-
-    private static final Logger log = LoggerFactory.getLogger(ReportService.class);
+public class ReportService extends BaseTimesheetService {
 
     private final TimesheetItemRepository timesheetItemRepository;
-    private final TimesheetValidator timesheetValidator;
 
     public ReportService(
-            TimesheetItemRepository timesheetItemRepository,
-            TimesheetValidator timesheetValidator
+            TimesheetValidator validator,
+            TimesheetItemRepository timesheetItemRepository
     ) {
+        super(null, validator, null, null);
         this.timesheetItemRepository = timesheetItemRepository;
-        this.timesheetValidator = timesheetValidator;
-    }
-
-    // =============================================================
-    // Template Method per eseguire in modo uniforme le query report
-    // =============================================================
-    private <T, R> Page<R> executeReportQuery(
-            LocalDate startDate,
-            LocalDate endDate,
-            Pageable pageable,
-            ReportQueryExecutor<T> executor,
-            Function<T, R> transformer,
-            String operationName
-    ) {
-        LocalDate[] safeDate = timesheetValidator.parseDateRange(startDate, endDate);
-        LocalDate safeStart = safeDate[0];
-        LocalDate safeEnd = safeDate[1];
-
-        log.info("[{}] Avvio report dal {} al {}, page={}, size={}", operationName, safeStart, safeEnd, pageable.getPageNumber(), pageable.getPageSize());
-        try {
-            long startTime = System.currentTimeMillis();
-            Page<T> rawPage = executor.execute(safeStart, safeEnd, pageable);
-            List<R> content = rawPage.getContent().stream().map(transformer).toList();
-            Page<R> result = new PageImpl<>(content, pageable, rawPage.getTotalElements());
-            long duration = System.currentTimeMillis() - startTime;
-            log.info("[{}] Completato in {} ms ({} risultati)", operationName, duration, result.getTotalElements());
-            return result;
-        } catch (IllegalArgumentException ex) {
-            log.warn("[{}] Errore di validazione: {}", operationName, ex.getMessage());
-            throw ex; // lascia gestire al controller advice
-        } catch (Exception ex) {
-            log.error("[{}] Errore imprevisto durante il report: {}", operationName, ex.getMessage(), ex);
-            throw new ReportProcessingException("Errore durante l'elaborazione del report " + operationName, ex);
-        }
-    }
-
-    @FunctionalInterface
-    private interface ReportQueryExecutor<T> {
-
-        Page<T> execute(LocalDate start, LocalDate end, Pageable pageable);
     }
 
     // =============================================================
@@ -91,9 +45,7 @@ public class ReportService {
                 pageable,
                 (s, e, p) -> timesheetItemRepository.aggregateHoursByCommessa(s, e, p),
                 proj -> {
-                    List<String> employeeNames = timesheetItemRepository.findDistinctEmployeeNamesByCommessaAndDate(
-                            proj.commessaId(), startDate, endDate
-                    );
+                    List<String> employeeNames = timesheetItemRepository.findDistinctEmployeeNamesByCommessaAndDate(proj.commessaId(), startDate, endDate);
                     return new CommessaHoursDTO(
                             proj.commessaId(),
                             proj.commessaCode(),

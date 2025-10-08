@@ -1,0 +1,682 @@
+{
+	"info": {
+		"_postman_id": "77454e10-cd2c-49f0-8ad3-95300e859bcc",
+		"name": "TimesheetServiceCollection",
+		"description": "Collezione API per gestione dipendenti, timesheet, progetti e report",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "41251556"
+	},
+	"item": [
+		{
+			"name": "EmployeeController",
+			"item": [
+				{
+					"name": "Get all employees",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get employee by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create employee",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\":\"Dario Rossi\"\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete employee",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "TimesheetController",
+			"item": [
+				{
+					"name": "Get timesheets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/2/timesheets",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"2",
+								"timesheets"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get timesheet by date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/:employeeId/timesheets/:date",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								":employeeId",
+								"timesheets",
+								":date"
+							],
+							"variable": [
+								{
+									"key": "employeeId"
+								},
+								{
+									"key": "date"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create/Update timesheet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"items\": [\r\n    {\r\n      \"commessaCode\": \"CRM003\",\r\n      \"hours\": 3,\r\n      \"description\": \"Sviluppo funzionalità X\"\r\n    },\r\n    {\r\n      \"commessaCode\": \"CRM002\",\r\n      \"hours\": 4.5,\r\n      \"description\": \"Bug fixing\"\r\n    }\r\n  ]\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees/2/timesheets/2025-10-03",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"2",
+								"timesheets",
+								"2025-10-03"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete timesheet",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/:employeeId/timesheets/:date",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								":employeeId",
+								"timesheets",
+								":date"
+							],
+							"variable": [
+								{
+									"key": "employeeId"
+								},
+								{
+									"key": "date"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add item",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"commessaCode\": \"CRM002\",\r\n    \"hours\": 3.5,\r\n    \"description\": \"Sviluppo funzionalità X\"\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees/2/timesheets/2025-10-01/items",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"2",
+								"timesheets",
+								"2025-10-01",
+								"items"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update item",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"id\": 1,\r\n    \"description\": \"Sviluppo funzionalità X\",\r\n    \"hours\": 4,\r\n    \"commessaCode\": \"CRM002\"\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees/2/timesheets/2025-10-01/items/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"2",
+								"timesheets",
+								"2025-10-01",
+								"items",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete item",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/:employeeId/timesheets/:date/items/:itemId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								":employeeId",
+								"timesheets",
+								":date",
+								"items",
+								":itemId"
+							],
+							"variable": [
+								{
+									"key": "employeeId"
+								},
+								{
+									"key": "date"
+								},
+								{
+									"key": "itemId"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "ProjectController",
+			"item": [
+				{
+					"name": "Get all commesse",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/commesse",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"commesse"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add commessa",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"code\": \"CRM003\"\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/commesse",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"commesse"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update commessa",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/projects/:projectId/commesse/:commessaId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"projects",
+								":projectId",
+								"commesse",
+								":commessaId"
+							],
+							"variable": [
+								{
+									"key": "projectId"
+								},
+								{
+									"key": "commessaId"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete commessa",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/projects/:projectId/commesse/:commessaId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"projects",
+								":projectId",
+								"commesse",
+								":commessaId"
+							],
+							"variable": [
+								{
+									"key": "projectId"
+								},
+								{
+									"key": "commessaId"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "ReportController",
+			"item": [
+				{
+					"name": "employee/id/hours",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/reports/employee/2/hours?startDate=2025-10-01&endDate=2025-10-03&commessaCode=CRM003",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reports",
+								"employee",
+								"2",
+								"hours"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-10-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-03"
+								},
+								{
+									"key": "commessaCode",
+									"value": "CRM003"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/daily-hours/commesse",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/reports/daily-hours/commesse?commessaCode=CRM003&startDate=2025-10-01&endDate=2025-10-03",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reports",
+								"daily-hours",
+								"commesse"
+							],
+							"query": [
+								{
+									"key": "commessaCode",
+									"value": "CRM003"
+								},
+								{
+									"key": "startDate",
+									"value": "2025-10-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-10-03"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/commessa/TotalHours",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/reports/commessa/TotalHours",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reports",
+								"commessa",
+								"TotalHours"
+							],
+							"query": [
+								{
+									"key": "commessaCode",
+									"value": null,
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": null,
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": null,
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/employee/hours/total",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/reports/employee/hours/total",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reports",
+								"employee",
+								"hours",
+								"total"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/commessa/{commessaCode}/employees/hours",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/reports/commessa/CRM003/employees/hours",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reports",
+								"commessa",
+								"CRM003",
+								"employees",
+								"hours"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "AdminController",
+			"item": [
+				{
+					"name": "Set absence",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"absenceTypeStr\": \"SICKNESS\"\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/timesheets/3/2025-10-07/absence",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"timesheets",
+								"3",
+								"2025-10-07",
+								"absence"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Override timesheet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/timesheets/:employeeId/:date/override",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"timesheets",
+								":employeeId",
+								":date",
+								"override"
+							],
+							"variable": [
+								{
+									"key": "employeeId"
+								},
+								{
+									"key": "date"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set absences",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "",
+			"type": "default"
+		}
+	]
+}

@@ -1,11 +1,9 @@
 package com.brt.TimesheetService.modules.timesheet.application;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,182 +23,41 @@ import com.brt.TimesheetService.modules.user.domain.Employee;
 import com.brt.TimesheetService.modules.user.infrastructure.EmployeeRepository;
 import com.brt.TimesheetService.shared.dto.TimesheetDayDTO;
 import com.brt.TimesheetService.shared.dto.TimesheetItemDTO;
-import com.brt.TimesheetService.shared.exception.ResourceNotFoundException;
 import com.brt.TimesheetService.shared.exception.TimesheetValidationException;
 import com.brt.TimesheetService.shared.projection.TimesheetDayProjection;
-import com.brt.TimesheetService.shared.projection.TimesheetItemProjection;
 
+/**
+ * Application Service per la gestione dei timesheet.
+ *
+ * ARCHITETTURA CACHE E CONCORRENZA: - Usa double-checked locking per prevenire
+ * cache stampede - Lock granulari per operazione (employeeId + date) - Pattern:
+ * Lock -> Read fresh -> Validate -> Invalidate -> Modify -> Save -> Cache -
+ * Gestione errori cache con fallback e retry asincroni
+ *
+ * INVARIANTI GARANTITE: 1. Nessuna scrittura cache prima della validazione 2.
+ * Tutte le modifiche DB sono protette da lock 3. Cache invalidation avviene
+ * DENTRO il lock critico 4. Fresh reads dal DB per operazioni di scrittura
+ *
+ * @author Stefano Marano
+ * @version 2.0 - Refactored con gestione concorrenza robusta
+ */
 @Service
 @Transactional
-public class TimesheetApplicationService {
+public class TimesheetApplicationService extends BaseTimesheetService {
 
     private static final Logger log = LoggerFactory.getLogger(TimesheetApplicationService.class);
 
-    private final TimesheetDayRepository timesheetDayRepository;
-    private final EmployeeRepository employeeRepository;
     private final TimesheetDomainService domainService;
-    private final TimesheetValidator validator;
-    private final TimesheetCacheManager cacheManager;
 
     public TimesheetApplicationService(
             TimesheetDayRepository timesheetDayRepository,
             EmployeeRepository employeeRepository,
             TimesheetDomainService domainService,
-            TimesheetValidator validator
+            TimesheetValidator validator,
+            TimesheetCacheManager cacheManager
     ) {
-        this.timesheetDayRepository = timesheetDayRepository;
-        this.employeeRepository = employeeRepository;
+        super(timesheetDayRepository, validator, cacheManager, employeeRepository);
         this.domainService = domainService;
-        this.validator = validator;
-        this.cacheManager = new TimesheetCacheManager();
-    }
-
-    // ============================================================
-    // METODI UTILITY
-    // ============================================================
-    private Employee getEmployeeOrThrow(Long employeeId) {
-        return employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Dipendente non trovato (ID: " + employeeId + ")"));
-    }
-
-    private TimesheetDay getTimesheetDayOrThrow(Employee employee, LocalDate date) {
-        return timesheetDayRepository.findByEmployeeAndDate(employee, date)
-                .orElseThrow(() -> new ResourceNotFoundException("Timesheet non trovato per " + employee.getId() + " il giorno " + date));
-    }
-
-    private boolean isTimesheetDayExists(Employee employee, LocalDate date) {
-        return timesheetDayRepository.existsByEmployeeAndDate(employee, date);
-    }
-
-    // ============================================================
-    // METODI TEMPLATE GENERICI
-    // ============================================================
-    private <R> R executeSafely(String opName, Supplier<R> operation) {
-        log.info("[{}] Avvio operazione", opName);
-        long start = System.currentTimeMillis();
-        try {
-            R result = operation.get();
-            log.info("[{}] Completato in {} ms", opName, System.currentTimeMillis() - start);
-            return result;
-        } catch (Exception e) {
-            log.error("[{}] Errore: {}", opName, e.getMessage(), e);
-            throw new TimesheetValidationException("Errore in " + opName, e);
-        }
-    }
-
-    // ---------------- Lettura con cache ----------------
-    private TimesheetDayProjection executeOnTimesheetReadOnly(
-            Long employeeId,
-            LocalDate date,
-            OperationContext context,
-            String opName
-    ) {
-        return executeSafely(opName, () -> {
-            Employee employee = getEmployeeOrThrow(employeeId);
-            // Recupera entity dalla cache o repository
-            Optional<TimesheetDay> optDay = cacheManager.getDay(employeeId, date);
-            TimesheetDay day;
-            if (optDay.isPresent()) {
-                day = optDay.get();
-            } else {
-                day = getTimesheetDayOrThrow(employee, date);
-                // Metti in cache dopo aver recuperato dal DB
-                cacheManager.putDay(employeeId, date, day);
-            }
-            // Valida SEMPRE, anche se viene dalla cache
-            validator.validateRules(day, context, employee);
-            return TimesheetDayProjection.fromEntity(day);
-        });
-    }
-
-    // ---------------- Scrittura/aggiornamento con cache ----------------
-    private <R> R executeOnTimesheet(
-            Long employeeId,
-            LocalDate date,
-            OperationContext context,
-            BiFunction<TimesheetDay, Employee, R> operation,
-            String opName
-    ) {
-        return executeSafely(opName, () -> {
-            Employee employee = getEmployeeOrThrow(employeeId);
-
-            // Invalida PRIMA della modifica per evitare race conditions
-            cacheManager.invalidateDay(employeeId, date);
-
-            // Recupera dal repository (non dalla cache, l'abbiamo invalidata)
-            TimesheetDay day = getTimesheetDayOrThrow(employee, date);
-
-            // Valida i permessi di accesso e condizioni
-            validator.validateRules(day, context, employee);
-
-            // Esegue l'operazione (che può modificare il day e restituire un risultato)
-            R result = operation.apply(day, employee);
-
-            // Salva nel DB
-            TimesheetDay savedDay = timesheetDayRepository.save(day);
-
-            // Aggiorna la cache DOPO il salvataggio
-            cacheManager.putDay(employeeId, date, savedDay);
-
-            return result;
-        });
-    }
-
-    private <R> R executeOnNewTimesheet(
-            Long employeeId,
-            LocalDate date,
-            OperationContext context,
-            BiFunction<TimesheetDay, Employee, R> operation,
-            String opName
-    ) {
-        return executeSafely(opName, () -> {
-            Employee employee = getEmployeeOrThrow(employeeId);
-
-            if (isTimesheetDayExists(employee, date)) {
-                throw new IllegalStateException("Il timesheet esiste già per il giorno " + date);
-            }
-
-            TimesheetDay day = TimesheetDay.builder().employee(employee).date(date).build();
-            validator.validateRules(day, context, employee);
-
-            // Esegue l'operazione
-            R result = operation.apply(day, employee);
-
-            TimesheetDay savedDay = timesheetDayRepository.save(day);
-
-            // Invalida i range DOPO aver salvato
-            cacheManager.putDay(employeeId, date, savedDay);
-            cacheManager.invalidateRangeCachesContaining(employeeId, date);
-
-            return result;
-        });
-    }
-
-    // ---------------- Pagine / range ----------------
-    private <R> Page<R> executeOnTimesheetPaged(
-            Long employeeId,
-            Pageable pageable,
-            Function<TimesheetDay, R> mapper,
-            BiFunction<Employee, Pageable, Page<TimesheetDay>> queryFn,
-            LocalDate startDate,
-            LocalDate endDate,
-            String opName
-    ) {
-        return executeSafely(opName, () -> {
-            Employee employee = getEmployeeOrThrow(employeeId);
-
-            // Prova a recuperare dalla cache
-            return cacheManager
-                    .getRange(employeeId, startDate, endDate, pageable.getPageNumber(), pageable.getPageSize())
-                    .map(page -> page.map(mapper)) // se presente in cache, mappa direttamente
-                    .orElseGet(() -> {
-                        // altrimenti recupera dal repository
-                        Page<TimesheetDay> newPage = queryFn.apply(employee, pageable);
-                        // salva nella cache e aggiorna indice
-                        cacheManager.putRange(employeeId, startDate, endDate, pageable.getPageNumber(), pageable.getPageSize(), newPage);
-                        return newPage.map(mapper);
-                    });
-        });
     }
 
     // ============================================================
@@ -245,6 +102,10 @@ public class TimesheetApplicationService {
         return saveTimesheet(employeeId, date, dto, OperationContext.ADMIN, "saveTimesheetAdmin");
     }
 
+    /**
+     * Salva un timesheet (crea se non esiste, aggiorna se esiste). La decisione
+     * create/update avviene dentro un lock per evitare race.
+     */
     private TimesheetDayProjection saveTimesheet(
             Long employeeId,
             LocalDate date,
@@ -252,14 +113,17 @@ public class TimesheetApplicationService {
             OperationContext context,
             String opNamePrefix
     ) {
-        return executeSafely(opNamePrefix, () -> {
-            Employee employee = getEmployeeOrThrow(employeeId);
-            if (isTimesheetDayExists(employee, date)) {
+        Employee employee = getEmployeeOrThrow(employeeId);
+        String lockKey = employeeId + "_" + date;
+        return withLock(lockKey, () -> {
+            // Check existence dentro il lock
+            boolean exists = isTimesheetDayExists(employee, date);
+            if (exists) {
                 return executeOnTimesheet(
                         employeeId,
                         date,
                         context,
-                        (day, emp) -> TimesheetDayProjection.fromEntity(domainService.updateTimesheet(day, dto)),
+                        (day, emp) -> domainService.updateTimesheet(day, dto),
                         opNamePrefix + "[update]"
                 );
             } else {
@@ -267,7 +131,7 @@ public class TimesheetApplicationService {
                         employeeId,
                         date,
                         context,
-                        (day, emp) -> TimesheetDayProjection.fromEntity(domainService.createTimesheet(day, dto)),
+                        (day, emp) -> domainService.createTimesheet(day, dto),
                         opNamePrefix + "[create]"
                 );
             }
@@ -275,66 +139,93 @@ public class TimesheetApplicationService {
     }
 
     public void deleteTimesheetUser(Long employeeId, LocalDate date) {
-        executeOnTimesheet(
-                employeeId,
-                date,
-                OperationContext.USER,
-                (day, emp) -> {
-                    timesheetDayRepository.delete(day);
-                    cacheManager.invalidateDay(employeeId, date);
-                    return null;
-                },
-                "deleteTimesheetUser"
-        );
+        String lockKey = employeeId + "_" + date;
+        withLock(lockKey, () -> {
+            Employee employee = getEmployeeOrThrow(employeeId);
+            // CRITICAL: Fresh read dal DB DENTRO il lock
+            TimesheetDay day = getTimesheetDayOrThrow(employee, date);
+            // Validazione con stato fresco
+            validator.validateRules(day, OperationContext.USER, employee);
+            // Invalida cache PRIMA della modifica 
+            cacheManager.invalidateDay(employeeId, date);
+            log.trace("[{}] Cache invalidata per employeeId={}, date={}", "deleteTimesheetUser", employeeId, date);
+            // Esegue la modifica
+            timesheetDayRepository.delete(day);
+            // Invalida range cache FUORI dal critica path per performance
+            CompletableFuture.runAsync(() -> {
+                try {
+                    cacheManager.invalidateRangeCachesContaining(employeeId, date);
+                    log.trace("[{}] Range cache invalidate per date={}", "deleteTimesheetUser", date);
+                } catch (Exception e) {
+                    log.warn("[{}] Fallita invalidazione range cache: {}",
+                            "deleteTimesheetUser", e.getMessage());
+                }
+            });
+        });
     }
 
     public void deleteTimesheetAdmin(Long employeeId, LocalDate date) {
-        executeOnTimesheet(
-                employeeId,
-                date,
-                OperationContext.ADMIN,
-                (day, emp) -> {
-                    timesheetDayRepository.delete(day);
-                    cacheManager.invalidateDay(employeeId, date);
-                    return null;
-                },
-                "deleteTimesheetAdmin"
-        );
+        String lockKey = employeeId + "_" + date;
+        withLock(lockKey, () -> {
+            Employee employee = getEmployeeOrThrow(employeeId);
+            // CRITICAL: Fresh read dal DB DENTRO il lock
+            TimesheetDay day = getTimesheetDayOrThrow(employee, date);
+            // Validazione con stato fresco
+            validator.validateRules(day, OperationContext.ADMIN, employee);
+            // Invalida cache PRIMA della modifica 
+            cacheManager.invalidateDay(employeeId, date);
+            log.trace("[{}] Cache invalidata per employeeId={}, date={}", "deleteTimesheetUser", employeeId, date);
+            // Esegue la modifica
+            timesheetDayRepository.delete(day);
+            // Invalida range cache FUORI dal critica path per performance
+            CompletableFuture.runAsync(() -> {
+                try {
+                    cacheManager.invalidateRangeCachesContaining(employeeId, date);
+                    log.trace("[{}] Range cache invalidate per date={}", "deleteTimesheetUser", date);
+                } catch (Exception e) {
+                    log.warn("[{}] Fallita invalidazione range cache: {}",
+                            "deleteTimesheetUser", e.getMessage());
+                }
+            });
+        });
     }
 
     // ============================================================
     // METODI item
     // ============================================================
-    public TimesheetItemProjection addOrCreateItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
-        return executeOnTimesheet(
+    public TimesheetDayProjection addOrCreateItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
+        return executeOnTimesheetItem(
                 employeeId,
                 date,
+                dto.getId() != null ? dto.getId() : null,
                 OperationContext.USER,
-                (day, emp) -> TimesheetItemProjection.fromEntity(domainService.addItem(day, dto)),
-                "addOrCreateItem"
+                (day, item) -> domainService.addItem(day, dto), // aggiorna day con il nuovo item
+                "addItem"
         );
     }
 
-    public TimesheetItemProjection putItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
-        return executeOnTimesheet(
+    public TimesheetDayProjection putItem(Long employeeId, LocalDate date, TimesheetItemDTO dto) {
+        return executeOnTimesheetItem(
                 employeeId,
                 date,
+                dto.getId(),
                 OperationContext.USER,
-                (day, emp) -> TimesheetItemProjection.fromEntity(domainService.putItem(day, dto)),
-                "putItem"
+                (day, item) -> domainService.putItem(day, dto),
+                "updateItem"
         );
     }
 
     public void deleteItem(Long employeeId, LocalDate date, Long itemId) {
-        executeOnTimesheet(
+        executeOnTimesheetItem(
                 employeeId,
                 date,
+                itemId,
                 OperationContext.USER,
-                (day, emp) -> {
+                (day, item) -> {
                     domainService.deleteItem(day, itemId);
                     return null;
                 },
-                "deleteItem"
+                "updateItem"
         );
     }
 
@@ -346,16 +237,25 @@ public class TimesheetApplicationService {
                 employeeId,
                 date,
                 OperationContext.ADMIN_SET_ABSENCE,
-                (day, emp) -> TimesheetDayProjection.fromEntity(domainService.setAbsence(day, dto.getAbsenceTypeEnum())),
+                (day, emp) -> domainService.setAbsence(day, dto.getAbsenceTypeEnum()),
                 "setAbsence"
         );
     }
 
+    /**
+     * Imposta assenze per un range di date in modo atomico e con cache
+     * consistency. Usa un approccio pessimistico: lock -> invalidate all ->
+     * modify -> save all -> cache all.
+     */
     @Transactional
-    public List<TimesheetDayProjection> setAbsences(Long employeeId, LocalDate startDate, LocalDate endDate, AbsenceType absenceType) {
+    public List<TimesheetDayProjection> setAbsences(
+            Long employeeId,
+            LocalDate startDate,
+            LocalDate endDate,
+            AbsenceType absenceType
+    ) {
         return executeSafely("setAbsences", () -> {
-            Employee employee = getEmployeeOrThrow(employeeId);
-
+            // Validazione input
             if (startDate == null || endDate == null) {
                 throw new TimesheetValidationException("startDate o endDate non possono essere null");
             }
@@ -363,29 +263,64 @@ public class TimesheetApplicationService {
                 throw new TimesheetValidationException("startDate deve precedere endDate");
             }
 
-            // Invalida tutti i giorni del range PRIMA delle modifiche
-            LocalDate current = startDate;
-            while (!current.isAfter(endDate)) {
-                cacheManager.invalidateDay(employeeId, current);
-                current = current.plusDays(1);
-            }
+            Employee employee = getEmployeeOrThrow(employeeId);
 
-            // Esegue la modifica batch
-            List<TimesheetDay> days = domainService.setAbsences(employee, startDate, endDate, absenceType);
+            // CRITICAL: Acquisisce un lock globale per tutto il range
+            String lockKey = employeeId + "_range_" + startDate + "_" + endDate;
+            return withLock(lockKey, () -> {
+                log.debug("Lock acquisito per batch absence: employeeId={}, range={} to {}",
+                        employeeId, startDate, endDate);
 
-            // Salva tutti i giorni
-            List<TimesheetDay> savedDays = timesheetDayRepository.saveAll(days);
+                // Step 1: Invalida proattivamente tutto il range
+                List<LocalDate> affectedDates = new ArrayList<>();
+                LocalDate current = startDate;
+                while (!current.isAfter(endDate)) {
+                    cacheManager.invalidateDay(employeeId, current);
+                    affectedDates.add(current);
+                    current = current.plusDays(1);
+                }
+                log.debug("Invalidate {} cache entries per batch", affectedDates.size());
 
-            // Aggiorna la cache per tutti i giorni salvati
-            for (TimesheetDay day : savedDays) {
-                cacheManager.putDay(employeeId, day.getDate(), day);
-            }
+                // Step 2: Esegue la modifica batch (può creare nuovi record)
+                List<TimesheetDay> days = domainService.setAbsences(employee, startDate, endDate, absenceType);
 
-            // Invalida le cache range che intersecano questo periodo
-            cacheManager.invalidateRangeCachesContaining(employeeId, startDate);
-            cacheManager.invalidateRangeCachesContaining(employeeId, endDate);
+                // Step 3: Salva tutti i giorni in una singola transazione
+                List<TimesheetDay> savedDays = timesheetDayRepository.saveAll(days);
+                log.info("Salvati {} giorni di assenza per employeeId={}", savedDays.size(), employeeId);
 
-            return savedDays.stream().map(TimesheetDayProjection::fromEntity).toList();
+                // Step 4: Ripopola la cache per tutti i giorni salvati
+                int cacheErrors = 0;
+                for (TimesheetDay day : savedDays) {
+                    try {
+                        cacheManager.putDay(employeeId, day.getDate(), day);
+                    } catch (Exception e) {
+                        cacheErrors++;
+                        log.error("Errore caching day dopo batch save: employeeId={}, date={}: {}", employeeId, day.getDate(), e.getMessage());
+                    }
+                }
+
+                if (cacheErrors > 0) {
+                    log.warn("Batch save completato ma {} giorni non sono stati cachati", cacheErrors);
+                }
+
+                // Step 5: Invalida range cache che intersecano questo periodo
+                try {
+                    cacheManager.invalidateRangeCachesContaining(employeeId, startDate);
+                    cacheManager.invalidateRangeCachesContaining(employeeId, endDate);
+
+                    // Invalida anche eventuali range intermedi per essere sicuri
+                    if (startDate.plusMonths(1).isBefore(endDate)) {
+                        LocalDate midPoint = startDate.plusDays(
+                                startDate.until(endDate).getDays() / 2
+                        );
+                        cacheManager.invalidateRangeCachesContaining(employeeId, midPoint);
+                    }
+                } catch (Exception e) {
+                    log.warn("Errore durante invalidazione range cache post-batch: {}", e.getMessage());
+                }
+
+                return savedDays.stream().map(TimesheetDayProjection::fromEntity).toList();
+            });
         });
     }
 }

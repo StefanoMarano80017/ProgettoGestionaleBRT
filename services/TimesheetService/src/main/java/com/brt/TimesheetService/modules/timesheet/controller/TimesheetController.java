@@ -20,7 +20,6 @@ import com.brt.TimesheetService.modules.timesheet.application.TimesheetApplicati
 import com.brt.TimesheetService.shared.dto.TimesheetDayDTO;
 import com.brt.TimesheetService.shared.dto.TimesheetItemDTO;
 import com.brt.TimesheetService.shared.projection.TimesheetDayProjection;
-import com.brt.TimesheetService.shared.projection.TimesheetItemProjection;
 import com.brt.TimesheetService.shared.util.PageableUtils;
 
 @RestController
@@ -80,22 +79,22 @@ public class TimesheetController {
     // POST semantics: nel dominio, la creazione di un item sulla stessa commessa
     // equivale a un "merge" (aggiunta ore) invece che un duplicato.
     @PostMapping("/{date}/items")
-    public ResponseEntity<TimesheetItemProjection> addItem(
+    public ResponseEntity<TimesheetDayProjection> addItem(
             @PathVariable Long employeeId,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestBody TimesheetItemDTO itemDTO
     ) {
-        TimesheetItemProjection saved = timesheetApplicationService.addOrCreateItem(employeeId, date, itemDTO);
+        TimesheetDayProjection saved = timesheetApplicationService.addOrCreateItem(employeeId, date, itemDTO);
         return ResponseEntity.status(201).body(saved);
     }
 
     @PutMapping("/{date}/items")
-    public ResponseEntity<TimesheetItemProjection> updateItem(
+    public ResponseEntity<TimesheetDayProjection> updateItem(
             @PathVariable Long employeeId,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestBody TimesheetItemDTO itemDTO
     ) {
-        TimesheetItemProjection updated = timesheetApplicationService.putItem(employeeId, date, itemDTO);
+        TimesheetDayProjection updated = timesheetApplicationService.putItem(employeeId, date, itemDTO);
         return ResponseEntity.ok(updated);
     }
 
