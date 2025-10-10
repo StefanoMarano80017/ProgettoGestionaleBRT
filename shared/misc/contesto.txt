@@ -1,0 +1,95 @@
+CONTESTO PROGETTO COMPLETO – SISTEMA MICROSERVIZI CON AUTENTICAZIONE CENTRALIZZATA
+
+Sto progettando una piattaforma aziendale self-hosted per un’azienda di medie dimensioni (50–100 dipendenti), basata su **microservizi containerizzati (Docker/Docker Compose o Kubernetes)**. Tutto il contesto di progetto deve essere considerato in ogni risposta.  
+
+1. ARCHITETTURA GENERALE
+- Microservizi REST indipendenti:
+  - users-service (anagrafica, cache minima dell’utente)
+  - timesheet-service
+  - projects-service
+  - notifications-service (realtime + persistenti)
+- Ogni microservizio ha DB isolato (PostgreSQL / MariaDB)
+- Tutte le richieste client passano attraverso un **API Gateway** (Traefik/Kong/NGINX):
+  - Verifica JWT tramite chiave pubblica Keycloak (JWKS endpoint)
+  - Aggiunge header standardizzati: `X-User-ID`, `X-User-Role`
+  - Eventuale rate limiting, logging, tracing
+
+2. AUTENTICAZIONE E AUTORIZZAZIONE
+- Identity Provider: **Keycloak self-hosted** (container)
+- JWT access token:
+  - Breve TTL (5–15 minuti)
+  - Firmato RS256
+  - Claims: `sub` (user_id), `username`, `role`, `exp`, `iat`, `jti`
+- Refresh token:
+  - Stateful, persistente nel DB Keycloak
+  - Rotazione: ogni refresh invalida token precedente
+  - Permette revoca, cambio ruoli dinamici
+- RBAC:
+  - Ruoli definiti in Keycloak (admin, manager, employee, ecc.)
+  - I microservizi leggono ruoli dal JWT e applicano autorizzazione locale
+- Flusso:
+  1. Client login → Keycloak → access + refresh token
+  2. Access token valido → Gateway → microservizi
+  3. Access token scaduto → client → refresh token → Keycloak → nuovo access + refresh token
+  4. Revoca o cambio ruoli → invalidazione refresh token → prossimo refresh fallisce
+
+3. EVENTI E SINCRONIZZAZIONE
+- Event-driven per cache e notifiche:
+  - Event Bus / Message Broker: RabbitMQ o Kafka
+  - Eventi principali:
+    - `user.updated`, `role.changed` → microservizi aggiornano cache minima
+    - `project.updated` → services aggiornano stato locale
+    - `notification.created` → notification service invia notifiche
+- Notification Service:
+  - Riceve eventi
+  - Memorizza notifiche nel DB
+  - Espone REST endpoint `/notifications`
+  - WebSocket / long polling per realtime
+
+4. MONITORAGGIO E MANUTENZIONE
+- Metriche: token emessi, refresh riusciti/falliti, revoche, errori
+- Job batch (cron) per pulizia refresh token scaduti
+- Key rotation gestita da Keycloak, microservizi aggiornano JWKS periodicamente
+- Logging sicuro: mai loggare token completi, solo metadata
+
+5. TECNOLOGIE PRINCIPALI
+| Componente                | Tecnologia / Scelta                                     |
+|---------------------------|--------------------------------------------------------|
+| Identity Provider         | Keycloak (Docker container)                             |
+| API Gateway               | Traefik, Kong, NGINX                                   |
+| Event Bus / Broker        | RabbitMQ o Kafka                                        |
+| Microservizi REST         | Node.js / Python / Java                                 |
+| Database microservizi     | PostgreSQL / MariaDB                                    |
+| Database Keycloak         | PostgreSQL                                             |
+| Notifiche realtime        | WebSocket (Socket.IO / FastAPI WebSocket)             |
+| Monitoring                | Prometheus + Grafana                                   |
+| Logging                   | Loki / ELK Stack                                       |
+| Deployment                | Docker Compose / Kubernetes                             |
+
+6. SICUREZZA E BEST PRACTICE
+- HTTPS obbligatorio
+- JWT firmati RS256, validati lato microservizio o gateway
+- Refresh token mai esposto in URL, solo in body HTTPS
+- Short TTL per access token
+- Meccanismo revoca + blacklist access token opzionale
+- Rotazione chiavi periodica (Key rotation)
+
+7. FLUSSI CHIAVE
+- Login: client → Keycloak → JWT + refresh token → microservizi via gateway
+- Access token: ogni richiesta microservizio → validazione JWT → estrazione claims → RBAC
+- Refresh token: access token scaduto → client → Keycloak → nuovo JWT + refresh token
+- Revoca / cambio ruoli: invalidazione refresh token → prossimo refresh fallisce
+- Notifiche: microservizi pubblicano eventi → notification service → DB + WebSocket client
+- Sync cache utenti: `user.updated` / `role.changed` → microservizi aggiornano cache minima
+
+8. OBIETTIVO DEL PROGETTO
+- Implementare un sistema centralizzato di autenticazione/authorization **self-hosted**, con:
+  - UX fluida (login minimo)
+  - Gestione RBAC dinamica
+  - Revoca e rotation dei token
+  - Monitoraggio e metriche
+  - Notifiche realtime e persistenti
+  - Microservizi REST indipendenti ma coordinati via Event Bus
+  - Deploy semplice via Docker Compose o Kubernetes
+
+Tutte le risposte future devono **tenere in considerazione questo contesto**, comprese scelte tecnologiche, flussi, sicurezza, RBAC, JWT/refresh token, eventi e notifiche.

@@ -1,0 +1,15 @@
+http:
+  middlewares:
+    oidc-auth:
+      plugin:
+        traefik-oidc-auth:
+          Secret: "qY0IGgm8XXNJy5PbxzHZewgGxPGQr1h2"
+          Provider:
+            Url: "http://keycloak:8080/realms/myrealm"
+            ClientId: "traefik-client"
+            ClientSecret: "qjSYmYdxSVYtALpaTK7LEzShzw2qPJ0R"
+          Scopes:
+            - "openid"
+            - "profile"
+            - "email"
+          RedirectURL: "http://users.localhost/oidc/callback"

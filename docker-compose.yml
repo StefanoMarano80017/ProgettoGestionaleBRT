@@ -1,38 +1,82 @@
-services:
-  reverse-proxy:
-    build:
-      context: ./reverseProxy
-      dockerfile: Dockerfile
-    container_name: reverse-proxy
-    ports:
-      - "80:80"
-    depends_on:
-      - frontend
-      - apigateway
-    networks:
-      - app_net
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    expose:
-      - "3000"
-    networks:
-      - app_net
-
-  apigateway:
-    build:
-      context: ./gateways/apigateway
-      dockerfile: Dockerfile
-    container_name: apigateway
-    expose:
-      - "8080"
-    networks:
-      - app_net
-
+version: "3.9"
 
 networks:
-  app_net:
+  gestionale_network:
     driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  keycloak_data:
+    driver: local
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+    ports:
+      - "80:80"      # HTTP
+      - "8081:8080"  # Dashboard (spostata su 8081)
+    volumes:
+      - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
+      - "./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    environment:
+      - TRAEFIK_EXPERIMENTAL_PLUGINS_TRAEFIKOIDCAUTH_MODULENAME=github.com/pascaliske/traefik-oidc-auth
+      - TRAEFIK_EXPERIMENTAL_PLUGINS_TRAEFIKOIDCAUTH_VERSION=v0.5.0
+    networks:
+      - gestionale_network
+
+  postgres:
+    image: postgres:16.2
+    container_name: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gestionale_network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.6
+    container_name: keycloak
+    command:
+      - start-dev
+      - --hostname-strict=false
+      - --hostname-url=http://keycloak.localhost
+      - --import-realm
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres/${POSTGRES_DB}
+      - KC_DB_USERNAME=${POSTGRES_USER}
+      - KC_DB_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+    depends_on:
+      - postgres
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`keycloak.localhost`)"
+      - "traefik.http.routers.keycloak.entrypoints=web"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+    networks:
+      - gestionale_network
+
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    networks:
+      - gestionale_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.users-router.rule=Host(`users.localhost`)"
+      - "traefik.http.routers.users-router.entrypoints=web"
+      - "traefik.http.routers.users-router.middlewares=oidc-auth@file"
+      - "traefik.http.services.users-service.loadbalancer.server.port=80"
