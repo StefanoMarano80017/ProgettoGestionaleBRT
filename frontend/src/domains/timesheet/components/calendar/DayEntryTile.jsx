@@ -6,6 +6,8 @@ import { getTileSx } from './utils';
 import StatusIcon from '@domains/timesheet/components/calendar/statusIcons';
 import { resolveTileIcon } from './utils/resolveTileIcon';
 import { getGlowColorFromStagedOp, getGlowShadow } from './utils/tileGlow';
+import { normalizeStagedOp } from './utils/normalizeStagedOp';
+import { areDayEntryTilePropsEqual } from './utils/tilePropsEquality';
 
 /**
  * DayEntryTile
@@ -39,16 +41,10 @@ const DayEntryTile = React.forwardRef(function DayEntryTile({
   const isCompact = variant === 'compact';
   
   // Normalize staged operation
-  const normalizedStagedOp = useMemo(() => {
-    if (stagedOp) return stagedOp;
-    if (stagingEntry?.op && ['create', 'update', 'delete'].includes(stagingEntry.op)) {
-      return stagingEntry.op;
-    }
-    if (stagedStatus === 'staged-insert') return 'create';
-    if (stagedStatus === 'staged-update') return 'update';
-    if (stagedStatus === 'staged-delete') return 'delete';
-    return null;
-  }, [stagedOp, stagingEntry?.op, stagedStatus]);
+  const normalizedStagedOp = useMemo(
+    () => normalizeStagedOp({ stagedOp, stagedStatus, stagingEntry }),
+    [stagedOp, stagedStatus, stagingEntry]
+  );
 
   // Icon resolution
   const iconMeta = useMemo(() => resolveTileIcon({ 
@@ -63,6 +59,22 @@ const DayEntryTile = React.forwardRef(function DayEntryTile({
   const glowColor = useMemo(() => getGlowColorFromStagedOp(normalizedStagedOp, theme), [normalizedStagedOp, theme]);
   const glowShadow = useMemo(() => getGlowShadow(glowColor), [glowColor]);
 
+  const tileSx = useMemo(() => (t) => ({
+    ...getTileSx(t, {
+      isSelected,
+      isHoliday,
+      isWeekend,
+      isOutOfMonth,
+      status,
+      hasBg: bgcolor !== 'transparent',
+      bgcolor,
+      isWide: variant === 'wide',
+    }),
+    ...(glowShadow
+      ? { boxShadow: glowShadow, position: 'relative', zIndex: 1, transition: 'box-shadow 160ms ease-in-out' }
+      : { transition: 'box-shadow 160ms ease-in-out' }),
+  }), [isSelected, isHoliday, isWeekend, isOutOfMonth, status, bgcolor, variant, glowShadow]);
+
   const tile = (
     <Box
       ref={ref}
@@ -70,19 +82,7 @@ const DayEntryTile = React.forwardRef(function DayEntryTile({
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick?.(dateStr); }}
       {...(normalizedStagedOp ? { 'data-staged-op': normalizedStagedOp } : {})}
       {...(status ? { 'data-status': status } : {})}
-      sx={(t) => ({
-        ...getTileSx(t, {
-          isSelected,
-          isHoliday,
-          isWeekend,
-          isOutOfMonth,
-          status,
-          hasBg: bgcolor !== "transparent",
-          bgcolor,
-          isWide: variant === 'wide',
-        }),
-        ...(glowShadow ? { boxShadow: glowShadow, position: 'relative', zIndex: 1, transition: 'box-shadow 160ms ease-in-out' } : { transition: 'box-shadow 160ms ease-in-out' }),
-      })}
+      sx={tileSx}
     >
       {/* Day number chip */}
       {showDayNumber && (
@@ -172,35 +172,4 @@ DayEntryTile.propTypes = {
   iconSize: PropTypes.number,
 };
 
-// Custom memo comparison to prevent unnecessary re-renders
-const areEqual = (prevProps, nextProps) => {
-  const compareKeys = [
-    'dateStr', 'day', 'isSelected', 'isHoliday', 'isOutOfMonth', 'isWeekend', 
-    'bgcolor', 'totalHours', 'status', 'variant', 'tooltipContent', 'iconSize'
-  ];
-  
-  // Compare primitive props
-  for (const key of compareKeys) {
-    if (prevProps[key] !== nextProps[key]) return false;
-  }
-  
-  // Compare icon reference
-  if (prevProps.icon !== nextProps.icon) return false;
-  
-  // Compare normalized staged op
-  const prevNormalized = prevProps.stagedOp || 
-    (prevProps.stagingEntry?.op && ['create', 'update', 'delete'].includes(prevProps.stagingEntry.op) ? prevProps.stagingEntry.op : null) ||
-    (prevProps.stagedStatus === 'staged-insert' ? 'create' : 
-     prevProps.stagedStatus === 'staged-update' ? 'update' : 
-     prevProps.stagedStatus === 'staged-delete' ? 'delete' : null);
-     
-  const nextNormalized = nextProps.stagedOp || 
-    (nextProps.stagingEntry?.op && ['create', 'update', 'delete'].includes(nextProps.stagingEntry.op) ? nextProps.stagingEntry.op : null) ||
-    (nextProps.stagedStatus === 'staged-insert' ? 'create' : 
-     nextProps.stagedStatus === 'staged-update' ? 'update' : 
-     nextProps.stagedStatus === 'staged-delete' ? 'delete' : null);
-     
-  return prevNormalized === nextNormalized;
-};
-
-export default memo(DayEntryTile, areEqual);
+export default memo(DayEntryTile, areDayEntryTilePropsEqual);
