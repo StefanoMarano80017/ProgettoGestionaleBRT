@@ -7,9 +7,15 @@ import useAuth from "@/domains/auth/hooks/useAuth";
 import LogoGestionale from "@assets/LogoGestionale.png";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      nav("/home", { replace: true });
+    }
+  }, [isAuthenticated, nav]);
 
   const [form, setForm] = React.useState({ username: "", password: "" });
   const [error, setError] = React.useState("");

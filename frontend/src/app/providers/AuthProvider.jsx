@@ -7,7 +7,15 @@ import { authenticate } from "@mocks/UsersMock";
 export const AuthContext = React.createContext(null);
 
 export function AuthProvider({ children }) {
-  const [state, setState] = React.useState({ user: null, token: null });
+  const [state, setState] = React.useState(() => {
+    // Initialize from localStorage on mount
+    try {
+      const stored = localStorage.getItem("auth");
+      return stored ? JSON.parse(stored) : { user: null, token: null };
+    } catch {
+      return { user: null, token: null };
+    }
+  });
 
   const login = async (username, password) => {
     const res = await authenticate(username, password);
