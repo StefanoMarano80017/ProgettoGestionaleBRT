@@ -9,6 +9,7 @@ volumes:
     driver: local
 
 services:
+  # === TRAEFIK (API Gateway) ===
   traefik:
     image: traefik:v3.1
     container_name: traefik
@@ -17,14 +18,14 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8081:8080" # Dashboard
+      - "8081:8080"  # Dashboard
     volumes:
       - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
-      - "./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - gestionale_network
 
+  # === DATABASE (PostgreSQL per Keycloak) ===
   postgres:
     image: postgres:16.2
     container_name: postgres
@@ -37,6 +38,7 @@ services:
     networks:
       - gestionale_network
 
+  # === KEYCLOAK (Identity Provider) ===
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.6
     container_name: keycloak
@@ -60,20 +62,26 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.localhost`)"
-      - "traefik.http.routers.keycloak.entrypoints=websecure"
-      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.http.routers.keycloak.entrypoints=web"
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
     networks:
       - gestionale_network
 
+  # === FRONTEND (React o simile) ===
   frontend:
     build: ./frontend
     container_name: frontend
     networks:
       - gestionale_network
+    expose:
+      - "80"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`)"
       - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.middlewares=jwt"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
-      # Note: SPA fallback handled by Nginx, no Traefik middleware needed
+
+      - "traefik.http.routers.frontend-login.rule=Host(`frontend.localhost`) && Path(`/login`)"
+      - "traefik.http.routers.frontend-login.entrypoints=web"
+      - "traefik.http.routers.frontend-login.middlewares="

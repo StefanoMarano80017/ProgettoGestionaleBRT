@@ -7,6 +7,16 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      '@mui/material',
+      '@mui/icons-material',
+      '@emotion/react',
+      '@emotion/styled'
+    ]
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -20,16 +30,11 @@ export default defineConfig({
       '@calendar': path.resolve(__dirname, 'src/domains/timesheet/components/calendar')
     }
   },
+  base: '/',
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'vendor-react'
-            if (id.includes('@mui')) return 'vendor-mui'
-            return 'vendor'
-          }
-        }
+        manualChunks: undefined
       }
     }
   }
