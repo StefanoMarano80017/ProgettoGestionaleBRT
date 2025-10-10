@@ -11,4 +11,4 @@ export { default as statusIcons } from './statusIcons.jsx';
 export { default as statusIconsUtils } from './statusIcons.utils.js';
 export { default as TaskDetailCard } from './TaskDetailCard.jsx';
 export { default as WorkCalendar } from './WorkCalendar.jsx';
-export { default as WorkCalendarGrid } from './WorkCalendarGrid.jsx';
+// TODO(Assistant, 2025-10-10): WorkCalendarGrid removed - functionality moved to WorkCalendarView and Container architecture

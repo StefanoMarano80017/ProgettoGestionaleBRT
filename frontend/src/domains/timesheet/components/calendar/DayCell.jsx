@@ -1,0 +1,84 @@
+import React from 'react';
+import PropTypes from 'prop-types';
+import DayEntryTile from '@domains/timesheet/components/calendar/DayEntryTile';
+import formatDayTooltip from '@domains/timesheet/components/calendar/formatDayTooltip';
+
+/**
+ * DayCell
+ * Pure, memoizable component for rendering a single calendar day cell.
+ * Receives all data as props - no context or hooks usage.
+ * Designed to prevent unnecessary re-renders when context changes.
+ */
+export function DayCell({
+  dateKey,
+  day,
+  entries = [],
+  status,
+  isSelected = false,
+  isHoliday = false,
+  isOutOfMonth = false,
+  dayOfWeek,
+  segnalazione,
+  onClick,
+  onDoubleClick,
+  variant = 'default',
+  iconSize = 14,
+  showDayNumber = true
+}) {
+  // Calculate total hours from entries
+  const totalHours = entries.reduce((sum, entry) => sum + (Number(entry?.ore) || 0), 0);
+  
+  // Determine if hours should be shown
+  const showHours = totalHours > 0 && status !== 'ferie' && status !== 'malattia' && status !== 'non-work-full';
+  
+  // Determine icon position
+  const iconTopRight = status === 'complete' || status === 'partial' || status === 'permesso';
+  
+  // Generate tooltip content
+  const tooltipContent = formatDayTooltip(entries, segnalazione, totalHours);
+  
+  // Handle click events
+  const handleClick = onClick ? () => onClick(dateKey) : undefined;
+  const handleDoubleClick = onDoubleClick ? () => onDoubleClick(dateKey) : undefined;
+
+  return (
+    <DayEntryTile
+      dateStr={dateKey}
+      day={day}
+      isSelected={isSelected}
+      isHoliday={isHoliday}
+      isOutOfMonth={isOutOfMonth}
+      totalHours={totalHours}
+      status={status}
+      showHours={showHours}
+      showDayNumber={showDayNumber}
+      iconTopRight={iconTopRight}
+      tooltipContent={tooltipContent}
+      variant={variant}
+      iconSize={iconSize}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+    />
+  );
+}
+
+DayCell.displayName = 'DayCell';
+
+DayCell.propTypes = {
+  dateKey: PropTypes.string.isRequired,
+  day: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  entries: PropTypes.array.isRequired,
+  status: PropTypes.string,
+  isSelected: PropTypes.bool,
+  isHoliday: PropTypes.bool,
+  isOutOfMonth: PropTypes.bool,
+  dayOfWeek: PropTypes.number,
+  segnalazione: PropTypes.any,
+  onClick: PropTypes.func,
+  onDoubleClick: PropTypes.func,
+  variant: PropTypes.oneOf(['default', 'wide', 'compact']),
+  iconSize: PropTypes.number,
+  showDayNumber: PropTypes.bool,
+};
+
+export default React.memo(DayCell);

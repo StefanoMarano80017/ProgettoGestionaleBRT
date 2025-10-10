@@ -82,3 +82,49 @@ export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, is
 
   return { status: undefined, showHours: false, iconTopRight: false };
 }
+
+/**
+ * Pure helper to compute committed status for a day based only on entries
+ * No context access, no staging information - just committed entry data
+ * 
+ * @param {Array} entries - Array of timesheet entries for the day
+ * @returns {string|undefined} - The committed status ('non-work-full', 'ferie', 'malattia', 'permesso', 'complete', 'partial', or undefined)
+ */
+export function getCommittedStatusForDay(entries) {
+  if (!entries || entries.length === 0) {
+    return undefined;
+  }
+
+  const totalHours = entries.reduce((sum, rec) => sum + (Number(rec?.ore) || 0), 0);
+
+  // Check for full non-work day (sum of NON_WORK codes == 8) first
+  const nonWorkTotal = entries.reduce((s, rec) => {
+    const code = String(rec?.commessa || '').toUpperCase();
+    if (NON_WORK_CODES.includes(code)) return s + (Number(rec?.ore) || 0);
+    return s;
+  }, 0);
+  if (nonWorkTotal === 8) {
+    return 'non-work-full';
+  }
+
+  // Special commesse (individual types)
+  if (entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'FERIE')) {
+    return 'ferie';
+  }
+  if (entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'MALATTIA')) {
+    return 'malattia';
+  }
+  if (entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'PERMESSO')) {
+    return 'permesso';
+  }
+
+  // Hours-based states
+  if (totalHours === 8) {
+    return 'complete';
+  }
+  if (totalHours > 0 && totalHours < 8) {
+    return 'partial';
+  }
+
+  return undefined;
+}

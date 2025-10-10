@@ -57,3 +57,29 @@ export function useTimesheetContext() {
 export function useOptionalTimesheetContext() {
 	try { return useContext(TimesheetContext); } catch { return null; }
 }
+
+/**
+ * Selective context consumption hook to reduce re-renders.
+ * The selector function should extract only the necessary data to minimize re-renders.
+ * 
+ * @param {Function} selector - Function that extracts specific data from context (ctx) => value
+ * @param {Array} deps - Additional dependencies for the selector memoization
+ * @returns {*} The selected data from context
+ * 
+ * @example
+ * // Select only current month entries for specific employee
+ * const monthData = useTimesheetSelector(
+ *   ctx => ctx?.dataMap?.[employeeId] || {},
+ *   [employeeId]
+ * );
+ * 
+ * // Select only current month and year
+ * const { month, year } = useTimesheetSelector(
+ *   ctx => ({ month: ctx?.month, year: ctx?.year }),
+ *   []
+ * );
+ */
+export function useTimesheetSelector(selector, deps = []) {
+	const ctx = useContext(TimesheetContext);
+	return React.useMemo(() => selector(ctx), [ctx, ...deps]);
+}

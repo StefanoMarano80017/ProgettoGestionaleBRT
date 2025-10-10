@@ -7,3 +7,5 @@ export * from './useStagedMetaMap';
 export * from './useStagingContextHooks';
 export { default as useTimesheetStaging } from './useTimesheetStaging';
 export * from './useTimesheetStaging';
+export { default as useVisibleStagedStatusMap } from './useVisibleStagedStatusMap';
+export * from './useVisibleStagedStatusMap';
