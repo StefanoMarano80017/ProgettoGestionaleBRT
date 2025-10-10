@@ -1,65 +1,48 @@
 {
-  "realm": "myrealm",
+  "realm": "master",
   "enabled": true,
-
   "clients": [
     {
-      "clientId": "frontend-client",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": true,
+      "clientId": "traefik-client",
+      "rootUrl": "http://frontend.localhost",
+      "adminUrl": "http://frontend.localhost",
+      "baseUrl": "/",
       "redirectUris": [
-        "http://app.localhost/*"
+        "http://frontend.localhost/oauth2/callback"
       ],
       "webOrigins": [
-        "http://app.localhost"
+        "*"
       ],
-      "authorizationServicesEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "rootUrl": "http://app.localhost",
-      "baseUrl": "/"
-    },
-    {
-      "clientId": "backend-client",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": false,
-      "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": false,
-      "standardFlowEnabled": true,
-      "implicitFlowEnabled": false
+      "authorizationServicesEnabled": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "secret": "supersegreto",
+      "fullScopeAllowed": true
     }
   ],
-
-  "roles": {
-    "realm": [
-      { "name": "admin" },
-      { "name": "manager" },
-      { "name": "employee" }
-    ]
-  },
-
   "users": [
     {
-      "username": "john",
+      "username": "admin",
       "enabled": true,
-      "email": "john@company.com",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "email": "admin@localhost",
       "credentials": [
-        { "type": "password", "value": "JohnPass123", "temporary": false }
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
       ],
-      "realmRoles": ["employee"]
-    },
-    {
-      "username": "alice",
-      "enabled": true,
-      "email": "alice@company.com",
-      "credentials": [
-        { "type": "password", "value": "AlicePass123", "temporary": false }
-      ],
-      "realmRoles": ["manager"]
+      "realmRoles": ["offline_access", "uma_authorization"]
     }
   ]
 }

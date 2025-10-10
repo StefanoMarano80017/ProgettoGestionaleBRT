@@ -1,15 +1,13 @@
 http:
   middlewares:
-    spa:
-      replacePathRegex:
-        regex: ^/(.*)
-        replacement: /index.html
-
-    jwt-auth:
+    my-jwt-middleware:
       plugin:
-        keycloak-jwt:
-          jwks_url: "http://keycloak:8080/realms/master/protocol/openid-connect/certs"
-          audiences: ["frontend-client"]
-          claims:
-            sub: "X-User-ID"
-            role: "X-User-Role"
+        jwt-validation-middleware:
+          secret: ThisIsMyVerySecret
+          optional: true
+          payloadHeaders:
+            X-Custom-Header1: sub
+            X-Custom-Header2: name
+          authQueryParam: authToken
+          authCookieName: authToken
+          forwardAuth: false
