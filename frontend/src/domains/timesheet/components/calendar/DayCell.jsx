@@ -37,9 +37,9 @@ export function DayCell({
   // Generate tooltip content
   const tooltipContent = formatDayTooltip(entries, segnalazione, totalHours);
   
-  // Handle click events
-  const handleClick = onClick ? () => onClick(dateKey) : undefined;
-  const handleDoubleClick = onDoubleClick ? () => onDoubleClick(dateKey) : undefined;
+  // Stable handlers for dateKey
+  const onClickDate = React.useCallback(() => onClick?.(dateKey), [onClick, dateKey]);
+  const onDoubleClickDate = React.useCallback(() => onDoubleClick?.(dateKey), [onDoubleClick, dateKey]);
 
   return (
     <DayEntryTile
@@ -56,8 +56,8 @@ export function DayCell({
       tooltipContent={tooltipContent}
       variant={variant}
       iconSize={iconSize}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
+      onClickDate={onClickDate}
+      onDoubleClickDate={onDoubleClickDate}
     />
   );
 }

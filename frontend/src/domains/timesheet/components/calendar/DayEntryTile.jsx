@@ -2,60 +2,23 @@ import React, { useMemo, memo } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { getTileSx, isWeekend as utilIsWeekend } from './utils';
+import { getTileSx } from './utils';
 import StatusIcon from '@domains/timesheet/components/calendar/statusIcons';
-
-/**
- * Resolve which icon element to render for the tile based on:
- * - explicit custom icon (optionally recolored by status or inferred type)
- * - status fallback via getStatusIcon
- * Applies compact sizing when requested.
- */
-function resolveTileIcon({ icon, status, theme, isCompact, iconSize }) {
-  if (icon && React.isValidElement(icon)) {
-    let statusColor;
-    if (status === 'ferie') {
-      statusColor = theme.palette.customPink?.main || theme.palette.secondary.main;
-    } else if (status === 'malattia') {
-      statusColor = theme.palette.success.main;
-    }
-    if (!statusColor && icon.type) {
-      const typeName = icon.type.displayName || icon.type.name || String(icon.type);
-      if (typeName.includes('BeachAccess')) {
-        statusColor = theme.palette.customPink?.main || theme.palette.secondary.main;
-      } else if (typeName.includes('LocalHospital')) {
-        statusColor = theme.palette.success.main;
-      }
-    }
-    if (statusColor || isCompact || iconSize) {
-      const existingSx = icon.props?.sx || {};
-      const size = iconSize ?? (isCompact ? 10 : 14);
-      const mergedSx = { ...existingSx, ...(statusColor ? { color: statusColor } : {}), fontSize: size };
-      return React.cloneElement(icon, { sx: mergedSx });
-    }
-    return icon;
-  }
-  const si = <StatusIcon theme={theme} status={status} size={iconSize ?? (isCompact ? 10 : 14)} />;
-  if (!si) return null;
-  const statusSize = isCompact ? 10 : 14;
-  if (React.isValidElement(si)) {
-    const existingSx = si.props?.sx || {};
-    return React.cloneElement(si, { sx: { ...existingSx, fontSize: iconSize ?? statusSize } });
-  }
-  return si;
-}
+import { resolveTileIcon } from './utils/resolveTileIcon';
+import { getGlowColorFromStagedOp, getGlowShadow } from './utils/tileGlow';
 
 /**
  * DayEntryTile
  * Presentational tile for a single day inside the calendar grid.
  * Handles selection outline, background color logic, icons, hours badge, and optional tooltip.
  */
-export function DayEntryTile({
+const DayEntryTile = React.forwardRef(function DayEntryTile({
   dateStr,
   day,
   isSelected = false,
   isHoliday = false,
   isOutOfMonth = false,
+  isWeekend = false,
   bgcolor = 'transparent',
   totalHours = 0,
   icon = null,
@@ -64,44 +27,49 @@ export function DayEntryTile({
   showHours = false,
   showDayNumber = true,
   tooltipContent,
-  variant = 'default', // 'default' | 'wide' | 'compact'
+  variant = 'default',
   onClick,
-  stagedStatus = null, // legacy: 'staged-insert' | 'staged-update' | 'staged-delete'
-  stagedOp = null,    // new stable op: 'create' | 'update' | 'delete'
-  stagingEntry = null, // optional full staging snapshot { op, base, draft }
-  onDoubleClick, // new: open modal editor
-}) {
+  onDoubleClick,
+  stagedOp = null,
+  stagedStatus = null,
+  stagingEntry = null
+}, ref) {
+  const theme = useTheme();
   const isWide = variant === 'wide';
   const isCompact = variant === 'compact';
-  const theme = useTheme();
-  const isWeekend = useMemo(() => utilIsWeekend(dateStr), [dateStr]);
-  const resolvedIcon = useMemo(() => resolveTileIcon({ icon, status, theme, isCompact, iconSize }), [icon, status, theme, isCompact, iconSize]);
-  // Derive effective stagedStatus preferring new props (stagedOp / stagingEntry)
-  const effectiveStagedStatus = useMemo(() => {
-    const op = stagedOp || stagingEntry?.op || null;
-    if (op === 'create') return 'staged-insert';
-    if (op === 'delete') return 'staged-delete';
-    if (op === 'update') return 'staged-update';
-    return stagedStatus; // fallback legacy prop
+  
+  // Normalize staged operation
+  const normalizedStagedOp = useMemo(() => {
+    if (stagedOp) return stagedOp;
+    if (stagingEntry?.op && ['create', 'update', 'delete'].includes(stagingEntry.op)) {
+      return stagingEntry.op;
+    }
+    if (stagedStatus === 'staged-insert') return 'create';
+    if (stagedStatus === 'staged-update') return 'update';
+    if (stagedStatus === 'staged-delete') return 'delete';
+    return null;
   }, [stagedOp, stagingEntry?.op, stagedStatus]);
 
-  const glowColor = useMemo(() => {
-    if (!effectiveStagedStatus) return null;
-    switch (effectiveStagedStatus) {
-      case 'staged-insert': return theme.palette.success?.main || '#2e7d32';
-      case 'staged-delete': return theme.palette.error?.main || '#d32f2f';
-      case 'staged-update': return theme.palette.warning?.main || '#ed6c02';
-      default: return null;
-    }
-  }, [effectiveStagedStatus, theme]);
-  // Softer glow: thin outline + subtle blur with alpha
-  const glowShadow = glowColor ? `0 0 0 1px ${glowColor}, 0 0 4px 1px ${glowColor}66` : undefined;
+  // Icon resolution
+  const iconMeta = useMemo(() => resolveTileIcon({ 
+    icon, 
+    status, 
+    theme, 
+    isCompact, 
+    iconSize 
+  }), [icon, status, theme, isCompact, iconSize]);
+
+  // Glow effects
+  const glowColor = useMemo(() => getGlowColorFromStagedOp(normalizedStagedOp, theme), [normalizedStagedOp, theme]);
+  const glowShadow = useMemo(() => getGlowShadow(glowColor), [glowColor]);
 
   const tile = (
     <Box
+      ref={ref}
       onClick={() => onClick?.(dateStr)}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick?.(dateStr); }}
-      {...(effectiveStagedStatus ? { 'data-staged-op': effectiveStagedStatus } : {})}
+      {...(normalizedStagedOp ? { 'data-staged-op': normalizedStagedOp } : {})}
+      {...(status ? { 'data-status': status } : {})}
       sx={(t) => ({
         ...getTileSx(t, {
           isSelected,
@@ -111,7 +79,7 @@ export function DayEntryTile({
           status,
           hasBg: bgcolor !== "transparent",
           bgcolor,
-          isWide,
+          isWide: variant === 'wide',
         }),
         ...(glowShadow ? { boxShadow: glowShadow, position: 'relative', zIndex: 1, transition: 'box-shadow 160ms ease-in-out' } : { transition: 'box-shadow 160ms ease-in-out' }),
       })}
@@ -143,21 +111,23 @@ export function DayEntryTile({
       </Typography>
 
       {/* Main icon (centered for default, top-right for compact). If not provided, infer from status */}
-      {(resolvedIcon) && (
-        <Box
-          sx={{
-            position: "absolute",
-            // decide icon placement by variant (compact -> top-right, default -> centered)
-            top: isCompact ? (isWide ? 5 : 6) : "50%",
-            right: isCompact ? (isWide ? 7 : 6) : undefined,
-            left: isCompact ? undefined : "50%",
-            transform: isCompact ? "none" : "translate(-50%, -50%)",
-            lineHeight: 0,
-          }}
-        >
-          {resolvedIcon}
-        </Box>
-      )}
+      <Box
+        sx={{
+          position: "absolute",
+          // decide icon placement by variant (compact -> top-right, default -> centered)
+          top: isCompact ? (isWide ? 5 : 6) : "50%",
+          right: isCompact ? (isWide ? 7 : 6) : undefined,
+          left: isCompact ? undefined : "50%",
+          transform: isCompact ? "none" : "translate(-50%, -50%)",
+          lineHeight: 0,
+        }}
+      >
+        {iconMeta.explicit ? (
+          React.cloneElement(iconMeta.element, { sx: iconMeta.sx })
+        ) : (
+          <StatusIcon theme={theme} status={status} size={iconMeta.size} />
+        )}
+      </Box>
       {/* (dot indicator removed) */}
     </Box>
   );
@@ -171,7 +141,7 @@ export function DayEntryTile({
   ) : (
     tile
   );
-}
+});
 
 DayEntryTile.displayName = 'DayEntryTile';
 
@@ -181,25 +151,56 @@ DayEntryTile.propTypes = {
   isSelected: PropTypes.bool,
   isHoliday: PropTypes.bool,
   isOutOfMonth: PropTypes.bool,
+  isWeekend: PropTypes.bool,
   bgcolor: PropTypes.string,
   totalHours: PropTypes.number,
   icon: PropTypes.node,
-  iconTopRight: PropTypes.bool,
   status: PropTypes.string,
   showHours: PropTypes.bool,
   showDayNumber: PropTypes.bool,
   tooltipContent: PropTypes.node,
   variant: PropTypes.oneOf(['default', 'wide', 'compact']),
   onClick: PropTypes.func,
-  stagedStatus: PropTypes.string,
-  stagedOp: PropTypes.string,
+  onDoubleClick: PropTypes.func,
+  stagedOp: PropTypes.oneOf(['create', 'update', 'delete']),
+  stagedStatus: PropTypes.string, // deprecated
   stagingEntry: PropTypes.shape({
     op: PropTypes.string,
     base: PropTypes.any,
     draft: PropTypes.any,
   }),
   iconSize: PropTypes.number,
-  onDoubleClick: PropTypes.func,
 };
 
-export default memo(DayEntryTile);
+// Custom memo comparison to prevent unnecessary re-renders
+const areEqual = (prevProps, nextProps) => {
+  const compareKeys = [
+    'dateStr', 'day', 'isSelected', 'isHoliday', 'isOutOfMonth', 'isWeekend', 
+    'bgcolor', 'totalHours', 'status', 'variant', 'tooltipContent', 'iconSize'
+  ];
+  
+  // Compare primitive props
+  for (const key of compareKeys) {
+    if (prevProps[key] !== nextProps[key]) return false;
+  }
+  
+  // Compare icon reference
+  if (prevProps.icon !== nextProps.icon) return false;
+  
+  // Compare normalized staged op
+  const prevNormalized = prevProps.stagedOp || 
+    (prevProps.stagingEntry?.op && ['create', 'update', 'delete'].includes(prevProps.stagingEntry.op) ? prevProps.stagingEntry.op : null) ||
+    (prevProps.stagedStatus === 'staged-insert' ? 'create' : 
+     prevProps.stagedStatus === 'staged-update' ? 'update' : 
+     prevProps.stagedStatus === 'staged-delete' ? 'delete' : null);
+     
+  const nextNormalized = nextProps.stagedOp || 
+    (nextProps.stagingEntry?.op && ['create', 'update', 'delete'].includes(nextProps.stagingEntry.op) ? nextProps.stagingEntry.op : null) ||
+    (nextProps.stagedStatus === 'staged-insert' ? 'create' : 
+     nextProps.stagedStatus === 'staged-update' ? 'update' : 
+     nextProps.stagedStatus === 'staged-delete' ? 'delete' : null);
+     
+  return prevNormalized === nextNormalized;
+};
+
+export default memo(DayEntryTile, areEqual);
