@@ -4,7 +4,7 @@ export * from './dayEntry';
 export * from './staging';
 // Provider & context (canonical path)
 export { TimesheetProvider, useTimesheetContext } from './TimesheetProvider.jsx';
-export { useOptionalTimesheetContext } from './TimesheetProvider.jsx';
+export { useOptionalTimesheetContext, useTimesheetSelector } from './TimesheetProvider.jsx';
 export { default as useDayEditor } from './useDayEditor.js';
 export { default as useEmployeeTimesheetLoader } from './useEmployeeTimesheetLoader.js';
 export { default as useStableMergedDataMap } from './useStableMergedDataMap.js';
