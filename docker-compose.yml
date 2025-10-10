@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   gestionale_network:
     driver: bridge
@@ -17,15 +15,13 @@ services:
     command:
       - "--configFile=/etc/traefik/traefik.yml"
     ports:
-      - "80:80"      # HTTP
-      - "8081:8080"  # Dashboard (spostata su 8081)
+      - "80:80"
+      - "443:443"
+      - "8081:8080" # Dashboard
     volumes:
       - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
       - "./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    environment:
-      - TRAEFIK_EXPERIMENTAL_PLUGINS_TRAEFIKOIDCAUTH_MODULENAME=github.com/pascaliske/traefik-oidc-auth
-      - TRAEFIK_EXPERIMENTAL_PLUGINS_TRAEFIKOIDCAUTH_VERSION=v0.5.0
     networks:
       - gestionale_network
 
@@ -64,19 +60,20 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.localhost`)"
-      - "traefik.http.routers.keycloak.entrypoints=web"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
     networks:
       - gestionale_network
 
-  whoami:
-    image: traefik/whoami
-    container_name: whoami
+  frontend:
+    build: ./frontend
+    container_name: frontend
     networks:
       - gestionale_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.users-router.rule=Host(`users.localhost`)"
-      - "traefik.http.routers.users-router.entrypoints=web"
-      - "traefik.http.routers.users-router.middlewares=oidc-auth@file"
-      - "traefik.http.services.users-service.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.middlewares=spa@file"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"

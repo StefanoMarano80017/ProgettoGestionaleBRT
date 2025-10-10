@@ -1,21 +1,25 @@
 log:
   level: INFO
 
-api:
-  dashboard: true
-  insecure: true
-
-entryPoints:
-  web:
-    address: ":80"
-
-providers:
-  docker: {}
-  file:
-    filename: /etc/traefik/dynamic.yml
-
 experimental:
   plugins:
     traefik-oidc-auth:
       moduleName: "github.com/sevensolutions/traefik-oidc-auth"
       version: "v0.16.0"
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+api:
+  dashboard: true
+  insecure: true # solo per test locale
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+  file:
+    filename: "/etc/traefik/dynamic.yml"

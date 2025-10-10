@@ -8,30 +8,27 @@
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": true,
-      "redirectUris": ["http://localhost:3000/*"],
-      "authorizationServicesEnabled": true
+      "redirectUris": [
+        "http://app.localhost/*"
+      ],
+      "webOrigins": [
+        "http://app.localhost"
+      ],
+      "authorizationServicesEnabled": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://app.localhost",
+      "baseUrl": "/"
     },
     {
       "clientId": "backend-client",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
-      "directAccessGrantsEnabled": true
-    },
-    {
-      "clientId": "traefik-client",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": false,
-      "secret": "qjSYmYdxSVYtALpaTK7LEzShzw2qPJ0R",
-      "redirectUris": [
-        "http://users.localhost/oidc/callback"
-      ],
-      "webOrigins": [
-        "http://users.localhost"
-      ],
-      "serviceAccountsEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false
     }
@@ -51,7 +48,7 @@
       "enabled": true,
       "email": "john@company.com",
       "credentials": [
-        { "type": "password", "value": "JohnPass123" }
+        { "type": "password", "value": "JohnPass123", "temporary": false }
       ],
       "realmRoles": ["employee"]
     },
@@ -60,7 +57,7 @@
       "enabled": true,
       "email": "alice@company.com",
       "credentials": [
-        { "type": "password", "value": "AlicePass123" }
+        { "type": "password", "value": "AlicePass123", "temporary": false }
       ],
       "realmRoles": ["manager"]
     }
