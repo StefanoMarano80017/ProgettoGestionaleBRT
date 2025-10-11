@@ -9,7 +9,6 @@ const LABELS = {
   [DayStatus.Holiday]: 'Festivo',
   [DayStatus.Ferie]: 'Ferie',
   [DayStatus.Malattia]: 'Malattia',
-  [DayStatus.Permesso]: 'Permesso',
   [DayStatus.NonWorkPartial]: 'Assenza parziale (Permesso/ROL)',
   [DayStatus.Complete]: '8 ore',
   [DayStatus.Partial]: 'Ore parziali',

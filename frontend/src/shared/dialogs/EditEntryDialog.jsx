@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, MenuItem, Stack, Alert, Typography, InputAdornment, IconButton, Tooltip } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import { NON_WORK } from '@mocks/ProjectMock';
 
 /** \n * EditEntryDialog - Dialog per creare o modificare una singola voce timesheet.\n *\n * RESPONSABILITA'\n * - Gestione form locale (commessa, ore, descrizione) senza toccare lo stato globale finché non si salva.\n * - Validazione di base: campi obbligatori, ore > 0, limite per voce (maxOre) e limite giornaliero cumulato (dailyLimit).\n * - Normalizzazione input ore (accetta anche virgola).\n *\n * NON si occupa di: eliminazione (gestita esternamente), ricalcolo aggregati, persistenza remota.\n *\n * PROPS PRINCIPALI\n * - open: boolean -> visibilità\n * - mode: 'add' | 'edit' -> per il titolo o logiche future\n * - item: oggetto esistente (in edit) { commessa, ore, descrizione }\n * - commesse: elenco selezionabile (aggiunge automaticamente FERIE/PERMESSO/MALATTIA se non presenti)\n * - maxOre: limite per la singola voce\n * - dailyLimit: limite complessivo giornaliero (default 8)\n * - dayUsed: ore già allocate ESCLUDENDO l'entry corrente\n * - onSave(entry) -> callback con dati validati \n */
 export default function EditEntryDialog({
@@ -94,11 +95,7 @@ export default function EditEntryDialog({
           size="small"
           sx={{ mt: 2 }}
         >
-          {commesse.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-          {/* Aggiunge voci personali se non già presenti nella lista */}
-          {['FERIE','PERMESSO','MALATTIA'].filter(c => !commesse.includes(c)).map(c => (
-            <MenuItem key={c} value={c}>{c}</MenuItem>
-          ))}
+          {commesse.filter(c => !NON_WORK.has(String(c).toUpperCase())).map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
         </TextField>
 
         {/* Ore */}

@@ -4,6 +4,8 @@ export { default as LegendItem } from './LegendItem';
 export * from './LegendItem';
 export { default as OperaioEditor } from './OperaioEditor';
 export * from './OperaioEditor';
+export { default as StagedChangesCompact } from './StagedChangesCompact';
+export * from './StagedChangesCompact';
 export { default as StagedChangesPanel } from './StagedChangesPanel';
 export * from './StagedChangesPanel';
 export { default as TimesheetStagingBar } from './TimesheetStagingBar';

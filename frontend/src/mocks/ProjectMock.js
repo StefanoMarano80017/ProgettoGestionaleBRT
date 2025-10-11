@@ -76,18 +76,20 @@ export const OPERAI = [
   { id: "op-010", name: "Franco Operaio", azienda: "INWAVE" },
 ];
 
-// Solo queste commesse
+// Solo queste commesse principali (per riferimento)
 const COMMESSE = ["VS-25-01", "VS-25-02", "VS-25-03"];
 
-// Commesse assegnate per dipendente (puoi modificare a piacere)
+// Sottocommesse assegnate per dipendente (dipendenti lavorano su sottocommesse specifiche)
+// IMPORTANTE: Questi sono IDs di SOTTOCOMMESSE con tipo di lavoro (DL, INST, PROG, MANUT, RILIEVI)
 const EMPLOYEE_COMMESSE = {
-  "emp-001": ["VS-25-01", "VS-25-02", "VS-25-03"],
-  "emp-002": ["VS-25-01", "VS-25-03"],
-  "emp-003": ["VS-25-02"],
-  "emp-004": ["VS-25-01", "VS-25-02"],
-  "emp-005": ["VS-25-03"],
-  default: ["VS-25-01", "VS-25-02", "VS-25-03"],
+  "emp-001": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-03-PROG"], // DL+Collaudo, Installazione, Progettazione
+  "emp-002": ["VS-25-01-DL", "VS-25-03-PROG"], // DL+Collaudo, Progettazione
+  "emp-003": ["VS-25-02-MANUT"], // Manutenzione Generale
+  "emp-004": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
+  "emp-005": ["VS-25-03-PROG"], // Progettazione Completa
+  default: ["VS-25-01-DL", "VS-25-01-INST", "VS-25-03-PROG"], // Default: multiple sottocommesse
 };
+export { EMPLOYEE_COMMESSE };
 
 const descrizioni = [
   "Sviluppo modulo login",

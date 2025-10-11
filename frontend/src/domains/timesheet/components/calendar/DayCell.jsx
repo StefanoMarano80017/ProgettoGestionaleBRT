@@ -32,7 +32,7 @@ export function DayCell({
   const showHours = totalHours > 0 && status !== 'ferie' && status !== 'malattia' && status !== 'non-work-full';
   
   // Determine icon position
-  const iconTopRight = status === 'complete' || status === 'partial' || status === 'permesso';
+  const iconTopRight = status === 'complete' || status === 'partial' || status === 'permesso' || status === 'rol';
   
   // Generate tooltip content
   const tooltipContent = formatDayTooltip(entries, segnalazione, totalHours);

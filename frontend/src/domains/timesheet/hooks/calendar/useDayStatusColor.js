@@ -16,7 +16,7 @@ export function useDayStatusColor() {
       case DayStatus.Malattia:
         return theme.palette.success.main;
       case DayStatus.Permesso:
-        return theme.palette.info.main;
+      case DayStatus.Rol:
       case DayStatus.NonWorkPartial:
         return theme.palette.info.main;
       case DayStatus.Complete:

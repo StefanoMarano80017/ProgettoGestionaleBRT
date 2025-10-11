@@ -6,11 +6,14 @@ import { buildMalattia8, buildFerie8, buildPermRol, buildMix, containsMalattia }
 export default function PersonalAbsenceEditor({ employeeId, employeeName, dateKey, initial = [], onChangeDraft = () => {}, onConfirm = () => {}, onCancel = () => {} }) {
   const parsedDate = dateKey || '';
 
-  // Modes: ferie | permRol | mix
+  // Modes: ferie | permRolOnly | feriePermRol
+  // - ferie: FERIE 8h
+  // - permRolOnly: PERMESSO/ROL any hours (for mixed days with work)
+  // - feriePermRol: PERMESSO/ROL totaling exactly 8h as FERIE replacement (auto-compensate)
   const [mode, setMode] = useState('ferie');
   const [malattia, setMalattia] = useState(false);
-  const [permHours, setPermHours] = useState(0);
-  const [rolHours, setRolHours] = useState(0);
+  const [permHours, setPermHours] = useState(4); // Default 4h for feriePermRol
+  const [rolHours, setRolHours] = useState(4);   // Default 4h for feriePermRol
 
   useEffect(() => {
     // initialize from initial entries if provided
@@ -21,27 +24,51 @@ export default function PersonalAbsenceEditor({ employeeId, employeeName, dateKe
     if (codes.includes('MALATTIA')) {
       setMalattia(true);
       setMode('ferie');
-      setPermHours(0); setRolHours(0);
+      setPermHours(4); setRolHours(4);
       return;
     }
   const perm = nw.filter(r => String(r.commessa).toUpperCase() === 'PERMESSO').reduce((s,r)=>s+Number(r.ore||0),0);
   const rol = nw.filter(r => String(r.commessa).toUpperCase() === 'ROL').reduce((s,r)=>s+Number(r.ore||0),0);
     const ferie = nw.filter(r => String(r.commessa).toUpperCase() === 'FERIE').reduce((s,r)=>s+Number(r.ore||0),0);
     if (ferie === 8 && perm === 0 && rol === 0) { setMode('ferie'); }
-    else if (ferie === 0 && (perm+rol) === 8) { setMode('permRol'); setPermHours(perm); setRolHours(rol); }
-    else { setMode('mix'); setPermHours(perm); setRolHours(rol); }
+    else if (ferie === 0 && (perm+rol) === 8) { setMode('feriePermRol'); setPermHours(perm); setRolHours(rol); }
+    else { setMode('permRolOnly'); setPermHours(perm); setRolHours(rol); }
   }, [initial]);
 
   const permRolSum = Number(permHours || 0) + Number(rolHours || 0);
-  const ferieComputed = mode === 'mix' ? Math.max(0, 8 - permRolSum) : (mode === 'ferie' ? 8 : 0);
 
   const valid = useMemo(() => {
     if (malattia) return true;
     if (mode === 'ferie') return true;
-    if (mode === 'permRol') return permRolSum === 8;
-    if (mode === 'mix') return permRolSum <= 8;
+    // permRolOnly: at least one field must have hours, and total <= 8
+    if (mode === 'permRolOnly') {
+      const hasPermesso = permHours > 0;
+      const hasRol = rolHours > 0;
+      return (hasPermesso || hasRol) && permRolSum <= 8;
+    }
+    if (mode === 'feriePermRol') return permRolSum === 8; // Must total exactly 8h to replace FERIE
     return false;
-  }, [malattia, mode, permRolSum]);
+  }, [malattia, mode, permRolSum, permHours, rolHours]);
+
+  // Handler for PERMESSO hours change with auto-compensation in feriePermRol mode
+  const handlePermHoursChange = (newPerm) => {
+    const clamped = Math.max(0, Math.min(8, Number(newPerm || 0)));
+    setPermHours(clamped);
+    if (mode === 'feriePermRol') {
+      // Auto-compensate ROL to maintain 8h total
+      setRolHours(Math.max(0, 8 - clamped));
+    }
+  };
+
+  // Handler for ROL hours change with auto-compensation in feriePermRol mode
+  const handleRolHoursChange = (newRol) => {
+    const clamped = Math.max(0, Math.min(8, Number(newRol || 0)));
+    setRolHours(clamped);
+    if (mode === 'feriePermRol') {
+      // Auto-compensate PERMESSO to maintain 8h total
+      setPermHours(Math.max(0, 8 - clamped));
+    }
+  };
 
   // Notify draft changes when inputs change
   useEffect(() => {
@@ -49,22 +76,22 @@ export default function PersonalAbsenceEditor({ employeeId, employeeName, dateKe
       let rows = [];
       if (malattia) rows = buildMalattia8();
       else if (mode === 'ferie') rows = buildFerie8();
-      else if (mode === 'permRol') rows = (permRolSum === 8) ? buildPermRol(permHours, rolHours) : [];
-      else if (mode === 'mix') rows = (permRolSum <= 8) ? buildMix(permHours, rolHours) : [];
+      else if (mode === 'permRolOnly') rows = (permRolSum > 0 && permRolSum <= 8) ? buildPermRol(permHours, rolHours, false) : [];
+      else if (mode === 'feriePermRol') rows = (permRolSum === 8) ? buildPermRol(permHours, rolHours, true) : []; // Strict=true for 8h requirement
       onChangeDraft(rows);
     } catch (err) {
       // don't block UI; onChangeDraft will receive [] if invalid
       onChangeDraft([]);
     }
-  }, [malattia, mode, permHours, rolHours, ferieComputed, onChangeDraft]);
+  }, [malattia, mode, permHours, rolHours, permRolSum, onChangeDraft]);
 
   const handleConfirm = () => {
     if (!valid) return;
     let draft = [];
     if (malattia) draft = buildMalattia8();
     else if (mode === 'ferie') draft = buildFerie8();
-    else if (mode === 'permRol') draft = buildPermRol(permHours, rolHours);
-    else if (mode === 'mix') draft = buildMix(permHours, rolHours);
+    else if (mode === 'permRolOnly') draft = buildPermRol(permHours, rolHours, false);
+    else if (mode === 'feriePermRol') draft = buildPermRol(permHours, rolHours, true); // Strict=true for 8h requirement
     // Call onChangeDraft before onConfirm as requested
     try { onChangeDraft(draft); } catch (e) { /* ignore */ }
     onConfirm(draft);
@@ -81,27 +108,52 @@ export default function PersonalAbsenceEditor({ employeeId, employeeName, dateKe
           </Stack>
           <Divider />
           <Typography>Conta come</Typography>
-          <RadioGroup value={mode} onChange={(e) => setMode(e.target.value)} row>
+          <RadioGroup value={mode} onChange={(e) => {
+            const newMode = e.target.value;
+            setMode(newMode);
+            // Initialize hours when switching to feriePermRol
+            if (newMode === 'feriePermRol' && permRolSum !== 8) {
+              setPermHours(4);
+              setRolHours(4);
+            }
+          }} row>
             <FormControlLabel value="ferie" control={<Radio />} label="Ferie (8h)" disabled={malattia} />
-            <FormControlLabel value="permRol" control={<Radio />} label="Permessi/ROL (8h)" disabled={malattia} />
-            <FormControlLabel value="mix" control={<Radio />} label="Mix (ferie + perm/ROL)" disabled={malattia} />
+            <FormControlLabel value="permRolOnly" control={<Radio />} label="Permessi/ROL" disabled={malattia} />
+            <FormControlLabel value="feriePermRol" control={<Radio />} label="FERIE(Permessi/ROL)" disabled={malattia} />
           </RadioGroup>
 
-          {(mode === 'permRol' || mode === 'mix') && (
+          {(mode === 'permRolOnly' || mode === 'feriePermRol') && (
             <Stack direction="row" spacing={2} alignItems="center">
-              <TextField label="Ore PERMESSO" type="number" value={permHours} onChange={(e) => setPermHours(Number(e.target.value || 0))} inputProps={{ min: 0, max: 8 }} />
-              <TextField label="Ore ROL" type="number" value={rolHours} onChange={(e) => setRolHours(Number(e.target.value || 0))} inputProps={{ min: 0, max: 8 }} />
-              {mode === 'mix' && (
-                <TextField label="Ferie (calcolato)" value={ferieComputed} InputProps={{ readOnly: true }} />
+              <TextField 
+                label="Ore PERMESSO" 
+                type="number" 
+                value={permHours} 
+                onChange={(e) => handlePermHoursChange(e.target.value)} 
+                inputProps={{ min: 0, max: 8, step: 0.5 }} 
+              />
+              <TextField 
+                label="Ore ROL" 
+                type="number" 
+                value={rolHours} 
+                onChange={(e) => handleRolHoursChange(e.target.value)} 
+                inputProps={{ min: 0, max: 8, step: 0.5 }} 
+              />
+              {mode === 'feriePermRol' && (
+                <Typography variant="body2" sx={{ minWidth: 80, color: 'text.secondary' }}>
+                  = {permRolSum}h
+                </Typography>
               )}
             </Stack>
           )}
 
-          {mode === 'permRol' && permRolSum !== 8 && (
-            <Typography color="error">La somma di PERMESSO e ROL deve essere esattamente 8h</Typography>
+          {mode === 'permRolOnly' && permRolSum <= 0 && (
+            <Typography color="error">Inserire almeno 1 ora tra PERMESSO e ROL</Typography>
           )}
-          {mode === 'mix' && permRolSum > 8 && (
-            <Typography color="error">La somma di PERMESSO e ROL non può superare 8h</Typography>
+          {mode === 'permRolOnly' && permRolSum > 8 && (
+            <Typography color="error">La somma non può superare 8h</Typography>
+          )}
+          {mode === 'feriePermRol' && permRolSum !== 8 && (
+            <Typography color="error">La somma deve essere esattamente 8h (compensazione automatica)</Typography>
           )}
 
           {/* no balances here per spec (optional) */}

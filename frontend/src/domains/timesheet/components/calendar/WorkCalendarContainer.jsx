@@ -130,9 +130,10 @@ export function WorkCalendarContainer({
     setMonthYear(nextMonth, nextYear);
   }, [currentMonth, currentYear, setMonthYear]);
 
-  const onToday = useCallback(() => {
-    const now = new Date();
-    setMonthYear(now.getMonth(), now.getFullYear());
+  const onDateSelect = useCallback((date) => {
+    if (date) {
+      setMonthYear(date.getMonth(), date.getFullYear());
+    }
   }, [setMonthYear]);
 
   // Calendar controller for day interactions
@@ -165,7 +166,7 @@ export function WorkCalendarContainer({
       stagedStatusMap={stagedStatusMap}
       onPrevMonth={onPrevMonth}
       onNextMonth={onNextMonth}
-      onToday={onToday}
+      onDateSelect={onDateSelect}
       onVisibleRangeChange={onVisibleRangeChange}
       // Pass through view-specific props
       renderDayTooltip={renderDayTooltip}

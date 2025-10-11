@@ -10,11 +10,14 @@ export function buildFerie8() {
   return [{ commessa: "FERIE", ore: 8 }];
 }
 
-export function buildPermRol(perm, rol) {
+export function buildPermRol(perm, rol, strict = false) {
   const p = Number(perm) || 0;
   const r = Number(rol) || 0;
-  if (p + r !== 8) {
+  if (strict && p + r !== 8) {
     throw new Error(`PERMESSO+ROL devono sommare 8h (attuale: ${p + r}).`);
+  }
+  if (p + r > 8) {
+    throw new Error(`PERMESSO+ROL non possono superare 8h (attuale: ${p + r}).`);
   }
   const arr = [];
   if (p > 0) arr.push({ commessa: "PERMESSO", ore: p });
