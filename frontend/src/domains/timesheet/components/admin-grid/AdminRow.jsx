@@ -46,7 +46,7 @@ const AdminRow = memo(function AdminRow({
   const highlightColor = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.18 : 0.1);
   const selectedHighlightColor = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.34 : 0.22);
   const employeeColumnBaseBg = theme.palette.mode === 'dark'
-    ? alpha(theme.palette.customBlue3?.main || theme.palette.primary.dark, 0.84)
+    ? alpha(theme.palette.customBackground?.main || theme.palette.primary.dark, 1)
     : theme.palette.customBlue3?.main || theme.palette.primary.dark;
   const employeeColumnBg = isSelected
     ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.48 : 0.36)

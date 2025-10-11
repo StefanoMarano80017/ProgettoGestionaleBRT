@@ -278,15 +278,15 @@ function InnerDashboardAmministrazione() {
   }, [ctx?.dataMap, selectedEmployeeId]);
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', py: 4 }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', py: 3 }}>
       <Container maxWidth="xl">
-        {/* Page Header */}
+        {/* Page Header - Compact */}
         <Paper
           elevation={0}
           sx={{
-            mb: 3,
-            p: 3,
-            borderRadius: 3,
+            mb: 2,
+            p: 2.5,
+            borderRadius: 2,
             background: (theme) => 
               `linear-gradient(135deg, ${theme.palette.customBlue3?.main || theme.palette.primary.main} 0%, ${theme.palette.customBlue2?.main || '#006494'} 50%, ${theme.palette.customBlue1?.main || '#00A6FB'} 100%)`,
             color: '#ffffff',
@@ -296,56 +296,90 @@ function InnerDashboardAmministrazione() {
             borderColor: 'customBlue3.main'
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, color: '#ffffff' }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: '#ffffff' }}>
             Timesheet — Amministrazione
           </Typography>
-          <Typography variant="body1" sx={{ mt: 1, opacity: 0.95, color: '#ffffff' }}>
+          <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.95, color: '#ffffff' }}>
             Visualizza e gestisci i timesheet di tutti i dipendenti
           </Typography>
         </Paper>
 
-        {/* Staging Bar - Not sticky, scrolls with content */}
+        {/* Staging Bar - Compact, top priority */}
         <TimesheetStagingBar sticky={false} />
 
-        {/* Filters */}
-        <AdminFiltersBar
-          value={filters}
-          onChange={setFilters}
-          month={month}
-          year={year}
-          onMonthPrev={handleMonthPrev}
-          onMonthNext={handleMonthNext}
-          onToday={handleToday}
-          onDateSelect={handleDateSelect}
-        />
+        {/* Bento Grid Layout */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              md: 'repeat(12, 1fr)'
+            },
+            gap: 2,
+            mt: 2
+          }}
+        >
+          {/* Filters Panel - Full width, compact */}
+          <Box
+            sx={{
+              gridColumn: { xs: '1 / -1', md: '1 / -1' }
+            }}
+          >
+            <AdminFiltersBar
+              value={filters}
+              onChange={setFilters}
+              month={month}
+              year={year}
+              onMonthPrev={handleMonthPrev}
+              onMonthNext={handleMonthNext}
+              onToday={handleToday}
+              onDateSelect={handleDateSelect}
+            />
+          </Box>
 
-        {/* Grid */}
-        <AdminTimesheetGrid
-          year={year}
-          month={month}
-          employees={filteredEmployees}
-          dataMap={ctx?.dataMap || {}}
-          stagedMeta={stagedMeta}
-          stagingEntries={stagingEntries}
-          selectedEmployeeId={selectedEmployeeId}
-          onSelectEmployee={handleEmployeeSelect}
-          onDayDoubleClick={handleDayDoubleClick}
-          onDaySelect={handleCalendarDaySelect}
-          selectedDay={selectedDay}
-          highlightedDates={highlightedDates}
-        />
+          {/* Main Grid - Left side, takes 8 columns */}
+          <Box
+            sx={{
+              gridColumn: { xs: '1 / -1', md: '1 / 9' },
+              minHeight: { md: '600px' }
+            }}
+          >
+            <AdminTimesheetGrid
+              year={year}
+              month={month}
+              employees={filteredEmployees}
+              dataMap={ctx?.dataMap || {}}
+              stagedMeta={stagedMeta}
+              stagingEntries={stagingEntries}
+              selectedEmployeeId={selectedEmployeeId}
+              onSelectEmployee={handleEmployeeSelect}
+              onDayDoubleClick={handleDayDoubleClick}
+              onDaySelect={handleCalendarDaySelect}
+              selectedDay={selectedDay}
+              highlightedDates={highlightedDates}
+            />
+          </Box>
 
-        <AdminEmployeeInspector
-          employee={selectedEmployee}
-          month={month}
-          year={year}
-          mergedData={selectedEmployeeMergedData}
-          baseData={selectedEmployeeBaseData}
-          selectedDay={selectedDay}
-          onSelectDay={handleCalendarDaySelect}
-          selectedPeriod={selectedPeriod}
-          onPeriodChange={setSelectedPeriod}
-        />
+          {/* Inspector Panel - Right side, takes 4 columns */}
+          <Box
+            sx={{
+              gridColumn: { xs: '1 / -1', md: '9 / -1' },
+              minHeight: { md: '600px' }
+            }}
+          >
+            <AdminEmployeeInspector
+              employee={selectedEmployee}
+              month={month}
+              year={year}
+              mergedData={selectedEmployeeMergedData}
+              baseData={selectedEmployeeBaseData}
+              selectedDay={selectedDay}
+              onSelectDay={handleCalendarDaySelect}
+              selectedPeriod={selectedPeriod}
+              onPeriodChange={setSelectedPeriod}
+            />
+          </Box>
+        </Box>
 
         {/* Day Entry Dialog */}
         <DayEntryDialog

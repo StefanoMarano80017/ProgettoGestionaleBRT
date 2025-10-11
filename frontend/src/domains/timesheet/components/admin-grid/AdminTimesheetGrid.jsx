@@ -290,12 +290,19 @@ export function AdminTimesheetGrid({
 
   return (
     <Paper
-      elevation={2}
+      elevation={3}
       sx={{
         borderRadius: 2,
         overflow: 'hidden',
         border: '1px solid',
-        borderColor: 'divider'
+        borderColor: 'divider',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'box-shadow 0.3s ease',
+        '&:hover': {
+          boxShadow: (theme) => theme.shadows[6]
+        }
       }}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -307,7 +314,8 @@ export function AdminTimesheetGrid({
       {/* Virtuoso grid with single scroller */}
       <Box
         sx={{
-          height: 'calc(100vh - 450px)'
+          flexGrow: 1,
+          minHeight: 0 // Allow flex to control height
         }}
       >
         <Virtuoso
