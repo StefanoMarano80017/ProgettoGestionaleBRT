@@ -8,6 +8,7 @@ import TimesheetRouter from "@domains/timesheet/pages/TimesheetRouter";
 import DipendenteTimesheet from "@domains/timesheet/pages/DipendenteTimesheet";
 // import DashboardAmministrazioneTimesheet from "./Pages/DashboardAmministrazioneTimesheet";
 import Home from "@/Pages/Home"; // <-- aggiunto
+import Commesse from "@/Pages/Commesse";
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/Home" element={<Home />} />
         <Route path="/timesheet" element={<TimesheetRouter />} />
+        <Route path="/commesse" element={<Commesse />} />
         <Route path="/dipendente" element={<DipendenteTimesheet />} />
         <Route path="/app" element={<Home />} />
       </Route>

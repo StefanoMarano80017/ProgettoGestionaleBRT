@@ -179,7 +179,7 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 						<Stack spacing={0}>
 							{/* Header with gradient - Compact */}
 							<Box sx={{ 
-								background: (theme) => `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+								background: (theme) => `linear-gradient(135deg, ${theme.palette.customBlue3?.main || theme.palette.primary.main} 0%, ${theme.palette.customBlue2?.main || '#006494'} 50%, ${theme.palette.customBlue1?.main || '#00A6FB'} 100%)`,
 								px: 2,
 								py: 1.5,
 								position: 'relative',

@@ -176,20 +176,30 @@ export function BadgeCompact({
       {lastBadgeType && (
         <>
           <Divider orientation="vertical" flexItem sx={{ my: 0.5 }} />
-          <Chip
-            icon={<TypeIcon sx={{ fontSize: 16 }} />}
-            label={typeConfig.label}
-            size="small"
-            color={typeConfig.color}
-            sx={{
-              height: 24,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              '& .MuiChip-icon': {
-                fontSize: 16
-              }
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              flex: 1,
+              minWidth: 0
             }}
-          />
+          >
+            <Chip
+              icon={<TypeIcon sx={{ fontSize: 16 }} />}
+              label={typeConfig.label}
+              size="small"
+              color={typeConfig.color}
+              sx={{
+                height: 24,
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                '& .MuiChip-icon': {
+                  fontSize: 16
+                }
+              }}
+            />
+          </Box>
         </>
       )}
     </Paper>

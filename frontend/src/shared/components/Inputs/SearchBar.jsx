@@ -70,7 +70,7 @@ export default function SearchBar() {
 							<InputAdornment position="start">
 								<SearchIcon 
 									fontSize="small" 
-									sx={{ color: 'text.secondary' }} 
+									sx={{ color: 'primary.main' }} 
 								/>
 							</InputAdornment>
 						),
@@ -81,21 +81,28 @@ export default function SearchBar() {
 										display: "flex", 
 										alignItems: "center", 
 										gap: 0.5,
-										bgcolor: (theme) => alpha(theme.palette.action.hover, 0.5),
+										bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
 										px: 1,
 										py: 0.25,
 										borderRadius: 1,
 										border: '1px solid',
-										borderColor: 'divider',
+										borderColor: (theme) => alpha(theme.palette.primary.main, 0.2),
 									}}
 								>
-									<KeyboardIcon fontSize="small" sx={{ fontSize: 14 }} />
+									<KeyboardIcon 
+										fontSize="small" 
+										sx={{ 
+											fontSize: 14,
+											color: 'primary.main',
+										}} 
+									/>
 									<Typography 
 										variant="caption" 
 										sx={{ 
 											fontSize: '0.7rem',
 											fontWeight: 500,
 											letterSpacing: 0.5,
+											color: 'primary.main',
 										}}
 									>
 										Ctrl+K
@@ -105,9 +112,9 @@ export default function SearchBar() {
 						),
 						sx: { 
 							borderRadius: 2,
-							bgcolor: (theme) => alpha(theme.palette.action.hover, 0.3),
+							bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
 							'&:hover': {
-								bgcolor: (theme) => alpha(theme.palette.action.hover, 0.4),
+								bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
 							},
 							'&.Mui-focused': {
 								bgcolor: 'background.paper',
