@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Dialog,
@@ -15,7 +15,6 @@ import {
 
 export default function PartialPermessoEditor({
   open,
-  employeeId,
   employeeName,
   dateKey,
   initial = [],
@@ -137,7 +136,6 @@ export default function PartialPermessoEditor({
 
 PartialPermessoEditor.propTypes = {
   open: PropTypes.bool.isRequired,
-  employeeId: PropTypes.string.isRequired,
   employeeName: PropTypes.string.isRequired,
   dateKey: PropTypes.string.isRequired,
   initial: PropTypes.array,

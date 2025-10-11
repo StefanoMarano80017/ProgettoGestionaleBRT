@@ -123,7 +123,7 @@ export function DayEntryPanel({
 			userEditRef.current = false;
 		}, 450);
 		return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-	}, [records, autoStage, employeeId, effectiveDate, staging, mergedRecords, baseCommitted]);
+		}, [records, autoStage, employeeId, effectiveDate, staging, mergedRecords, baseCommitted, maxHoursPerDay]);
 
 	useEffect(() => { if (typeof onDraftChange === 'function') onDraftChange(records); }, [records, onDraftChange]);
 
@@ -300,7 +300,7 @@ export function DayEntryPanel({
 					employeeId={employeeId}
 					dateKey={effectiveDate}
 					initial={mergedRecords}
-					onChangeDraft={(d) => { /* no-op for now */ }}
+					onChangeDraft={() => { /* no-op for now */ }}
 					onCancel={() => setAbsenceEditorOpen(false)}
 					onConfirm={(rows) => {
 						// Build draft rows: remove existing non-work rows and append these

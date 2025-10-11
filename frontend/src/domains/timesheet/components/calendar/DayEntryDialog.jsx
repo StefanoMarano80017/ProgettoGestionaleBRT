@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Skeleton, Box } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DayEntryPanel from './DayEntryPanel';
@@ -27,7 +27,19 @@ export default function DayEntryDialog({
     }
   }, [open]);
 
-  const longDate = date ? new Date(date).toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
+  const longDate = useMemo(() => {
+    if (!date) return '';
+    const value = new Date(date).toLocaleDateString('it-IT', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    return value
+      .split(' ')
+      .map((segment) => (segment ? segment.charAt(0).toUpperCase() + segment.slice(1) : segment))
+      .join(' ');
+  }, [date]);
   const empLabel = employeeName ? ` – ${employeeName}` : '';
 
   return (

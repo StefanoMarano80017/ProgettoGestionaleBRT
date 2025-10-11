@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Dialog,
@@ -15,7 +15,6 @@ import {
 
 export default function FullDayPermessoEditor({
   open,
-  employeeId,
   employeeName,
   dateKey,
   onChangeDraft,
@@ -139,7 +138,6 @@ export default function FullDayPermessoEditor({
 
 FullDayPermessoEditor.propTypes = {
   open: PropTypes.bool.isRequired,
-  employeeId: PropTypes.string.isRequired,
   employeeName: PropTypes.string.isRequired,
   dateKey: PropTypes.string.isRequired,
   onChangeDraft: PropTypes.func.isRequired,

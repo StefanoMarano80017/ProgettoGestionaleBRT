@@ -7,19 +7,19 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditOutlinedIcon from '@mui/icons-material/ModeEditOutline';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloseIcon from '@mui/icons-material/Close';
-import UndoIcon from '@mui/icons-material/Undo';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTimesheetStaging, useOptionalTimesheetContext, useTimesheetApi } from '@domains/timesheet/hooks';
 import { computeDayDiff, summarizeDayDiff } from '@domains/timesheet/hooks/utils/timesheetModel.js';
+
+const EMPTY_ARRAY = Object.freeze([]);
+const EMPTY_OBJECT = Object.freeze({});
 
 export default function StagedChangesPanel({ showLegend = true }) {
   const staging = useTimesheetStaging();
   const ctx = useOptionalTimesheetContext();
   const { api } = useTimesheetApi();
 
-  const ordered = staging?.order || [];
-  const entries = staging?.entries || {};
+  const ordered = staging?.order ?? EMPTY_ARRAY;
+  const entries = staging?.entries ?? EMPTY_OBJECT;
 
   const flat = useMemo(() => {
     if (!ordered.length) return [];

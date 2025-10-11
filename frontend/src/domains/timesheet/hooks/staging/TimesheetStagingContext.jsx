@@ -1,6 +1,6 @@
 import React, { createContext, useReducer, useRef, useCallback, useMemo } from 'react';
 import { ACTIONS, stagingReducer, cloneRecords } from './stagingReducer.js';
-import { useOptionalTimesheetContext } from '@domains/timesheet/hooks/TimesheetProvider.jsx';
+import { useOptionalTimesheetContext } from '@domains/timesheet/hooks/TimesheetContext';
 
 const TimesheetStagingContext = createContext(null);
 

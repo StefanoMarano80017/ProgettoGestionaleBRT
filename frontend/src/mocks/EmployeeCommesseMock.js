@@ -1,7 +1,7 @@
 // Mock asincrono: restituisce le commesse attive associate a un dipendente
 // Ora integrato con il nuovo COMMESSE_REGISTRY
 // IMPORTANTE: I dipendenti sono assegnati alle SOTTOCOMMESSE, non alle commesse principali
-import { listCommesse, isCommessaClosedOn, isSottocommessaClosedOn } from './CommesseMock.js';
+import { listCommesse, isSottocommessaClosedOn } from './CommesseMock.js';
 
 // Mapping dipendenti -> sottocommesse (IDs)
 // In un timesheet reale, i dipendenti lavorano su sottocommesse specifiche

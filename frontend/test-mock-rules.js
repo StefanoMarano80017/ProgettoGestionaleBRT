@@ -1,6 +1,5 @@
 // Quick verification of mock business rules
-import { employeeTimesheetMock, operaioPersonalMock, NON_WORK } from './src/mocks/ProjectMock.js';
-import { getEmployeeBalances } from './src/mocks/TimesheetBalancesMock.js';
+import { employeeTimesheetMock, NON_WORK } from './src/mocks/ProjectMock.js';
 
 console.log('=== VERIFICATION OF MOCK BUSINESS RULES ===\n');
 
@@ -10,17 +9,17 @@ const isNonWork = (commessa) => NON_WORK.has(String(commessa).toUpperCase());
 // RULE 1: No partial FERIE (FERIE must be 8h only)
 console.log('RULE 1: Checking for partial FERIE...');
 let partialFerieFound = false;
-Object.entries(employeeTimesheetMock).forEach(([empId, ts]) => {
-  Object.entries(ts).forEach(([dateKey, records]) => {
-    if (dateKey.includes('_segnalazione')) return;
-    records.forEach(r => {
+for (const [empId, ts] of Object.entries(employeeTimesheetMock)) {
+  for (const [dateKey, records] of Object.entries(ts)) {
+    if (dateKey.includes('_segnalazione')) continue;
+    records.forEach((r) => {
       if (String(r.commessa).toUpperCase() === 'FERIE' && r.ore !== 8) {
         console.log(`  ❌ VIOLATION: ${empId} ${dateKey} has FERIE with ${r.ore}h (must be 8h)`);
         partialFerieFound = true;
       }
     });
-  });
-});
+  }
+}
 if (!partialFerieFound) console.log('  ✅ PASS: No partial FERIE found\n');
 
 // RULE 2: MALATTIA must be 8h and exclusive
@@ -102,14 +101,14 @@ if (!totalViolation) console.log('  ✅ PASS: All days have total ≤ 8h\n');
 // RULE 6: ROL is present in dataset
 console.log('RULE 6: Checking for ROL presence...');
 let rolFound = false;
-Object.entries(employeeTimesheetMock).forEach(([empId, ts]) => {
-  Object.entries(ts).forEach(([dateKey, records]) => {
-    if (dateKey.includes('_segnalazione')) return;
-    if (records.some(r => String(r.commessa).toUpperCase() === 'ROL')) {
+for (const ts of Object.values(employeeTimesheetMock)) {
+  for (const [dateKey, records] of Object.entries(ts)) {
+    if (dateKey.includes('_segnalazione')) continue;
+    if (records.some((r) => String(r.commessa).toUpperCase() === 'ROL')) {
       rolFound = true;
     }
-  });
-});
+  }
+}
 if (rolFound) console.log('  ✅ PASS: ROL entries found in dataset\n');
 else console.log('  ⚠️ WARNING: No ROL entries found (expected some in seed)\n');
 

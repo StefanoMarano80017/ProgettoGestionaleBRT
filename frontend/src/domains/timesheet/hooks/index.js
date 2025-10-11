@@ -3,8 +3,8 @@ export * from './calendar';
 export * from './dayEntry';
 export * from './staging';
 // Provider & context (canonical path)
-export { TimesheetProvider, useTimesheetContext } from './TimesheetProvider.jsx';
-export { useOptionalTimesheetContext, useTimesheetSelector } from './TimesheetProvider.jsx';
+export { TimesheetProvider } from './TimesheetProvider.jsx';
+export { TimesheetContext, useTimesheetContext, useOptionalTimesheetContext, useTimesheetSelector } from './TimesheetContext.js';
 export { default as useDayEditor } from './useDayEditor.js';
 export { default as useEmployeeTimesheetLoader } from './useEmployeeTimesheetLoader.js';
 export { default as useStableMergedDataMap } from './useStableMergedDataMap.js';

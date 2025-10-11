@@ -1,12 +1,10 @@
 import React from 'react';
 import { IconButton, Box, alpha } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import PropTypes from 'prop-types';
 
 export function ThemeSwitch({ checked = false, onChange }) {
-	const theme = useTheme();
 	const isDark = checked;
 
 	return (

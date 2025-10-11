@@ -27,7 +27,6 @@ export function WorkCalendarView({
   onPrevMonth,
   onNextMonth,
   onDateSelect,
-  onVisibleRangeChange,
   // View-specific props
   renderDayTooltip,
   highlightedDays,
@@ -162,7 +161,6 @@ WorkCalendarView.propTypes = {
   onPrevMonth: PropTypes.func.isRequired,
   onNextMonth: PropTypes.func.isRequired,
   onDateSelect: PropTypes.func,
-  onVisibleRangeChange: PropTypes.func,
   // View-specific props
   renderDayTooltip: PropTypes.func,
   highlightedDays: PropTypes.oneOfType([PropTypes.instanceOf(Set), PropTypes.array]),

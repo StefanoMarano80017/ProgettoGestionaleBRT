@@ -1,7 +1,7 @@
 // Compact variant of staging panel for use above calendar
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Stack, Typography, IconButton, Chip, Tooltip, Snackbar, Badge } from '@mui/material';
+import { Box, Stack, Typography, IconButton, Chip, Tooltip, Snackbar } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditOutlinedIcon from '@mui/icons-material/ModeEditOutline';
@@ -10,18 +10,19 @@ import CloseIcon from '@mui/icons-material/Close';
 import UndoIcon from '@mui/icons-material/Undo';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTimesheetStaging, useOptionalTimesheetContext, useTimesheetApi } from '@domains/timesheet/hooks';
 import { computeDayDiff, summarizeDayDiff } from '@domains/timesheet/hooks/utils/timesheetModel.js';
+
+const EMPTY_ARRAY = Object.freeze([]);
+const EMPTY_OBJECT = Object.freeze({});
 
 export default function StagedChangesCompact() {
   const staging = useTimesheetStaging();
   const ctx = useOptionalTimesheetContext();
   const { api } = useTimesheetApi();
 
-  const ordered = staging?.order || [];
-  const entries = staging?.entries || {};
+  const ordered = staging?.order ?? EMPTY_ARRAY;
+  const entries = staging?.entries ?? EMPTY_OBJECT;
 
   const flat = useMemo(() => {
     if (!ordered.length) return [];
@@ -87,7 +88,7 @@ export default function StagedChangesCompact() {
   const formatDateIt = (value) => {
     if (!value) return value;
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const [y, m, d] = value.split('-');
+      const [, m, d] = value.split('-');
       return `${d}/${m}`;
     }
     const dt = new Date(value);

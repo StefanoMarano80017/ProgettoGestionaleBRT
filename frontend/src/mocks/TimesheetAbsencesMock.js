@@ -3,10 +3,6 @@
 
 import { getAllEmployeeTimesheets, NON_WORK } from '@mocks/ProjectMock';
 import { findUserById } from '@mocks/UsersMock';
-const NON_WORK_CODES = NON_WORK; // Use centralized NON_WORK from ProjectMock
-
-const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
-const toKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 function isWithinMonth(dateKey, year, month0) {
   const [yy, mm] = dateKey.split('-').map(Number);
@@ -168,8 +164,7 @@ export async function getVacationBalances({ year, employeeIds = [], quotaAnnuaHo
     const user = findUserById(empId) || {};
 
     // Sum all FERIE in the given year
-  let usedHours = 0;
-  let rolHours = 0;
+    let usedHours = 0;
     Object.entries(ts).forEach(([dateKey, records]) => {
       if (dateKey.endsWith('_segnalazione')) return;
       // Ensure year match
@@ -180,7 +175,6 @@ export async function getVacationBalances({ year, employeeIds = [], quotaAnnuaHo
         const ore = Number(r?.ore || 0) || 0;
         if (ore <= 0) return;
         if (code === 'FERIE') usedHours += ore;
-        if (code === 'ROL') rolHours += ore;
       });
     });
 
@@ -193,8 +187,6 @@ export async function getVacationBalances({ year, employeeIds = [], quotaAnnuaHo
       quotaAnnuaHours: Number(quotaAnnuaHours) || 160,
       usedHours,
       residualHours: residual,
-      // rolHours intentionally omitted from the public shape to keep this API
-      // focused on FERIE balances. If callers need rol details, use absence summaries.
     });
   }
 

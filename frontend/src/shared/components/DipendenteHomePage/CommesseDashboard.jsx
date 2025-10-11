@@ -56,14 +56,14 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 			});
 		});
 		// Filter out commesse with 0 hours for cleaner pie chart
-		const filteredEntries = Array.from(sums.entries()).filter(([_, value]) => value > 0);
+		const filteredEntries = Array.from(sums.entries()).filter(([, value]) => value > 0);
 		const pieData = filteredEntries.map(([label, value], i) => ({
 			id: i,
 			value,
 			label,
 			color: getCommessaColor(label) // Use hash-based color
 		}));
-		return { pieData, labels: filteredEntries.map(([label]) => label), values: filteredEntries.map(([_, value]) => value) };
+		return { pieData, labels: filteredEntries.map(([label]) => label), values: filteredEntries.map(([, value]) => value) };
 	}, [assignedCommesse, data, range]);
 	const riepilogo = useMemo(() => {
 		if (data && data.__monthlySummary) return {

@@ -50,7 +50,7 @@ export function BadgeCompact({
       const hours = String(date.getHours()).padStart(2, '0');
       const minutes = String(date.getMinutes()).padStart(2, '0');
       return `${hours}:${minutes}`;
-    } catch (e) {
+    } catch {
       return '--:--';
     }
   };
@@ -63,12 +63,13 @@ export function BadgeCompact({
       const day = String(date.getDate()).padStart(2, '0');
       const month = String(date.getMonth() + 1).padStart(2, '0');
       return `${day}/${month}`;
-    } catch (e) {
+    } catch {
       return '--/--';
     }
   };
 
   const typeConfig = getBadgeTypeConfig(lastBadgeType);
+  const displayLabel = lastBadgeLabel || typeConfig.label;
   const TypeIcon = typeConfig.icon;
   const statusColor = isBadgiato ? 'success' : 'text.secondary';
   const StatusIcon = isBadgiato ? CheckCircle : RadioButtonUnchecked;
@@ -187,7 +188,7 @@ export function BadgeCompact({
           >
             <Chip
               icon={<TypeIcon sx={{ fontSize: 16 }} />}
-              label={typeConfig.label}
+              label={displayLabel}
               size="small"
               color={typeConfig.color}
               sx={{

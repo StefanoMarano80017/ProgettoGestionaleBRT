@@ -78,7 +78,10 @@ const DayEntryTile = React.forwardRef(function DayEntryTile({
   const tile = (
     <Box
       ref={ref}
-      onClick={() => onClick?.(dateStr)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(dateStr);
+      }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick?.(dateStr); }}
       {...(normalizedStagedOp ? { 'data-staged-op': normalizedStagedOp } : {})}
       {...(status ? { 'data-status': status } : {})}

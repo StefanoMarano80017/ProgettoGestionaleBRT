@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, RadioGroup, FormControlLabel, Radio, Switch, TextField, Stack, Typography, Divider } from '@mui/material';
-import { buildMalattia8, buildFerie8, buildPermRol, buildMix, containsMalattia } from '@domains/timesheet/hooks/dayEntry/useNonWorkDraftBuilder';
+import { buildMalattia8, buildFerie8, buildPermRol } from '@domains/timesheet/hooks/dayEntry/useNonWorkDraftBuilder';
 
-export default function PersonalAbsenceEditor({ employeeId, employeeName, dateKey, initial = [], onChangeDraft = () => {}, onConfirm = () => {}, onCancel = () => {} }) {
+export default function PersonalAbsenceEditor({ employeeName, dateKey, initial = [], onChangeDraft = () => {}, onConfirm = () => {}, onCancel = () => {} }) {
   const parsedDate = dateKey || '';
 
   // Modes: ferie | permRolOnly | feriePermRol
@@ -79,7 +79,7 @@ export default function PersonalAbsenceEditor({ employeeId, employeeName, dateKe
       else if (mode === 'permRolOnly') rows = (permRolSum > 0 && permRolSum <= 8) ? buildPermRol(permHours, rolHours, false) : [];
       else if (mode === 'feriePermRol') rows = (permRolSum === 8) ? buildPermRol(permHours, rolHours, true) : []; // Strict=true for 8h requirement
       onChangeDraft(rows);
-    } catch (err) {
+    } catch {
       // don't block UI; onChangeDraft will receive [] if invalid
       onChangeDraft([]);
     }
@@ -93,12 +93,12 @@ export default function PersonalAbsenceEditor({ employeeId, employeeName, dateKe
     else if (mode === 'permRolOnly') draft = buildPermRol(permHours, rolHours, false);
     else if (mode === 'feriePermRol') draft = buildPermRol(permHours, rolHours, true); // Strict=true for 8h requirement
     // Call onChangeDraft before onConfirm as requested
-    try { onChangeDraft(draft); } catch (e) { /* ignore */ }
+  try { onChangeDraft(draft); } catch { /* ignore */ }
     onConfirm(draft);
   };
 
   return (
-    <Dialog open={true} onClose={onCancel} fullWidth maxWidth="sm">
+    <Dialog open onClose={onCancel} fullWidth maxWidth="sm">
       <DialogTitle>Assenza personale — {employeeName} — {parsedDate}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -168,7 +168,6 @@ export default function PersonalAbsenceEditor({ employeeId, employeeName, dateKe
 }
 
 PersonalAbsenceEditor.propTypes = {
-  employeeId: PropTypes.string.isRequired,
   employeeName: PropTypes.string.isRequired,
   dateKey: PropTypes.string.isRequired,
   initial: PropTypes.array,

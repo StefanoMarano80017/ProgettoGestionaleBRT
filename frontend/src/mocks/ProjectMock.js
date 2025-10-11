@@ -53,16 +53,33 @@ function trimWorkToCap(workRows, nonWorkHours) {
   return out;
 }
 
-// Dipendenti (allineati ai mock UsersMock)
+// Dipendenti (allineati ai mock UsersMock) - EXPANDED TO ALL 17 EMPLOYEES
 const EMPLOYEES = [
+  // DIPENDENTE role (10 employees)
   { id: "emp-001", name: "Mario Rossi", azienda: "BRT" },
   { id: "emp-002", name: "Luigi Bianchi", azienda: "INWAVE" },
   { id: "emp-003", name: "Anna Verdi", azienda: "STEP" },
   { id: "emp-004", name: "Giulia Conti", azienda: "BRT" },
   { id: "emp-005", name: "Marco Neri", azienda: "INWAVE" },
+  { id: "emp-006", name: "Elisa Ferri", azienda: "STEP" },
+  { id: "emp-007", name: "Paolo Mancini", azienda: "BRT" },
+  { id: "emp-008", name: "Sara Galli", azienda: "INWAVE" },
+  { id: "emp-009", name: "Davide Moretti", azienda: "STEP" },
+  { id: "emp-010", name: "Chiara Riva", azienda: "BRT" },
+  // OPERAIO role (5 operai) - Include for admin grid visibility
+  { id: "op-001", name: "Luca Operaio", azienda: "BRT" },
+  { id: "op-002", name: "Giorgio Operaio", azienda: "BRT" },
+  { id: "op-003", name: "Sandro Operaio", azienda: "INWAVE" },
+  { id: "op-004", name: "Enrico Operaio", azienda: "STEP" },
+  { id: "op-005", name: "Diego Operaio", azienda: "STEP" },
+  // PM_CAMPO role (1 employee)
+  { id: "pmc-001", name: "Paolo Campo", azienda: "BRT" },
+  // COORDINATORE role (1 employee)
+  { id: "coord-001", name: "Cora Dinatore", azienda: "INWAVE" },
 ];
 
 // Operai (non loggabili) per PM Campo
+// NOTE: Only op-001 through op-005 exist in UsersMock; keeping full list for PM Campo feature compatibility
 export const OPERAI = [
   { id: "op-001", name: "Luca Operaio", azienda: "BRT" },
   { id: "op-002", name: "Giorgio Operaio", azienda: "BRT" },
@@ -81,12 +98,33 @@ const COMMESSE = ["VS-25-01", "VS-25-02", "VS-25-03"];
 
 // Sottocommesse assegnate per dipendente (dipendenti lavorano su sottocommesse specifiche)
 // IMPORTANTE: Questi sono IDs di SOTTOCOMMESSE con tipo di lavoro (DL, INST, PROG, MANUT, RILIEVI)
+// EXPANDED TO ALL 17 EMPLOYEES with varied commessa assignments
 const EMPLOYEE_COMMESSE = {
+  // DIPENDENTE employees (varied assignments across commesse)
   "emp-001": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-03-PROG"], // DL+Collaudo, Installazione, Progettazione
   "emp-002": ["VS-25-01-DL", "VS-25-03-PROG"], // DL+Collaudo, Progettazione
   "emp-003": ["VS-25-02-MANUT"], // Manutenzione Generale
   "emp-004": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
   "emp-005": ["VS-25-03-PROG"], // Progettazione Completa
+  "emp-006": ["VS-25-02-MANUT", "VS-25-03-PROG"], // Manutenzione, Progettazione
+  "emp-007": ["VS-25-01-INST"], // Solo Installazione
+  "emp-008": ["VS-25-01-DL", "VS-25-02-MANUT"], // DL+Collaudo, Manutenzione
+  "emp-009": ["VS-25-03-PROG", "VS-25-01-INST"], // Progettazione, Installazione
+  "emp-010": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-02-MANUT"], // DL+Collaudo, Installazione, Manutenzione
+  
+  // OPERAIO employees (typically installation and maintenance work)
+  "op-001": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
+  "op-002": ["VS-25-01-INST"], // Solo Installazione
+  "op-003": ["VS-25-02-MANUT"], // Solo Manutenzione
+  "op-004": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
+  "op-005": ["VS-25-03-PROG"], // Progettazione (operaio specializzato)
+  
+  // PM_CAMPO (field project manager - all types of work)
+  "pmc-001": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-02-MANUT", "VS-25-03-PROG"], // All sottocommesse
+  
+  // COORDINATORE (coordinator - oversight and planning)
+  "coord-001": ["VS-25-01-DL", "VS-25-03-PROG"], // DL+Collaudo, Progettazione
+  
   default: ["VS-25-01-DL", "VS-25-01-INST", "VS-25-03-PROG"], // Default: multiple sottocommesse
 };
 export { EMPLOYEE_COMMESSE };

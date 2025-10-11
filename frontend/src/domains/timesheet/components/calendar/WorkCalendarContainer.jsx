@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useCalendarMonthYear, useItalianHolidays, useCalendarDays } from '@domains/timesheet/hooks/calendar';
 import { useTimesheetSelector, useDayEditor } from '@domains/timesheet/hooks';
 import useCalendarController from '@domains/timesheet/hooks/calendar/useCalendarController';
@@ -21,8 +21,6 @@ export function WorkCalendarContainer({
   gap = 1,
   distributeGaps = false,
   variant = 'default',
-  selectorVariant = 'windowed',
-  selectorLabels = 'short',
   stagedMeta = null // optional { dateKey: 'create'|'update'|'delete' }
 }) {
   // Selective context consumption to reduce re-renders
@@ -84,18 +82,14 @@ export function WorkCalendarContainer({
   }, [onDaySelect]);
 
   // Track visible date keys for optimized staged status computation
-  const visibleDateKeysRef = useRef([]);
-  const [visibleDateKeys, setVisibleDateKeys] = useState([]);
+  const holidaySet = useItalianHolidays(currentYear);
+  const { days } = useCalendarDays({ data, currentMonth, currentYear, holidaySet });
 
-  const onVisibleRangeChange = useCallback((newVisibleDateKeys) => {
-    // Only update if the array actually changed to prevent unnecessary re-renders
-    if (JSON.stringify(visibleDateKeysRef.current) !== JSON.stringify(newVisibleDateKeys)) {
-      visibleDateKeysRef.current = newVisibleDateKeys;
-      setVisibleDateKeys([...newVisibleDateKeys]);
-    }
-  }, []);
-
-
+  const visibleDateKeys = useMemo(() => (
+    days
+      .filter((day) => day && day.dateStr)
+      .map((day) => day.dateStr)
+  ), [days]);
 
   // Compute lightweight staged status map for visible dates only
   const stagedStatusMap = useVisibleStagedStatusMap({
@@ -105,17 +99,6 @@ export function WorkCalendarContainer({
     activeEmployeeId,
     visibleDateKeys
   });
-
-  const holidaySet = useItalianHolidays(currentYear);
-  const { days } = useCalendarDays({ data, currentMonth, currentYear, holidaySet });
-
-  // Extract visible date keys from days and update the visible range
-  React.useEffect(() => {
-    const newVisibleDateKeys = days
-      .filter(day => day && day.dateStr)
-      .map(day => day.dateStr);
-    onVisibleRangeChange(newVisibleDateKeys);
-  }, [days, onVisibleRangeChange]);
 
   // Month navigation handlers with stable callbacks
   const onPrevMonth = useCallback(() => {
@@ -167,7 +150,6 @@ export function WorkCalendarContainer({
       onPrevMonth={onPrevMonth}
       onNextMonth={onNextMonth}
       onDateSelect={onDateSelect}
-      onVisibleRangeChange={onVisibleRangeChange}
       // Pass through view-specific props
       renderDayTooltip={renderDayTooltip}
       highlightedDays={highlightedDays}
