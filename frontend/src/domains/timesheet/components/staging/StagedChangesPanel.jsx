@@ -7,13 +7,16 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditOutlinedIcon from '@mui/icons-material/ModeEditOutline';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import UndoIcon from '@mui/icons-material/Undo';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTimesheetStaging, useOptionalTimesheetContext, useTimesheetApi } from '@domains/timesheet/hooks';
 import { computeDayDiff, summarizeDayDiff } from '@domains/timesheet/hooks/utils/timesheetModel.js';
 
 const EMPTY_ARRAY = Object.freeze([]);
 const EMPTY_OBJECT = Object.freeze({});
 
-export default function StagedChangesPanel({ showLegend = true }) {
+export default function StagedChangesPanel({ showLegend = true, validateDraft }) {
   const staging = useTimesheetStaging();
   const ctx = useOptionalTimesheetContext();
   const { api } = useTimesheetApi();
@@ -158,16 +161,34 @@ export default function StagedChangesPanel({ showLegend = true }) {
             else if (['day-delete', 'delete-only'].includes(diff.type)) { paletteKey = 'error'; icon = <DeleteOutlineIcon fontSize="inherit" />; }
             else if (['mixed', 'update', 'update-only'].includes(diff.type)) { paletteKey = 'warning'; icon = <EditOutlinedIcon fontSize="inherit" />; }
             const summary = summarizeDayDiff(diff);
+            const validation = typeof validateDraft === 'function' ? validateDraft(item.employeeId, item.dateKey, item.draft) : { ok: true };
+            const invalid = validation && validation.ok === false;
+            const tooltipContent = (
+              <Box sx={{ p: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600 }}>{formatDateIt(item.dateKey)}</Typography>
+                <Divider sx={{ my: 0.5 }} />
+                <Typography variant="caption">{summary}</Typography>
+                {invalid && (
+                  <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                    {validation.error || 'Bozza non valida per le regole PM Campo'}
+                  </Typography>
+                )}
+              </Box>
+            );
+            const chipSx = (theme) => {
+              if (invalid) {
+                return {
+                  borderColor: alpha(theme.palette.error.main, 0.6),
+                  color: theme.palette.error.dark,
+                  bgcolor: alpha(theme.palette.error.main, 0.12),
+                };
+              }
+              return paletteKey === 'default' ? { bgcolor: theme.palette.action.hover } : chipStyle(theme, paletteKey);
+            };
             return (
               <Tooltip
                 key={item.key}
-                title={
-                  <Box sx={{ p: 0.5 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 600 }}>{formatDateIt(item.dateKey)}</Typography>
-                    <Divider sx={{ my: 0.5 }} />
-                    <Typography variant="caption">{summary}</Typography>
-                  </Box>
-                }
+                title={tooltipContent}
                 arrow
               >
                 <Chip
@@ -177,7 +198,7 @@ export default function StagedChangesPanel({ showLegend = true }) {
                   deleteIcon={<CloseIcon />}
                   icon={icon}
                   variant="outlined"
-                  sx={(theme) => (paletteKey === 'default' ? { bgcolor: theme.palette.action.hover } : chipStyle(theme, paletteKey))}
+                  sx={chipSx}
                 />
               </Tooltip>
             );
@@ -220,4 +241,5 @@ export default function StagedChangesPanel({ showLegend = true }) {
 
 StagedChangesPanel.propTypes = {
   showLegend: PropTypes.bool,
+  validateDraft: PropTypes.func,
 };

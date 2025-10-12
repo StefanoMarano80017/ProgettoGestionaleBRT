@@ -4,6 +4,7 @@ import { ROLES } from "@mocks/UsersMock";
 import DipendenteTimesheet from "@domains/timesheet/pages/DipendenteTimesheet";
 import Coordinatore from "@domains/timesheet/pages/CoordinatoreTimesheet";
 import DashboardAmministrazioneTimesheet from "@domains/timesheet/pages/DashboardAmministrazioneTimesheet";
+import PMCampoTimesheet from "@domains/timesheet/pages/PMCampoTimesheet";
 
 export default function TimesheetRouter() {
   const { roles } = useAuth();
@@ -16,6 +17,8 @@ export default function TimesheetRouter() {
   ) {
     return <DashboardAmministrazioneTimesheet />;
   }
+
+  if (roles.includes(ROLES.PM_CAMPO)) return <PMCampoTimesheet />;
   
   if (roles.includes(ROLES.COORDINATORE)) return <Coordinatore />;
   if (roles.includes(ROLES.DIPENDENTE)) return <DipendenteTimesheet />;

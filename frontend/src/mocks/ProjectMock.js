@@ -53,7 +53,7 @@ function trimWorkToCap(workRows, nonWorkHours) {
   return out;
 }
 
-// Dipendenti (allineati ai mock UsersMock) - EXPANDED TO ALL 17 EMPLOYEES
+// Dipendenti (allineati ai mock UsersMock)
 const EMPLOYEES = [
   // DIPENDENTE role (10 employees)
   { id: "emp-001", name: "Mario Rossi", azienda: "BRT" },
@@ -66,12 +66,23 @@ const EMPLOYEES = [
   { id: "emp-008", name: "Sara Galli", azienda: "INWAVE" },
   { id: "emp-009", name: "Davide Moretti", azienda: "STEP" },
   { id: "emp-010", name: "Chiara Riva", azienda: "BRT" },
-  // OPERAIO role (5 operai) - Include for admin grid visibility
+  // OPERAIO role (16 operai) - Include for admin grid visibility
   { id: "op-001", name: "Luca Operaio", azienda: "BRT" },
   { id: "op-002", name: "Giorgio Operaio", azienda: "BRT" },
   { id: "op-003", name: "Sandro Operaio", azienda: "INWAVE" },
   { id: "op-004", name: "Enrico Operaio", azienda: "STEP" },
   { id: "op-005", name: "Diego Operaio", azienda: "STEP" },
+  { id: "op-006", name: "Paolo Operaio", azienda: "BRT" },
+  { id: "op-007", name: "Alessio Operaio", azienda: "BRT" },
+  { id: "op-008", name: "Michele Operaio", azienda: "INWAVE" },
+  { id: "op-009", name: "Stefano Operaio", azienda: "STEP" },
+  { id: "op-010", name: "Franco Operaio", azienda: "INWAVE" },
+  { id: "op-011", name: "Nicolò Operaio", azienda: "BRT" },
+  { id: "op-012", name: "Matteo Operaio", azienda: "BRT" },
+  { id: "op-013", name: "Andrea Operaio", azienda: "INWAVE" },
+  { id: "op-014", name: "Lorenzo Operaio", azienda: "INWAVE" },
+  { id: "op-015", name: "Gianni Operaio", azienda: "STEP" },
+  { id: "op-016", name: "Fabio Operaio", azienda: "STEP" },
   // PM_CAMPO role (1 employee)
   { id: "pmc-001", name: "Paolo Campo", azienda: "BRT" },
   // COORDINATORE role (1 employee)
@@ -79,7 +90,7 @@ const EMPLOYEES = [
 ];
 
 // Operai (non loggabili) per PM Campo
-// NOTE: Only op-001 through op-005 exist in UsersMock; keeping full list for PM Campo feature compatibility
+// NOTE: Ensure UsersMock mirrors this list so PM Campo features can access metadata
 export const OPERAI = [
   { id: "op-001", name: "Luca Operaio", azienda: "BRT" },
   { id: "op-002", name: "Giorgio Operaio", azienda: "BRT" },
@@ -91,6 +102,12 @@ export const OPERAI = [
   { id: "op-008", name: "Michele Operaio", azienda: "INWAVE" },
   { id: "op-009", name: "Stefano Operaio", azienda: "STEP" },
   { id: "op-010", name: "Franco Operaio", azienda: "INWAVE" },
+  { id: "op-011", name: "Nicolò Operaio", azienda: "BRT" },
+  { id: "op-012", name: "Matteo Operaio", azienda: "BRT" },
+  { id: "op-013", name: "Andrea Operaio", azienda: "INWAVE" },
+  { id: "op-014", name: "Lorenzo Operaio", azienda: "INWAVE" },
+  { id: "op-015", name: "Gianni Operaio", azienda: "STEP" },
+  { id: "op-016", name: "Fabio Operaio", azienda: "STEP" },
 ];
 
 // Solo queste commesse principali (per riferimento)
@@ -118,6 +135,17 @@ const EMPLOYEE_COMMESSE = {
   "op-003": ["VS-25-02-MANUT"], // Solo Manutenzione
   "op-004": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
   "op-005": ["VS-25-03-PROG"], // Progettazione (operaio specializzato)
+  "op-006": ["VS-25-01-INST", "VS-25-03-PROG"],
+  "op-007": ["VS-25-01-INST", "VS-25-02-MANUT"],
+  "op-008": ["VS-25-02-MANUT"],
+  "op-009": ["VS-25-01-INST"],
+  "op-010": ["VS-25-03-PROG", "VS-25-02-MANUT"],
+  "op-011": ["VS-25-01-INST", "VS-25-02-MANUT"],
+  "op-012": ["VS-25-02-MANUT"],
+  "op-013": ["VS-25-03-PROG"],
+  "op-014": ["VS-25-01-INST", "VS-25-03-PROG"],
+  "op-015": ["VS-25-02-MANUT", "VS-25-03-PROG"],
+  "op-016": ["VS-25-01-INST"],
   
   // PM_CAMPO (field project manager - all types of work)
   "pmc-001": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-02-MANUT", "VS-25-03-PROG"], // All sottocommesse
@@ -552,7 +580,7 @@ export function deletePmGroup(groupId) {
   });
 }
 
-// Assegna ore a un gruppo su una commessa in una data, con riparto uniforme sugli operai
+// Assegna ore a un gruppo su una commessa in una data, applicando le stesse ore a tutti gli operai
 export function assignHoursToGroup({ groupId, dateKey, commessa, oreTot }) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
@@ -561,11 +589,10 @@ export function assignHoursToGroup({ groupId, dateKey, commessa, oreTot }) {
       if (!grp.members || grp.members.length === 0) return reject(new Error("Il gruppo non ha membri"));
       if (!grp.timesheet[dateKey]) grp.timesheet[dateKey] = [];
       const tot = Number(oreTot) || 0;
-      const perHead = Math.floor(tot / grp.members.length);
-      const remainder = tot % grp.members.length;
+      // Apply full hours to each member instead of splitting
       const proposed = {};
-      grp.members.forEach((opId, idx) => {
-        proposed[opId] = perHead + (idx < remainder ? 1 : 0);
+      grp.members.forEach((opId) => {
+        proposed[opId] = tot;
       });
       // Valida rispetto ad altri gruppi + voci personali
       const sumByOp = {};
@@ -598,22 +625,20 @@ export function assignHoursToGroup({ groupId, dateKey, commessa, oreTot }) {
 }
 
 // Sovrascrive le voci del gruppo per una data con nuove entries [{ commessa, oreTot }],
-// ricalcolando la distribuzione per i membri del gruppo.
+// applicando le stesse ore a tutti i membri del gruppo.
 export function updateGroupDayEntries({ groupId, dateKey, entries }) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       const grp = pmGroupsMock[groupId];
       if (!grp) return reject(new Error("Gruppo non trovato"));
       if (!grp.members || grp.members.length === 0) return reject(new Error("Il gruppo non ha membri"));
-      // Costruisci proposta "next" con riparto uniforme
+      // Build proposal with full hours to each member instead of splitting
       const next = [];
       for (const e of entries || []) {
         const oreTot = Number(e.oreTot) || 0;
-        const perHead = Math.floor(oreTot / grp.members.length);
-        const remainder = oreTot % grp.members.length;
         const assegnazione = {};
-        grp.members.forEach((opId, idx) => {
-          assegnazione[opId] = perHead + (idx < remainder ? 1 : 0);
+        grp.members.forEach((opId) => {
+          assegnazione[opId] = oreTot;
         });
         next.push({ commessa: e.commessa, oreTot, assegnazione });
       }
@@ -982,8 +1007,9 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
     const d0 = toKey(yesterday);
 
     // BRT - Squadra Alfa (usa primi 2 BRT)
-    const g1Id = "grp-1";
-    const g1Members = brtOps.slice(0, 2);
+  const brtCore = brtOps.slice(0, Math.min(4, brtOps.length));
+  const g1Id = "grp-1";
+  const g1Members = brtCore.slice(0, 2);
   // Prima genera personali
   seedPersonalForOperai();
 
@@ -1044,7 +1070,7 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
 
     // NUOVO GRUPPO: Squadra Delta (BRT) con altri 2 BRT (evita sovrapposizioni con Alfa se possibile)
     const g4Id = "grp-4";
-    const g4Members = brtOps.slice(-2);
+  const g4Members = brtCore.slice(2, 4);
     if (g4Members.length >= 2) {
   const g4YearEntries = addDailyEntriesUntilToday(g4Members, 0);
       seedGroup(g4Id, "Squadra Delta", g4Members, "BRT", g4YearEntries);

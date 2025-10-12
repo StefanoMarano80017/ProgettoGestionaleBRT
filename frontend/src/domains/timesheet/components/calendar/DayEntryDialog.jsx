@@ -42,6 +42,8 @@ export default function DayEntryDialog({
   }, [date]);
   const empLabel = employeeName ? ` – ${employeeName}` : '';
 
+  const dataReady = typeof data !== 'undefined' && data !== null;
+
   return (
     <Dialog
       open={open}
@@ -67,14 +69,14 @@ export default function DayEntryDialog({
         <Typography id={descId} variant="caption" sx={{ display:'block', mb:1, opacity:0.75 }}>
           {longDate}{empLabel}. Le modifiche vengono salvate nello staging automaticamente.
         </Typography>
-        {open && (!data || Object.keys(data).length === 0) && (
+        {open && !dataReady && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <Skeleton variant="text" width="60%" />
             <Skeleton variant="rectangular" height={160} />
             <Skeleton variant="text" width="40%" />
           </Box>
         )}
-        {open && data && Object.keys(data).length > 0 && (
+        {open && dataReady && (
           <DayEntryPanel
             selectedDay={date}
             employeeId={employeeId}

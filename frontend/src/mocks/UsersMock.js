@@ -168,6 +168,17 @@ const USERS = [
   { id: "op-003", username: "op3", password: "nopass", nome: "Sandro", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "INWAVE", canLogin: false },
   { id: "op-004", username: "op4", password: "nopass", nome: "Enrico", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "STEP", canLogin: false },
   { id: "op-005", username: "op5", password: "nopass", nome: "Diego", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "STEP", canLogin: false },
+  { id: "op-006", username: "op6", password: "nopass", nome: "Paolo", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "BRT", canLogin: false },
+  { id: "op-007", username: "op7", password: "nopass", nome: "Alessio", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "BRT", canLogin: false },
+  { id: "op-008", username: "op8", password: "nopass", nome: "Michele", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "INWAVE", canLogin: false },
+  { id: "op-009", username: "op9", password: "nopass", nome: "Stefano", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "STEP", canLogin: false },
+  { id: "op-010", username: "op10", password: "nopass", nome: "Franco", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "INWAVE", canLogin: false },
+  { id: "op-011", username: "op11", password: "nopass", nome: "Nicolò", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "BRT", canLogin: false },
+  { id: "op-012", username: "op12", password: "nopass", nome: "Matteo", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "BRT", canLogin: false },
+  { id: "op-013", username: "op13", password: "nopass", nome: "Andrea", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "INWAVE", canLogin: false },
+  { id: "op-014", username: "op14", password: "nopass", nome: "Lorenzo", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "INWAVE", canLogin: false },
+  { id: "op-015", username: "op15", password: "nopass", nome: "Gianni", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "STEP", canLogin: false },
+  { id: "op-016", username: "op16", password: "nopass", nome: "Fabio", cognome: "Operaio", roles: [ROLES.OPERAIO], azienda: "STEP", canLogin: false },
 ];
 
 export async function authenticate(username, password) {

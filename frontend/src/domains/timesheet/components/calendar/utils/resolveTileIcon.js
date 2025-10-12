@@ -7,12 +7,12 @@ export function resolveTileIcon({ icon, status, theme, isCompact, iconSize }) {
     } else if (status === 'malattia') {
       statusColor = theme?.palette?.success?.main;
     }
-    const size = iconSize ?? (isCompact ? 10 : 14);
+    const size = iconSize ?? (isCompact ? 16 : 20);
     const existingSx = (icon.props && icon.props.sx) || {};
     const mergedSx = { ...existingSx, ...(statusColor ? { color: statusColor } : {}), fontSize: size };
     return { explicit: true, element: icon, sx: mergedSx, size };
   }
   // No explicit icon → caller should render <StatusIcon status=... size=...>.
-  const size = iconSize ?? (isCompact ? 10 : 14);
+  const size = iconSize ?? (isCompact ? 16 : 20);
   return { explicit: false, element: null, sx: {}, size };
 }

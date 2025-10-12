@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 export { default as DayEntryDialog } from './DayEntryDialog.jsx';
 export { default as DayEntryPanel } from './DayEntryPanel.jsx';
 export { default as DayEntryTile } from './DayEntryTile.jsx';
