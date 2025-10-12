@@ -29,12 +29,13 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { format, parse } from 'date-fns';
-import { useTimesheetApi } from '@domains/timesheet/hooks/useTimesheetApi';
-import { useTimesheetStaging } from '@domains/timesheet/hooks/staging';
-import { useTimesheetContext } from '@domains/timesheet/hooks/TimesheetContext';
-import { EMPLOYEE_COMMESSE } from '@mocks/ProjectMock';
 
-const NON_WORK_CODES = ['FERIE', 'MALATTIA', 'PERMESSO', 'ROL'];
+const ABSENCE_PRESETS = [
+  { code: 'FERIE', label: 'Ferie', icon: BeachAccessIcon, color: '#D8315B' },
+  { code: 'MALATTIA', label: 'Malattia', icon: LocalHospitalIcon, color: '#34C759' },
+  { code: 'PERMESSO', label: 'Permesso', icon: EventBusyIcon, color: '#0288d1', needsHours: true },
+  { code: 'ROL', label: 'ROL', icon: AccessTimeIcon, color: '#0288d1', needsHours: true },
+];
 
 function normalizeDateKey(value, fallback) {
   if (!value) return fallback;
@@ -50,15 +51,12 @@ export default function BulkToolsPanel({
   selectedEmployee = null,
   selectedDay = null,
   groups = [],
-  onDraftValidate,
-  onDraftStage,
-  onRefresh,
+  commessaOptions = [],
+  onStageAbsence,
+  onClearDay,
+  onAssignGroup,
   disabled = false,
 }) {
-  const { api } = useTimesheetApi();
-  const staging = useTimesheetStaging();
-  const ctx = useTimesheetContext();
-
   const [message, setMessage] = useState(null);
   const [groupMessage, setGroupMessage] = useState(null);
   const [groupForm, setGroupForm] = useState({ groupId: '', dateKey: '', commessa: '', oreTot: '' });
@@ -66,48 +64,9 @@ export default function BulkToolsPanel({
   const [processingDraft, setProcessingDraft] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [hourDialog, setHourDialog] = useState({ open: false, code: '', hours: 8 });
-  const stageFn = onDraftStage || staging.stageDraft;
-  const validatorFn = onDraftValidate || (() => ({ ok: true }));
-
-  const stageGroupDistribution = (group, dateKey) => {
-    if (!group?.members?.length) return null;
-    const entries = group.timesheet?.[dateKey] || [];
-    const commesseSet = new Set(entries.map((entry) => String(entry.commessa || '').toUpperCase()));
-    const result = { staged: 0, errors: [] };
-
-    group.members.forEach((memberId) => {
-      const baseMerged = staging.getMergedDay
-        ? staging.getMergedDay(memberId, dateKey)
-        : (ctx?.dataMap?.[memberId]?.[dateKey] || []);
-      const preserved = (baseMerged || []).filter((rec) => !commesseSet.has(String(rec?.commessa || '').toUpperCase()));
-      const groupRows = entries.map((entry, idx) => {
-        const ore = Number(entry?.assegnazione?.[memberId] || 0);
-        if (!ore) return null;
-        return {
-          id: `grp-${group.id}-${memberId}-${idx}`,
-          commessa: entry.commessa,
-          ore,
-          descrizione: entry.descrizione || `Assegnazione ${group.name}`,
-        };
-      }).filter(Boolean);
-
-      const draft = [...preserved, ...groupRows];
-      const validation = validatorFn(memberId, dateKey, draft);
-      if (!validation.ok) {
-        result.errors.push(`${memberId}: ${validation.error}`);
-        return;
-      }
-      if (typeof stageFn === 'function') {
-        stageFn(memberId, dateKey, draft);
-        result.staged += 1;
-      }
-    });
-
-    return result;
-  };
 
   const effectiveDay = useMemo(() => {
-    const fallback = new Date(year || new Date().getFullYear(), (month ?? new Date().getMonth()), 1);
+    const fallback = new Date(year || new Date().getFullYear(), month ?? new Date().getMonth(), 1);
     return normalizeDateKey(selectedDay, format(fallback, 'yyyy-MM-01'));
   }, [selectedDay, month, year]);
 
@@ -115,31 +74,14 @@ export default function BulkToolsPanel({
     setGroupForm((prev) => ({ ...prev, dateKey: effectiveDay }));
   }, [effectiveDay]);
 
-  const commessaOptions = useMemo(() => {
-    const codes = new Set();
-    if (selectedEmployee?.id) {
-      const data = ctx?.dataMap?.[selectedEmployee.id] || {};
-      Object.entries(data).forEach(([key, items]) => {
-        if (key.endsWith('_segnalazione')) return;
-        (items || []).forEach((item) => {
-          if (item?.commessa && !NON_WORK_CODES.includes(String(item.commessa).toUpperCase())) {
-            codes.add(String(item.commessa).toUpperCase());
-          }
-        });
-      });
-      const predefined = EMPLOYEE_COMMESSE?.[selectedEmployee.id];
-      if (Array.isArray(predefined)) {
-        predefined.forEach((code) => {
-          if (code && !NON_WORK_CODES.includes(String(code).toUpperCase())) {
-            codes.add(String(code).toUpperCase());
-          }
-        });
-      }
-    }
-    return Array.from(codes).sort();
-  }, [ctx?.dataMap, selectedEmployee?.id]);
+  useEffect(() => {
+    setMessage(null);
+    setValidationError('');
+  }, [selectedEmployee?.id, effectiveDay]);
 
-  const handleAbsenceClick = (code) => {
+  const canStage = !disabled && !!selectedEmployee?.id && !!effectiveDay;
+
+  const stageAbsence = async (code, hours) => {
     if (disabled) {
       setValidationError('Non hai i permessi per inserire assenze.');
       return;
@@ -154,38 +96,22 @@ export default function BulkToolsPanel({
       return;
     }
 
-    // PERMESSO and ROL require hour selection
-    if (code === 'PERMESSO' || code === 'ROL') {
-      setHourDialog({ open: true, code, hours: 8 });
-      return;
-    }
-
-    // FERIE and MALATTIA are always 8 hours
-    stageAbsence(code, 8);
-  };
-
-  const stageAbsence = (code, hours) => {
-    const dayKey = normalizeDateKey(effectiveDay, null);
-    
-    const draft = [{
-      id: `absence-${code}-${Date.now()}`,
-      commessa: code,
-      ore: Number(hours),
-      descrizione: '',
-    }];
-    
-    const validation = validatorFn(selectedEmployee.id, dayKey, draft);
-    if (!validation.ok) {
-      setValidationError(validation.error || 'Validazione non superata.');
-      return;
-    }
-    
     setProcessingDraft(true);
     try {
-      if (typeof stageFn === 'function') {
-        stageFn(selectedEmployee.id, dayKey, draft);
+      const result = await Promise.resolve(onStageAbsence?.({
+        employeeId: selectedEmployee.id,
+        dateKey: dayKey,
+        code,
+        hours,
+      }));
+      if (!result?.ok) {
+        setValidationError(result?.error || 'Validazione non superata.');
+        return;
       }
-      setMessage({ type: 'success', text: `${code} (${hours}h) inserita per ${selectedEmployee.nome} ${selectedEmployee.cognome} (${dayKey}).` });
+      setMessage({
+        type: 'success',
+        text: `${code} (${hours}h) inserita per ${selectedEmployee.nome} ${selectedEmployee.cognome} (${dayKey}).`,
+      });
       setValidationError('');
     } catch (error) {
       setValidationError(error?.message || 'Errore durante lo staging.');
@@ -194,13 +120,24 @@ export default function BulkToolsPanel({
     }
   };
 
+  const handleAbsenceClick = (code, needsHours) => {
+    if (!canStage || processingDraft) {
+      setValidationError(canStage ? 'Attendi il completamento della precedente operazione.' : 'Seleziona operaio e data.');
+      return;
+    }
+    if (needsHours) {
+      setHourDialog({ open: true, code, hours: 8 });
+      return;
+    }
+    stageAbsence(code, 8);
+  };
+
   const handleHourDialogConfirm = () => {
     const hours = Number(hourDialog.hours);
     if (!hours || hours <= 0 || hours > 8) {
       setValidationError('Inserire un numero di ore valido (1-8).');
       return;
     }
-    
     stageAbsence(hourDialog.code, hours);
     setHourDialog({ open: false, code: '', hours: 8 });
   };
@@ -219,10 +156,16 @@ export default function BulkToolsPanel({
       setValidationError('Seleziona una data valida.');
       return;
     }
+
     setProcessingDraft(true);
     try {
-      if (typeof stageFn === 'function') {
-        stageFn(selectedEmployee.id, dayKey, []);
+      const result = await Promise.resolve(onClearDay?.({
+        employeeId: selectedEmployee.id,
+        dateKey: dayKey,
+      }));
+      if (!result?.ok) {
+        setValidationError(result?.error || 'Errore durante lo staging.');
+        return;
       }
       setMessage({ type: 'info', text: `Giornata ${dayKey} svuotata nello staging.` });
       setValidationError('');
@@ -247,7 +190,8 @@ export default function BulkToolsPanel({
       setGroupMessage({ type: 'warning', text: 'Seleziona una data valida.' });
       return;
     }
-    if (!groupForm.commessa.trim()) {
+    const commessa = groupForm.commessa.trim().toUpperCase();
+    if (!commessa) {
       setGroupMessage({ type: 'warning', text: 'Inserisci la commessa.' });
       return;
     }
@@ -259,22 +203,25 @@ export default function BulkToolsPanel({
 
     setProcessingGroup(true);
     try {
-      const group = await api.assignHoursToGroup({
+      const result = await Promise.resolve(onAssignGroup?.({
         groupId: groupForm.groupId,
         dateKey,
-        commessa: groupForm.commessa.trim().toUpperCase(),
+        commessa,
         oreTot,
-      });
-      const result = stageGroupDistribution(group, dateKey);
+      }));
+      if (!result?.ok) {
+        setGroupMessage({ type: 'error', text: result?.error || 'Errore assegnazione ore.' });
+        return;
+      }
       if (result?.errors?.length) {
         setGroupMessage({
           type: 'warning',
-          text: `Ore assegnate ma alcune giornate non sono state inserite nello staging: ${result.errors.join(' | ')}`,
+          text: `Ore assegnate, ma alcune giornate non sono nello staging: ${result.errors.join(' | ')}`,
         });
       } else {
         setGroupMessage({ type: 'success', text: 'Ore assegnate alla squadra e predisposte nello staging.' });
       }
-      if (onRefresh) await onRefresh();
+      setMessage(null);
     } catch (error) {
       setGroupMessage({ type: 'error', text: error?.message || 'Errore assegnazione ore.' });
     } finally {
@@ -282,16 +229,14 @@ export default function BulkToolsPanel({
     }
   };
 
-  const canStage = !disabled && !!selectedEmployee?.id && !!effectiveDay;
-
   return (
-    <Paper 
+    <Paper
       elevation={2}
-      sx={{ 
-        p: 1.5, 
-        borderRadius: 1.5, 
-        display: 'flex', 
-        flexDirection: 'column', 
+      sx={{
+        p: 1.5,
+        borderRadius: 1.5,
+        display: 'flex',
+        flexDirection: 'column',
         gap: 1.5,
         bgcolor: 'background.paper',
         border: '1px solid',
@@ -360,7 +305,7 @@ export default function BulkToolsPanel({
           </LocalizationProvider>
           <Autocomplete
             freeSolo
-            options={commessaOptions}
+            options={commessaOptions || []}
             value={groupForm.commessa}
             inputValue={groupForm.commessa}
             onInputChange={(event, value) => setGroupForm((prev) => ({ ...prev, commessa: value }))}
@@ -399,7 +344,7 @@ export default function BulkToolsPanel({
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
           {selectedEmployee ? `${selectedEmployee.nome} ${selectedEmployee.cognome}` : 'Seleziona operaio dalla griglia'} • {effectiveDay || 'Seleziona data'}
         </Typography>
-        
+
         <Box
           sx={{
             display: 'grid',
@@ -407,133 +352,49 @@ export default function BulkToolsPanel({
             gap: 1,
           }}
         >
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={!canStage || processingDraft}
-            onClick={() => handleAbsenceClick('FERIE')}
-            startIcon={<BeachAccessIcon />}
-            sx={{
-              py: 1.5,
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              justifyContent: 'flex-start',
-              px: 2,
-              borderColor: '#D8315B',
-              color: '#D8315B',
-              borderWidth: 2,
-              '&:hover': {
-                borderColor: '#D8315B',
-                bgcolor: 'rgba(216, 49, 91, 0.08)',
+          {ABSENCE_PRESETS.map((preset) => (
+            <Button
+              key={preset.code}
+              variant="outlined"
+              size="small"
+              disabled={!canStage || processingDraft}
+              onClick={() => handleAbsenceClick(preset.code, preset.needsHours)}
+              startIcon={React.createElement(preset.icon)}
+              sx={{
+                py: 1.5,
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                justifyContent: 'flex-start',
+                px: 2,
+                borderColor: preset.color,
+                color: preset.color,
                 borderWidth: 2,
-              },
-              '&.Mui-disabled': {
-                borderColor: 'rgba(216, 49, 91, 0.3)',
-                color: 'rgba(216, 49, 91, 0.3)',
-              },
-            }}
-          >
-            Ferie
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={!canStage || processingDraft}
-            onClick={() => handleAbsenceClick('MALATTIA')}
-            startIcon={<LocalHospitalIcon />}
-            sx={{
-              py: 1.5,
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              justifyContent: 'flex-start',
-              px: 2,
-              borderColor: '#34C759',
-              color: '#34C759',
-              borderWidth: 2,
-              '&:hover': {
-                borderColor: '#34C759',
-                bgcolor: 'rgba(52, 199, 89, 0.08)',
-                borderWidth: 2,
-              },
-              '&.Mui-disabled': {
-                borderColor: 'rgba(52, 199, 89, 0.3)',
-                color: 'rgba(52, 199, 89, 0.3)',
-              },
-            }}
-          >
-            Malattia
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={!canStage || processingDraft}
-            onClick={() => handleAbsenceClick('PERMESSO')}
-            startIcon={<EventBusyIcon />}
-            sx={{
-              py: 1.5,
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              justifyContent: 'flex-start',
-              px: 2,
-              borderColor: '#0288d1',
-              color: '#0288d1',
-              borderWidth: 2,
-              '&:hover': {
-                borderColor: '#0288d1',
-                bgcolor: 'rgba(2, 136, 209, 0.08)',
-                borderWidth: 2,
-              },
-              '&.Mui-disabled': {
-                borderColor: 'rgba(2, 136, 209, 0.3)',
-                color: 'rgba(2, 136, 209, 0.3)',
-              },
-            }}
-          >
-            Permesso
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={!canStage || processingDraft}
-            onClick={() => handleAbsenceClick('ROL')}
-            startIcon={<AccessTimeIcon />}
-            sx={{
-              py: 1.5,
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              justifyContent: 'flex-start',
-              px: 2,
-              borderColor: '#0288d1',
-              color: '#0288d1',
-              borderWidth: 2,
-              '&:hover': {
-                borderColor: '#0288d1',
-                bgcolor: 'rgba(2, 136, 209, 0.08)',
-                borderWidth: 2,
-              },
-              '&.Mui-disabled': {
-                borderColor: 'rgba(2, 136, 209, 0.3)',
-                color: 'rgba(2, 136, 209, 0.3)',
-              },
-            }}
-          >
-            ROL
-          </Button>
+                '&:hover': {
+                  borderColor: preset.color,
+                  bgcolor: `${preset.color}1A`,
+                  borderWidth: 2,
+                },
+                '&.Mui-disabled': {
+                  borderColor: `${preset.color}4D`,
+                  color: `${preset.color}4D`,
+                },
+              }}
+            >
+              {preset.label}
+            </Button>
+          ))}
         </Box>
 
         <Divider sx={{ my: 0.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>oppure</Typography>
         </Divider>
 
-        <Button 
-          variant="outlined" 
-          size="small" 
-          color="error" 
-          onClick={handleStageClear} 
+        <Button
+          variant="outlined"
+          size="small"
+          color="error"
+          onClick={handleStageClear}
           disabled={!canStage || processingDraft}
           sx={{ fontSize: '0.75rem' }}
         >
@@ -587,8 +448,9 @@ BulkToolsPanel.propTypes = {
     id: PropTypes.string.isRequired,
     name: PropTypes.string,
   })),
-  onDraftValidate: PropTypes.func,
-  onDraftStage: PropTypes.func,
-  onRefresh: PropTypes.func,
+  commessaOptions: PropTypes.arrayOf(PropTypes.string),
+  onStageAbsence: PropTypes.func,
+  onClearDay: PropTypes.func,
+  onAssignGroup: PropTypes.func,
   disabled: PropTypes.bool,
 };

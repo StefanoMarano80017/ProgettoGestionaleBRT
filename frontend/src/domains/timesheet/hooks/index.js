@@ -17,6 +17,7 @@ export { default as useSegnalazione } from './useSegnalazione.js';
 export { default as useDayAndMonthDetails } from './useDayAndMonthDetails.js';
 export { default as useEmployeeMonthGridRows } from './useEmployeeMonthGridRows.js';
 export { default as useBadgeData } from './useBadgeData.js';
+export { usePmCampoTimesheetState } from './pmCampo/usePmCampoTimesheetState.js';
 // TODO: migrate remaining legacy hooks (selection, referenceData, filters, api, etc.) then remove below re-export.
 // Removed broad legacy re-export to avoid leaking deprecated modules.
 // If additional legacy symbols are still required, export them explicitly above.

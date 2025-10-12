@@ -92,15 +92,18 @@ export default function GroupManagerPanel({
   const [submitting, setSubmitting] = useState(false);
   const [confirm, setConfirm] = useState({ open: false, groupId: null });
   const [removalWarning, setRemovalWarning] = useState({ open: false, members: [], payload: null });
+  const [panelMessage, setPanelMessage] = useState(null);
 
   const openCreate = () => {
     setDialog({ open: true, mode: 'create', name: '', members: [], groupId: null });
     setDialogError('');
+    setPanelMessage(null);
   };
 
   const openEdit = (group) => {
     setDialog({ open: true, mode: 'edit', name: group.name || '', members: group.members || [], groupId: group.id });
     setDialogError('');
+    setPanelMessage(null);
   };
 
   const closeDialog = () => {
@@ -145,14 +148,20 @@ export default function GroupManagerPanel({
   const submitPayload = async (payload) => {
     setSubmitting(true);
     try {
+      const mode = dialog.mode;
       if (dialog.mode === 'create') {
         await onCreate?.(payload);
       } else if (dialog.mode === 'edit' && dialog.groupId) {
         await onUpdate?.(dialog.groupId, payload);
       }
       setDialog(EMPTY_DIALOG);
+      setPanelMessage({
+        type: 'success',
+        text: mode === 'create' ? 'Squadra creata con successo.' : 'Squadra aggiornata.',
+      });
     } catch (error) {
       setDialogError(error?.message || 'Errore durante il salvataggio.');
+      setPanelMessage({ type: 'error', text: error?.message || 'Errore durante il salvataggio.' });
     } finally {
       setSubmitting(false);
       setRemovalWarning({ open: false, members: [], payload: null });
@@ -173,8 +182,10 @@ export default function GroupManagerPanel({
     try {
       await onDelete?.(confirm.groupId);
       setConfirm({ open: false, groupId: null });
+      setPanelMessage({ type: 'success', text: 'Squadra eliminata.' });
     } catch (error) {
-      setConfirm({ open: false, groupId: null, error: error?.message || 'Errore eliminazione' });
+      setConfirm({ open: false, groupId: null });
+      setPanelMessage({ type: 'error', text: error?.message || 'Errore eliminazione.' });
     } finally {
       setSubmitting(false);
     }
@@ -206,6 +217,12 @@ export default function GroupManagerPanel({
           </span>
         </Tooltip>
       </Stack>
+
+      {panelMessage && (
+        <Alert severity={panelMessage.type} onClose={() => setPanelMessage(null)}>
+          {panelMessage.text}
+        </Alert>
+      )}
 
       {!orderedGroups.length && (
         <Alert severity="info" variant="outlined">
