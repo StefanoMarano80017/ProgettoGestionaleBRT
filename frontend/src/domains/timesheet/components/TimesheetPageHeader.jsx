@@ -122,6 +122,7 @@ export function TimesheetPageHeader({ badgeData }) {
           lastBadgeTime={badgeData.lastBadgeTime}
           lastBadgeType={badgeData.lastBadgeType}
           lastBadgeLabel={badgeData.lastBadgeLabel}
+          width={420}
         />
       )}
     </Stack>

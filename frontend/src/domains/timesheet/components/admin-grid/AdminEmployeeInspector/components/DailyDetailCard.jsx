@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Paper, Stack, Typography, Chip, Alert } from '@mui/material';
+import { Paper, Stack, Typography, Chip, Alert, Button, CircularProgress } from '@mui/material';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import { inspectorCardBaseSx } from '../utils';
 import EntryListItem from '@shared/components/Entries/EntryListItem';
 
@@ -8,19 +9,28 @@ const dailyDetailPropTypes = {
   selectedDay: PropTypes.string,
   selectedDayRecords: PropTypes.array.isRequired,
   selectedDaySegnalazione: PropTypes.object,
-  formatDateLabel: PropTypes.func.isRequired
+  formatDateLabel: PropTypes.func.isRequired,
+  onOpenSegnalazione: PropTypes.func,
+  canSendSegnalazione: PropTypes.bool,
+  sendingSegnalazione: PropTypes.bool
 };
 
 const dailyDetailDefaultProps = {
   selectedDay: null,
-  selectedDaySegnalazione: null
+  selectedDaySegnalazione: null,
+  onOpenSegnalazione: undefined,
+  canSendSegnalazione: false,
+  sendingSegnalazione: false
 };
 
 export function DailyDetailContent({
   selectedDay,
   selectedDayRecords,
   selectedDaySegnalazione,
-  formatDateLabel
+  formatDateLabel,
+  onOpenSegnalazione,
+  canSendSegnalazione,
+  sendingSegnalazione
 }) {
   return (
     <>
@@ -38,7 +48,22 @@ export function DailyDetailContent({
             Una vista rapida delle voci registrate nella giornata selezionata.
           </Typography>
         </Stack>
-        {selectedDay && <Chip size="small" color="primary" label={formatDateLabel(selectedDay)} />}
+        <Stack direction="row" spacing={1} alignItems="center">
+          {selectedDay && <Chip size="small" color="primary" label={formatDateLabel(selectedDay)} />}
+          {canSendSegnalazione && (
+            <Button
+              variant="outlined"
+              size="small"
+              color="warning"
+              onClick={() => onOpenSegnalazione?.()}
+              disabled={sendingSegnalazione}
+              startIcon={sendingSegnalazione ? <CircularProgress size={16} color="inherit" /> : <ReportProblemOutlinedIcon />}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              {sendingSegnalazione ? 'Invio…' : 'Segnalazione'}
+            </Button>
+          )}
+        </Stack>
       </Stack>
 
       {!selectedDay ? (

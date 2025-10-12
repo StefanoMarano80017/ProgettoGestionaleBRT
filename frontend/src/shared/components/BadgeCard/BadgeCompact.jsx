@@ -40,7 +40,8 @@ export function BadgeCompact({
   badgeNumber, 
   lastBadgeTime, 
   lastBadgeType,
-  lastBadgeLabel 
+  lastBadgeLabel,
+  width = 420
 }) {
   const formatTime = () => {
     if (!lastBadgeTime) return '--:--';
@@ -86,8 +87,8 @@ export function BadgeCompact({
         borderRadius: 2,
         bgcolor: 'background.paper',
         border: '1px solid',
-        borderColor: isBadgiato ? 'success.main' : 'divider',
-        width: { xs: '100%', md: 420 },
+  borderColor: isBadgiato ? 'success.main' : 'divider',
+  width: { xs: '100%', md: width },
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         '&:hover': {
           boxShadow: 4,
@@ -212,7 +213,8 @@ BadgeCompact.propTypes = {
   badgeNumber: PropTypes.string,
   lastBadgeTime: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]),
   lastBadgeType: PropTypes.string,
-  lastBadgeLabel: PropTypes.string
+  lastBadgeLabel: PropTypes.string,
+  width: PropTypes.oneOfType([PropTypes.number, PropTypes.string])
 };
 
 BadgeCompact.displayName = 'BadgeCompact';

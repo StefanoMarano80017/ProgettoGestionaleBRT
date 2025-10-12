@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import useReferenceData from '@domains/timesheet/hooks/useReferenceData';
+import useBadgeData from '@domains/timesheet/hooks/useBadgeData';
+import useSegnalazione from '@domains/timesheet/hooks/useSegnalazione';
+import { useTimesheetContext } from '@domains/timesheet/hooks/TimesheetContext';
 import { getCommessaColor } from '@shared/utils/commessaColors';
 import {
   PERIOD_OPTIONS,
@@ -42,6 +45,7 @@ function AdminEmployeeInspectorContainer({
   insightTab,
   onInsightTabChange
 }) {
+  const { setEmployeeData } = useTimesheetContext();
   const avatarSeed = useMemo(() => {
     if (!employee) return 'dipendente';
     const base = `${employee.nome || ''} ${employee.cognome || ''}`.trim();
@@ -244,6 +248,16 @@ function AdminEmployeeInspectorContainer({
     [effectiveMerged]
   );
 
+  const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const isBadgiatoToday = useMemo(() => {
+    if (!employee?.id) return false;
+    const entries = effectiveMerged[todayKey];
+    return Array.isArray(entries) && entries.length > 0;
+  }, [employee?.id, effectiveMerged, todayKey]);
+
+  const badgeData = useBadgeData(employee?.id, isBadgiatoToday);
+
   const rangeEntries = useMemo(() => {
     if (!periodRange) return [];
     return entriesByDay
@@ -382,6 +396,43 @@ function AdminEmployeeInspectorContainer({
     if (!selectedDay) return null;
     return effectiveBase[`${selectedDay}_segnalazione`] || null;
   }, [selectedDay, effectiveBase]);
+
+  const {
+    sigOpen: segnalazioneDialogOpen,
+    openSeg,
+    closeSeg,
+    send: sendSegnalazione,
+    sending: sendingSegnalazione,
+    sendingOk: sendingSegnalazioneOk
+  } = useSegnalazione({ selEmp: employee, selDate: selectedDay });
+
+  useEffect(() => {
+    if (!employee || !selectedDay) {
+      closeSeg();
+    }
+  }, [employee, selectedDay, closeSeg]);
+
+  const canSendSegnalazione = useMemo(() => Boolean(employee && selectedDay), [employee, selectedDay]);
+
+  const handleOpenSegnalazione = useCallback(() => {
+    if (!canSendSegnalazione) return;
+    openSeg();
+  }, [canSendSegnalazione, openSeg]);
+
+  const handleSendSegnalazione = useCallback(async (message) => {
+    if (!message) return;
+    await sendSegnalazione(message);
+    if (employee?.id && selectedDay) {
+      setEmployeeData(employee.id, {
+        [`${selectedDay}_segnalazione`]: { descrizione: message }
+      });
+    }
+  }, [sendSegnalazione, employee, selectedDay, setEmployeeData]);
+
+  const handleOpenBadgeHistory = useCallback(() => {
+    if (!employee?.id) return;
+    console.info('[AdminEmployeeInspector] Badge history placeholder for', employee.id);
+  }, [employee]);
 
   const previousMonthStatus = useMemo(() => {
     if (!referenceDate) return null;
@@ -585,6 +636,15 @@ function AdminEmployeeInspectorContainer({
       onPeriodReferenceChange={handleReferenceChange}
       insightTab={effectiveInsightTab}
       onInsightTabChange={handleInsightTabChange}
+      segnalazioneDialogOpen={segnalazioneDialogOpen}
+      onOpenSegnalazione={handleOpenSegnalazione}
+      onCloseSegnalazione={closeSeg}
+      onSendSegnalazione={handleSendSegnalazione}
+      canSendSegnalazione={canSendSegnalazione}
+      sendingSegnalazione={sendingSegnalazione}
+      sendingSegnalazioneOk={sendingSegnalazioneOk}
+      badgeData={badgeData}
+      onOpenBadgeHistory={handleOpenBadgeHistory}
     />
   );
 }

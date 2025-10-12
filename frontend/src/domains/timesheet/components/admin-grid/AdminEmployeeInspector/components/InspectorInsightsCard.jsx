@@ -53,7 +53,10 @@ InspectorInsightsCard.propTypes = {
     selectedDay: PropTypes.string,
     selectedDayRecords: PropTypes.array.isRequired,
     selectedDaySegnalazione: PropTypes.object,
-    formatDateLabel: PropTypes.func.isRequired
+    formatDateLabel: PropTypes.func.isRequired,
+    onOpenSegnalazione: PropTypes.func,
+    canSendSegnalazione: PropTypes.bool,
+    sendingSegnalazione: PropTypes.bool
   }).isRequired,
   periodProps: PropTypes.shape({
     referenceLoading: PropTypes.bool,
