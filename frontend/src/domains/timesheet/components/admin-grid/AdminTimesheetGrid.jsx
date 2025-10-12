@@ -80,6 +80,7 @@ export function AdminTimesheetGrid({
         selectedDay={selectedDay}
         highlightedDates={highlightedDates}
         rowIndex={index}
+        shouldBlockClickRef={shouldBlockClickRef}
       />
     );
   }, [year, month, dataMap, stagedMeta, stagingEntries, selectedEmployeeId, onSelectEmployee, onDayDoubleClick, onDaySelect, selectedDay, highlightedDates, daysInMonth, isWeekendMap, totalContentWidth]);
@@ -87,7 +88,10 @@ export function AdminTimesheetGrid({
   // Unified drag-to-scroll functionality for entire grid
   const headerScrollRef = React.useRef(null);
   const contentScrollRef = React.useRef(null);
+  const isPointerDownRef = React.useRef(false);
   const isDraggingRef = React.useRef(false);
+  const didDragRef = React.useRef(false);
+  const shouldBlockClickRef = React.useRef(false);
   const startXRef = React.useRef(0);
   const scrollLeftRef = React.useRef(0);
   const persistedScrollRef = React.useRef({ left: 0, top: 0 });
@@ -106,37 +110,56 @@ export function AdminTimesheetGrid({
   const handleMouseDown = useCallback((e, source) => {
     const scrollElement = source === 'header' ? headerScrollRef.current : contentScrollRef.current;
     if (!scrollElement) return;
-    
-    isDraggingRef.current = true;
+
+    isPointerDownRef.current = true;
+    isDraggingRef.current = false;
+    didDragRef.current = false;
+    shouldBlockClickRef.current = false;
     startXRef.current = e.pageX;
     scrollLeftRef.current = scrollElement.scrollLeft;
-    document.body.style.cursor = 'grabbing';
-    document.body.style.userSelect = 'none';
-  }, []);
-
-  // Mouse leave handler
-  const handleMouseLeave = useCallback(() => {
-    isDraggingRef.current = false;
-    document.body.style.cursor = 'default';
-    document.body.style.userSelect = 'auto';
   }, []);
 
   // Mouse up handler
   const handleMouseUp = useCallback(() => {
+    if (didDragRef.current) {
+      shouldBlockClickRef.current = true;
+      setTimeout(() => {
+        shouldBlockClickRef.current = false;
+      }, 0);
+    }
+    isPointerDownRef.current = false;
     isDraggingRef.current = false;
+    didDragRef.current = false;
     document.body.style.cursor = 'default';
     document.body.style.userSelect = 'auto';
   }, []);
 
+  // Mouse leave handler
+  const handleMouseLeave = useCallback(() => {
+    if (isPointerDownRef.current || isDraggingRef.current) {
+      handleMouseUp();
+    }
+  }, [handleMouseUp]);
+
   // Mouse move handler - syncs both header and content
   const handleMouseMove = useCallback((e) => {
-    if (!isDraggingRef.current) return;
-    e.preventDefault();
-    
+    if (!isPointerDownRef.current) return;
+
     const x = e.pageX;
-    const walk = (startXRef.current - x) * 2; // Multiply by 2 for faster scrolling
+    const delta = startXRef.current - x;
+    if (!isDraggingRef.current && Math.abs(delta) >= 3) {
+      isDraggingRef.current = true;
+      didDragRef.current = true;
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    }
+
+    if (!isDraggingRef.current) return;
+
+    e.preventDefault();
+    const walk = delta * 2; // Multiply by 2 for faster scrolling
     const newScrollLeft = scrollLeftRef.current + walk;
-    
+
     // Update both header and content simultaneously
     if (headerScrollRef.current) {
       headerScrollRef.current.scrollLeft = newScrollLeft;

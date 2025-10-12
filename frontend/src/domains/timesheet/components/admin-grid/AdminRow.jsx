@@ -4,6 +4,8 @@ import { Box, Avatar, Typography, Chip, Stack } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { computeDayStatus } from '@domains/timesheet/components/calendar/utils/dayStatus';
 import DayEntryTile from '@domains/timesheet/components/calendar/DayEntryTile';
+import { getCommessaColor } from '@shared/utils/commessaColors';
+import formatDayTooltip from '@domains/timesheet/components/calendar/formatDayTooltip';
 
 /**
  * AdminRow
@@ -26,7 +28,8 @@ const AdminRow = memo(function AdminRow({
   onDaySelect,
   selectedDay,
   highlightedDates,
-  rowIndex
+  rowIndex,
+  shouldBlockClickRef
 }) {
   const theme = useTheme();
   const employeeData = dataMap?.[employee.id] || {};
@@ -39,18 +42,20 @@ const AdminRow = memo(function AdminRow({
   const oddRowBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.32)
     : alpha(theme.palette.grey[100], 0.95);
-  const selectedRowBg = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.32 : 0.18);
-  const selectedRowHoverBg = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.38 : 0.24);
+  const selectedRowBg = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.03);
+  const selectedRowHoverBg = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.05);
   const rowBgColor = isSelected ? selectedRowBg : (rowIndex % 2 === 0 ? evenRowBg : oddRowBg);
 
-  const highlightColor = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.18 : 0.1);
-  const selectedHighlightColor = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.34 : 0.22);
+  const selectedHighlightColor = alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.22 : 0.12);
   const employeeColumnBaseBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.customBackground?.main || theme.palette.primary.dark, 1)
     : theme.palette.customBlue3?.main || theme.palette.primary.dark;
-  const employeeColumnBg = isSelected
-    ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.48 : 0.36)
-    : employeeColumnBaseBg;
+  const employeeColumnHighlightOverlay = isSelected
+    ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.22 : 0.16)
+    : 'transparent';
+  const employeeColumnBoxShadowBase = theme.palette.mode === 'dark'
+    ? '2px 0 8px rgba(3, 8, 20, 0.5)'
+    : '2px 0 10px rgba(0, 19, 40, 0.48)';
   const employeeColumnTextColor = theme.palette.common.white;
   const dayColumnEvenBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.28)
@@ -75,14 +80,14 @@ const AdminRow = memo(function AdminRow({
     return daysArray;
   }, [year, month, daysInMonth, isWeekendMap]);
 
-  // Get avatar color based on employee name
-  const getAvatarColor = (name) => {
-    const colors = ['primary', 'secondary', 'error', 'warning', 'info', 'success'];
-    const index = (name?.charCodeAt(0) || 0) % colors.length;
-    return colors[index];
-  };
+  const avatarSeed = useMemo(() => {
+    if (!employee) return 'dipendente';
+    const fullName = `${employee.nome || ''} ${employee.cognome || ''}`.trim();
+    return fullName || employee.username || employee.id || 'dipendente';
+  }, [employee]);
 
-  const avatarColor = getAvatarColor(employee.nome);
+  const avatarBackground = useMemo(() => getCommessaColor(avatarSeed), [avatarSeed]);
+  const avatarTextColor = useMemo(() => theme.palette.getContrastText(avatarBackground), [theme, avatarBackground]);
   return (
     <Box
       sx={{
@@ -103,7 +108,10 @@ const AdminRow = memo(function AdminRow({
       }}
       role="button"
       tabIndex={0}
-      onClick={() => onSelectEmployee?.(employee.id)}
+      onClick={() => {
+        if (shouldBlockClickRef?.current) return;
+        onSelectEmployee?.(employee.id);
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
@@ -118,9 +126,10 @@ const AdminRow = memo(function AdminRow({
             left: 0,
             top: 0,
             bottom: 0,
-            width: 4,
+            width: 3,
             bgcolor: 'primary.main',
-            pointerEvents: 'none'
+            pointerEvents: 'none',
+            opacity: 0.5
           }}
         />
       )}
@@ -135,24 +144,26 @@ const AdminRow = memo(function AdminRow({
           gap: 1.5,
           borderRight: '1px solid',
           borderColor: alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.12 : 0.18),
-          bgcolor: employeeColumnBg,
+          bgcolor: employeeColumnBaseBg,
           position: 'sticky',
           left: 0,
           zIndex: 2,
           height: '100%',
-          boxShadow: theme.palette.mode === 'dark'
-            ? '2px 0 8px rgba(3, 8, 20, 0.5)'
-            : '2px 0 10px rgba(0, 19, 40, 0.48)',
+          boxShadow: isSelected
+            ? `${employeeColumnBoxShadowBase}, inset 0 0 0 999px ${employeeColumnHighlightOverlay}`
+            : employeeColumnBoxShadowBase,
           color: employeeColumnTextColor
         }}
       >
         <Avatar
           sx={{
-            bgcolor: `${avatarColor}.main`,
+            bgcolor: avatarBackground,
+            color: avatarTextColor,
             width: 36,
             height: 36,
             fontSize: '0.9rem',
-            fontWeight: 600
+            fontWeight: 600,
+            border: '2px solid rgba(0,0,0,0.14)'
           }}
         >
           {employee.nome?.[0]}{employee.cognome?.[0]}
@@ -246,21 +257,32 @@ const AdminRow = memo(function AdminRow({
             delete: 'Eliminazione programmata'
           };
 
-          const tooltipContent = stagedOp
-            ? `${stagedLabels[stagedOp] || 'Modifica in sospeso'} — ${totalHours}h${totalHours !== baseHours ? ` (da ${baseHours}h)` : ''}`
-            : undefined;
+          let tooltipContent;
+          if (isSelected) {
+            const baseTooltip = formatDayTooltip(mergedEntries, segnalazione, totalHours);
+            if (stagedOp) {
+              tooltipContent = (
+                <Stack spacing={1} sx={{ maxWidth: 360 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: theme.palette.warning.light }}>
+                    {`${stagedLabels[stagedOp] || 'Modifica in sospeso'} — ${totalHours}h${totalHours !== baseHours ? ` (da ${baseHours}h)` : ''}`}
+                  </Typography>
+                  {baseTooltip}
+                </Stack>
+              );
+            } else {
+              tooltipContent = baseTooltip;
+            }
+          }
 
           const isSelectedDay = isSelected && selectedDay === dateStr;
           const isHighlighted = isSelected && highlightedDates?.has?.(dateStr);
           const isEvenColumn = day % 2 === 0;
           const columnBaseBg = isSelected
-            ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.24 : 0.14)
+            ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.06)
             : (isEvenColumn ? dayColumnEvenBg : dayColumnOddBg);
-          const tileBg = isSelectedDay
-            ? selectedHighlightColor
-            : isHighlighted
-              ? highlightColor
-              : 'transparent';
+
+          const applySelectionStyle = isSelected && (isSelectedDay || isHighlighted);
+          const tileBackground = applySelectionStyle ? selectedHighlightColor : 'transparent';
 
           return (
             <Box
@@ -269,8 +291,8 @@ const AdminRow = memo(function AdminRow({
                 minWidth: 60,
                 height: 60,
                 p: 0.5,
-                backgroundColor: tileBg === 'transparent' ? columnBaseBg : tileBg,
-                transition: 'background-color 160ms ease-in-out'
+                backgroundColor: tileBackground === 'transparent' ? columnBaseBg : tileBackground,
+                transition: 'all 160ms ease-in-out'
               }}
             >
               <DayEntryTile
@@ -280,8 +302,8 @@ const AdminRow = memo(function AdminRow({
                 status={effectiveStatus}
                 totalHours={totalHours}
                 showHours={statusResult.showHours}
-                isSelected={isSelectedDay}
-                bgcolor={tileBg === 'transparent' ? 'transparent' : tileBg}
+                isSelected={applySelectionStyle}
+                bgcolor={tileBackground}
                 onClick={() => {
                   if (isSelected) {
                     onDaySelect?.(employee.id, dateStr);
@@ -315,7 +337,8 @@ const AdminRow = memo(function AdminRow({
     prevProps.onDaySelect === nextProps.onDaySelect &&
     prevProps.selectedDay === nextProps.selectedDay &&
     prevProps.highlightedDates === nextProps.highlightedDates &&
-    prevProps.rowIndex === nextProps.rowIndex
+    prevProps.rowIndex === nextProps.rowIndex &&
+    prevProps.shouldBlockClickRef === nextProps.shouldBlockClickRef
   );
 });
 
@@ -341,7 +364,8 @@ AdminRow.propTypes = {
   onDaySelect: PropTypes.func,
   selectedDay: PropTypes.string,
   highlightedDates: PropTypes.instanceOf(Set),
-  rowIndex: PropTypes.number
+  rowIndex: PropTypes.number,
+  shouldBlockClickRef: PropTypes.shape({ current: PropTypes.bool })
 };
 
 AdminRow.displayName = 'AdminRow';

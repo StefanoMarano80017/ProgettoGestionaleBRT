@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import useReferenceData from '@domains/timesheet/hooks/useReferenceData';
 import { getCommessaColor } from '@shared/utils/commessaColors';
@@ -18,10 +18,13 @@ import {
 import {
   parseDateKey,
   getRangeForPeriod,
-  formatRangeLabel,
   enumerateDateKeys,
   isWithinRange,
-  isWorkDay
+  isWorkDay,
+  toDateKey,
+  startOfWeek,
+  startOfMonth,
+  startOfYear
 } from '../utils/periodUtils';
 import AdminEmployeeInspectorView from './AdminEmployeeInspectorView';
 
@@ -32,9 +35,12 @@ function AdminEmployeeInspectorContainer({
   mergedData,
   baseData,
   selectedDay,
-  onSelectDay,
   selectedPeriod,
-  onPeriodChange
+  onPeriodChange,
+  periodReferenceDate,
+  onPeriodReferenceChange,
+  insightTab,
+  onInsightTabChange
 }) {
   const avatarSeed = useMemo(() => {
     if (!employee) return 'dipendente';
@@ -47,8 +53,42 @@ function AdminEmployeeInspectorContainer({
   const effectiveBase = useMemo(() => baseData || {}, [baseData]);
 
   const derivedSelectedPeriod = selectedPeriod ? ensurePeriod(selectedPeriod) : null;
+  const derivedInsightTab = insightTab && ['daily', 'period'].includes(insightTab) ? insightTab : null;
   const [internalPeriod, setInternalPeriod] = useState(derivedSelectedPeriod || DEFAULT_PERIOD);
+  const [internalInsightTab, setInternalInsightTab] = useState(derivedInsightTab || 'daily');
   const effectivePeriod = derivedSelectedPeriod || internalPeriod;
+  const effectiveInsightTab = derivedInsightTab || internalInsightTab;
+
+  const derivedReferenceKey = useMemo(() => {
+    if (!periodReferenceDate) return null;
+    if (periodReferenceDate instanceof Date) {
+      if (Number.isNaN(periodReferenceDate.getTime())) return null;
+      return toDateKey(periodReferenceDate);
+    }
+    if (typeof periodReferenceDate === 'string') {
+      const parsed = parseDateKey(periodReferenceDate);
+      return parsed ? toDateKey(parsed) : null;
+    }
+    return null;
+  }, [periodReferenceDate]);
+
+  const fallbackReferenceKey = useMemo(() => {
+    if (selectedDay) return selectedDay;
+    return toDateKey(new Date(year, month, 1));
+  }, [selectedDay, month, year]);
+
+  const [internalReferenceKey, setInternalReferenceKey] = useState(() => derivedReferenceKey || fallbackReferenceKey);
+
+  useEffect(() => {
+    if (!derivedReferenceKey) return;
+    setInternalReferenceKey((prev) => (prev === derivedReferenceKey ? prev : derivedReferenceKey));
+  }, [derivedReferenceKey]);
+
+  useEffect(() => {
+    if (derivedReferenceKey) return;
+    if (!fallbackReferenceKey) return;
+    setInternalReferenceKey((prev) => (prev === fallbackReferenceKey ? prev : fallbackReferenceKey));
+  }, [derivedReferenceKey, fallbackReferenceKey]);
 
   useEffect(() => {
     if (derivedSelectedPeriod && derivedSelectedPeriod !== internalPeriod) {
@@ -56,24 +96,32 @@ function AdminEmployeeInspectorContainer({
     }
   }, [derivedSelectedPeriod, internalPeriod]);
 
+  useEffect(() => {
+    if (derivedInsightTab && derivedInsightTab !== internalInsightTab) {
+      setInternalInsightTab(derivedInsightTab);
+    }
+  }, [derivedInsightTab, internalInsightTab]);
+
   const handlePeriodChange = (_event, value) => {
-    if (!value) return;
+    if (!value || value === effectivePeriod) return;
     if (!selectedPeriod) {
       setInternalPeriod(value);
     }
+    const currentReference = referenceDate || new Date(year, month, 1);
+    handleReferenceChange(currentReference, value);
     if (typeof onPeriodChange === 'function') {
       onPeriodChange(value);
     }
   };
 
-  const handleDaySelect = (event) => {
-    const value = event.target.value;
-    if (!employee) return;
-    if (!value) {
-      onSelectDay?.(employee.id, null);
-      return;
+  const handleInsightTabChange = (value) => {
+    if (!value) return;
+    if (!derivedInsightTab) {
+      setInternalInsightTab(value);
     }
-    onSelectDay?.(employee.id, value);
+    if (typeof onInsightTabChange === 'function') {
+      onInsightTabChange(value);
+    }
   };
 
   const monthLabel = useMemo(() => {
@@ -82,24 +130,47 @@ function AdminEmployeeInspectorContainer({
   }, [month, year]);
 
   const referenceDate = useMemo(() => {
-    if (selectedDay) {
-      const parsed = parseDateKey(selectedDay);
-      if (parsed) return parsed;
-    }
+    const parsed = parseDateKey(internalReferenceKey);
+    if (parsed) return parsed;
     return new Date(year, month, 1);
-  }, [selectedDay, month, year]);
+  }, [internalReferenceKey, month, year]);
+
+  const alignReferenceToPeriod = useCallback((date, period) => {
+    if (!date) return null;
+    const base = new Date(date);
+    if (Number.isNaN(base.getTime())) return null;
+    base.setHours(0, 0, 0, 0);
+    switch (period) {
+      case 'week':
+        return startOfWeek(base);
+      case 'year':
+        return startOfYear(base);
+      case 'month':
+      default:
+        return startOfMonth(base);
+    }
+  }, []);
+
+  const handleReferenceChange = useCallback(
+    (nextDate, periodOverride = effectivePeriod) => {
+      if (!nextDate) return;
+      const candidate = nextDate instanceof Date ? nextDate : parseDateKey(nextDate);
+      if (!candidate) return;
+      const normalized = alignReferenceToPeriod(candidate, periodOverride);
+      if (!normalized) return;
+      const nextKey = toDateKey(normalized);
+      if (!derivedReferenceKey) {
+        setInternalReferenceKey((prev) => (prev === nextKey ? prev : nextKey));
+      }
+      onPeriodReferenceChange?.(normalized);
+    },
+    [alignReferenceToPeriod, derivedReferenceKey, effectivePeriod, onPeriodReferenceChange]
+  );
 
   const periodRange = useMemo(
     () => getRangeForPeriod(effectivePeriod, referenceDate),
     [effectivePeriod, referenceDate]
   );
-
-  const periodLabel = useMemo(() => {
-    if (!periodRange) return '';
-    const rangeLabel = formatRangeLabel(periodRange, effectivePeriod);
-    const option = PERIOD_OPTIONS.find((opt) => opt.value === effectivePeriod);
-    return option ? `${option.label}: ${rangeLabel}` : rangeLabel;
-  }, [periodRange, effectivePeriod]);
 
   const { commesseConChiuse = [], loading: referenceLoading } = useReferenceData({
     commesse: true,
@@ -127,21 +198,43 @@ function AdminEmployeeInspectorContainer({
     const archived = [];
     (commesseConChiuse || []).forEach((commessa) => {
       if (!commessa) return;
-      const item = {
-        id: commessa.id,
-        nome: commessa.nome,
-        stato: commessa.stato,
-        periodo:
-          commessa.dataInizio && commessa.dataFine
-            ? `${new Date(commessa.dataInizio).toLocaleDateString('it-IT')} → ${new Date(commessa.dataFine).toLocaleDateString('it-IT')}`
-            : 'Periodo non disponibile',
-        responsabile:
-          commessa.sottocommesse?.[0]?.responsabile || commessa.responsabile || '—',
-        cliente: commessa.cliente || '—',
-        sottocommesse: commessa.sottocommesse || []
-      };
-      if (commessa.stato === 'CHIUSA') archived.push(item);
-      else active.push(item);
+      
+      // Add sottocommesse as individual items
+      if (commessa.sottocommesse && commessa.sottocommesse.length > 0) {
+        commessa.sottocommesse.forEach((sotto) => {
+          const sottoItem = {
+            id: sotto.id,
+            nome: sotto.nome || sotto.id,
+            stato: commessa.stato,
+            periodo:
+              sotto.dataInizio && sotto.dataFine
+                ? `${new Date(sotto.dataInizio).toLocaleDateString('it-IT')} → ${new Date(sotto.dataFine).toLocaleDateString('it-IT')}`
+                : commessa.dataInizio && commessa.dataFine
+                ? `${new Date(commessa.dataInizio).toLocaleDateString('it-IT')} → ${new Date(commessa.dataFine).toLocaleDateString('it-IT')}`
+                : 'Periodo non disponibile',
+            responsabile: sotto.responsabile || commessa.responsabile || '—',
+            cliente: commessa.cliente || '—',
+            parent: commessa.nome || commessa.id
+          };
+          if (commessa.stato === 'CHIUSA') archived.push(sottoItem);
+          else active.push(sottoItem);
+        });
+      } else {
+        // If no sottocommesse, add the main commessa
+        const item = {
+          id: commessa.id,
+          nome: commessa.nome,
+          stato: commessa.stato,
+          periodo:
+            commessa.dataInizio && commessa.dataFine
+              ? `${new Date(commessa.dataInizio).toLocaleDateString('it-IT')} → ${new Date(commessa.dataFine).toLocaleDateString('it-IT')}`
+              : 'Periodo non disponibile',
+          responsabile: commessa.responsabile || '—',
+          cliente: commessa.cliente || '—'
+        };
+        if (commessa.stato === 'CHIUSA') archived.push(item);
+        else active.push(item);
+      }
     });
     return { active, archived };
   }, [commesseConChiuse]);
@@ -162,20 +255,6 @@ function AdminEmployeeInspectorContainer({
       .filter(Boolean)
       .sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [entriesByDay, periodRange]);
-
-  const dayOptions = useMemo(
-    () =>
-      rangeEntries.map(({ dateKey, date }) => ({
-        value: dateKey,
-        label: formatDateLabel(date)
-      })),
-    [rangeEntries]
-  );
-
-  const selectedDayOption = useMemo(
-    () => (selectedDay ? dayOptions.find((option) => option.value === selectedDay) : null),
-    [dayOptions, selectedDay]
-  );
 
   const analytics = useMemo(() => {
     if (!periodRange) {
@@ -294,10 +373,15 @@ function AdminEmployeeInspectorContainer({
     }
   }, [commessaTab, hasActiveCommesse, hasArchivedCommesse]);
 
-  const selectedDayRecords = selectedDay ? effectiveMerged[selectedDay] || [] : [];
-  const selectedDaySegnalazione = selectedDay
-    ? effectiveBase[`${selectedDay}_segnalazione`] || null
-    : null;
+  const selectedDayRecords = useMemo(() => {
+    if (!selectedDay) return [];
+    return effectiveMerged[selectedDay] || [];
+  }, [selectedDay, effectiveMerged]);
+
+  const selectedDaySegnalazione = useMemo(() => {
+    if (!selectedDay) return null;
+    return effectiveBase[`${selectedDay}_segnalazione`] || null;
+  }, [selectedDay, effectiveBase]);
 
   const previousMonthStatus = useMemo(() => {
     if (!referenceDate) return null;
@@ -312,9 +396,11 @@ function AdminEmployeeInspectorContainer({
       return date && isWorkDay(date);
     });
 
+    const capitalizeFirstLetter = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
     if (!workingKeys.length) {
       return {
-        label: prevRange.start.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }),
+        label: capitalizeFirstLetter(prevRange.start.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })),
         isComplete: true,
         ratio: 1,
         missingCount: 0,
@@ -333,7 +419,7 @@ function AdminEmployeeInspectorContainer({
     const ratio = (workingKeys.length - missing.length) / workingKeys.length;
 
     return {
-      label: prevRange.start.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }),
+      label: capitalizeFirstLetter(prevRange.start.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })),
       isComplete: missing.length === 0,
       ratio,
       missingCount: missing.length,
@@ -360,33 +446,129 @@ function AdminEmployeeInspectorContainer({
         title: 'Commesse attive',
         value: analytics.activeCommessaCount,
         description: 'Con ore nel periodo'
-      },
-      {
-        id: 'archived',
-        title: 'Commesse archiviate',
-        value: analytics.archivedCommessaCount,
-        description: 'Commesse chiuse ancora consultate'
       }
     ],
     [analytics]
   );
+
+  const dailyAnalytics = useMemo(() => {
+    const baseAbsenceRows = ABSENCE_TYPES.map(({ code, label }) => ({ code, label, hours: 0, days: 0 }));
+
+    if (!selectedDay || !selectedDayRecords?.length) {
+      return {
+        totalWorkHours: 0,
+        totalEntries: 0,
+        recordedDays: selectedDay ? 1 : 0,
+        activeCommessaCount: 0,
+        archivedCommessaCount: 0,
+        totalAbsenceHours: 0,
+        pieData: [],
+        commessaRows: [],
+        absenceRows: baseAbsenceRows
+      };
+    }
+
+    const absenceSummary = ABSENCE_TYPES.reduce((acc, { code }) => {
+      acc[code] = { hours: 0 };
+      return acc;
+    }, {});
+
+    const commessaHours = {};
+    const activeSet = new Set();
+    const archivedSet = new Set();
+    let totalWorkHours = 0;
+    let totalEntries = 0;
+
+    selectedDayRecords.forEach((record) => {
+      const ore = Number(record?.ore) || 0;
+      if (!ore) return;
+      totalEntries += 1;
+
+      const normalized = normalizeCommessa(record?.commessa);
+      if (NON_WORK_CODES.has(normalized)) {
+        const absence = absenceSummary[normalized];
+        if (absence) {
+          absence.hours += ore;
+        }
+        return;
+      }
+
+      totalWorkHours += ore;
+      const key = normalized || UNKNOWN_COMMESSA_CODE;
+      commessaHours[key] = (commessaHours[key] || 0) + ore;
+      const meta = commesseLookup[key];
+      if (meta?.stato === 'CHIUSA') {
+        archivedSet.add(key);
+      } else if (meta) {
+        activeSet.add(key);
+      } else {
+        activeSet.add(key);
+      }
+    });
+
+    const pieData = Object.entries(commessaHours)
+      .sort((a, b) => b[1] - a[1])
+      .map(([code, hours]) => {
+        const meta = commesseLookup[code];
+        const label = meta?.nome || (code === UNKNOWN_COMMESSA_CODE ? 'Senza codice' : code);
+        const value = Math.round(hours * 10) / 10;
+        return {
+          id: code,
+          label,
+          value,
+          color: getCommessaColor(label || code)
+        };
+      });
+
+    const commessaRows = pieData.map(({ id, label, value }) => ({
+      code: id,
+      label,
+      hours: value
+    }));
+
+    const absenceRows = ABSENCE_TYPES.map(({ code, label }) => {
+      const summary = absenceSummary[code];
+      return {
+        code,
+        label,
+        hours: summary ? Math.round(summary.hours * 10) / 10 : 0,
+        days: summary && summary.hours > 0 ? 1 : 0
+      };
+    });
+
+    const totalAbsenceHours = absenceRows.reduce((sum, row) => sum + row.hours, 0);
+
+    return {
+      totalWorkHours: Math.round(totalWorkHours * 10) / 10,
+      totalEntries,
+      recordedDays: totalEntries > 0 ? 1 : 0,
+      activeCommessaCount: activeSet.size,
+      archivedCommessaCount: archivedSet.size,
+      totalAbsenceHours: Math.round(totalAbsenceHours * 10) / 10,
+      pieData,
+      commessaRows,
+      absenceRows
+    };
+  }, [selectedDay, selectedDayRecords, commesseLookup]);
+
+  const hasDailyCommessaData = dailyAnalytics.commessaRows.length > 0;
+  const hasDailyAbsenceData = dailyAnalytics.absenceRows.some((row) => row.hours > 0);
 
   return (
     <AdminEmployeeInspectorView
       employee={employee}
       monthLabel={monthLabel}
       heroAvatarColor={heroAvatarColor}
-      periodLabel={periodLabel}
       periodOptions={PERIOD_OPTIONS}
       effectivePeriod={effectivePeriod}
       onPeriodChange={handlePeriodChange}
-      dayOptions={dayOptions}
-      selectedDayOption={selectedDayOption}
-      onDaySelect={handleDaySelect}
       summaryCards={summaryCards}
       analytics={analytics}
+      dailyAnalytics={dailyAnalytics}
       hasCommessaData={hasCommessaData}
       hasAbsenceData={hasAbsenceData}
+      hasDailyCommessaData={hasDailyCommessaData}
+      hasDailyAbsenceData={hasDailyAbsenceData}
       commesseDetails={commesseDetails}
       hasActiveCommesse={hasActiveCommesse}
       hasArchivedCommesse={hasArchivedCommesse}
@@ -399,6 +581,10 @@ function AdminEmployeeInspectorContainer({
       formatHours={formatHours}
       formatDateLabel={formatDateLabel}
       selectedDay={selectedDay}
+      periodReferenceDate={referenceDate}
+      onPeriodReferenceChange={handleReferenceChange}
+      insightTab={effectiveInsightTab}
+      onInsightTabChange={handleInsightTabChange}
     />
   );
 }
@@ -417,9 +603,12 @@ AdminEmployeeInspectorContainer.propTypes = {
   mergedData: PropTypes.object,
   baseData: PropTypes.object,
   selectedDay: PropTypes.string,
-  onSelectDay: PropTypes.func,
   selectedPeriod: PropTypes.oneOf(PERIOD_OPTIONS.map((option) => option.value)),
-  onPeriodChange: PropTypes.func
+  onPeriodChange: PropTypes.func,
+  periodReferenceDate: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]),
+  onPeriodReferenceChange: PropTypes.func,
+  insightTab: PropTypes.oneOf(['daily', 'period']),
+  onInsightTabChange: PropTypes.func
 };
 
 export default AdminEmployeeInspectorContainer;

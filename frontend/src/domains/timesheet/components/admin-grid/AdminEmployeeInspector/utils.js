@@ -24,6 +24,17 @@ export const NON_WORK_CODES = new Set(ABSENCE_TYPES.map((item) => item.code));
 export const DEFAULT_PERIOD = 'week';
 export const UNKNOWN_COMMESSA_CODE = 'SENZA_COMMESSA';
 export const HOURS_PER_FULL_DAY = 7.5;
+export const inspectorCardBaseSx = {
+  p: { xs: 1.75, md: 2.25 },
+  borderRadius: 3,
+  border: '1px solid',
+  borderColor: 'divider',
+  bgcolor: 'background.paper',
+  boxShadow: '0 18px 36px rgba(15, 23, 42, 0.08)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 1.75
+};
 
 export function ensurePeriod(value) {
   if (!value) return DEFAULT_PERIOD;

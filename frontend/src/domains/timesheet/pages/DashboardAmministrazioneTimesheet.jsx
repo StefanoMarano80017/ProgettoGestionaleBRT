@@ -50,14 +50,20 @@ function InnerDashboardAmministrazione() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState('week');
+  const [inspectorTab, setInspectorTab] = useState('daily');
+  const [periodReferenceDate, setPeriodReferenceDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   const referenceDate = useMemo(() => {
+    if (periodReferenceDate) return periodReferenceDate;
     if (selectedDay) {
       const parsed = parseDateKey(selectedDay);
       if (parsed) return parsed;
     }
     return new Date(year, month, 1);
-  }, [selectedDay, month, year]);
+  }, [periodReferenceDate, selectedDay, month, year]);
 
   const periodRange = useMemo(
     () => getRangeForPeriod(selectedPeriod, referenceDate),
@@ -65,11 +71,24 @@ function InnerDashboardAmministrazione() {
   );
 
   const highlightedDates = useMemo(() => {
+    if (inspectorTab !== 'period') return new Set();
     if (!periodRange) return new Set();
     const keys = enumerateDateKeys(periodRange);
     const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
     return new Set(keys.filter((key) => key.startsWith(monthKey)));
-  }, [periodRange, month, year]);
+  }, [periodRange, month, year, inspectorTab]);
+
+  useEffect(() => {
+    if (!selectedDay) return;
+    const parsed = parseDateKey(selectedDay);
+    if (!parsed) return;
+    setPeriodReferenceDate((prev) => {
+      if (prev && prev.getTime && prev.getTime() === parsed.getTime()) {
+        return prev;
+      }
+      return parsed;
+    });
+  }, [selectedDay]);
 
   // Get all employees
   const allEmployees = useMemo(() => {
@@ -237,6 +256,19 @@ function InnerDashboardAmministrazione() {
     }
   }, [setSelection]);
 
+  const handlePeriodReferenceChange = useCallback((date) => {
+    if (!date) return;
+    const next = date instanceof Date ? new Date(date) : new Date(date);
+    if (Number.isNaN(next.getTime())) return;
+    next.setHours(0, 0, 0, 0);
+    setPeriodReferenceDate((prev) => {
+      if (prev && prev.getTime && prev.getTime() === next.getTime()) {
+        return prev;
+      }
+      return next;
+    });
+  }, []);
+
   // Day double-click handler
   const handleDayDoubleClick = useCallback((employeeId, dateKey) => {
     handleCalendarDaySelect(employeeId, dateKey);
@@ -374,9 +406,12 @@ function InnerDashboardAmministrazione() {
               mergedData={selectedEmployeeMergedData}
               baseData={selectedEmployeeBaseData}
               selectedDay={selectedDay}
-              onSelectDay={handleCalendarDaySelect}
               selectedPeriod={selectedPeriod}
               onPeriodChange={setSelectedPeriod}
+              periodReferenceDate={periodReferenceDate}
+              onPeriodReferenceChange={handlePeriodReferenceChange}
+              insightTab={inspectorTab}
+              onInsightTabChange={setInspectorTab}
             />
           </Box>
         </Box>

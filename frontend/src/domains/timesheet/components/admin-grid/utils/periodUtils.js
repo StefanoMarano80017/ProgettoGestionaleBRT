@@ -1,4 +1,4 @@
-import { addDays, startOfWeek as dfStartOfWeek, endOfWeek as dfEndOfWeek } from 'date-fns';
+import { startOfWeek as dfStartOfWeek, endOfWeek as dfEndOfWeek } from 'date-fns';
 
 const WEEK_OPTIONS = { weekStartsOn: 1 };
 
@@ -99,6 +99,3 @@ export function isWorkDay(date) {
   return day !== 0 && day !== 6;
 }
 
-export function addDaysSafe(date, amount) {
-  return addDays(date, amount);
-}
