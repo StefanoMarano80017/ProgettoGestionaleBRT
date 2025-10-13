@@ -86,7 +86,7 @@ services:
       # Router PROTETTO (tutto tranne assets/static/login)
       - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`) && !PathPrefix(`/assets`) && !PathPrefix(`/static`) && !Path(`/favicon.ico`) && !Path(`/manifest.json`) && !PathPrefix(`/.well-known`)"
       - "traefik.http.routers.frontend.entrypoints=web"
-      - "traefik.http.routers.frontend.middlewares=jwt"
+      - "traefik.http.routers.frontend.middlewares=secure-api@file"
       - "traefik.http.routers.frontend.priority=10"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
