@@ -55,6 +55,9 @@ export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, is
 
   // No entries
   if (!dayData || dayData.length === 0) {
+    if (isFuture) {
+      return { status: 'future', showHours: false, iconTopRight: false };
+    }
     return { status: undefined, showHours: false, iconTopRight: false };
   }
   // Special commesse (individual types) - check BEFORE generic non-work-full
@@ -86,11 +89,6 @@ export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, is
   const nonWorkTotal = sumNonWork(dayData);
   if (nonWorkTotal === 8) {
     return { status: 'non-work-full', showHours: false, iconTopRight: false };
-  }
-
-  // Future days without entries
-  if (isFuture) {
-    return { status: 'future', showHours: false, iconTopRight: false };
   }
 
   // Hours-based states

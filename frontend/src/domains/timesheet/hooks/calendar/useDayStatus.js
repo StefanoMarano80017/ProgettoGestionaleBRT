@@ -11,14 +11,15 @@ export function getDayStatus(dayData = [], segnalazione = null, dateStr, today =
   const hasRol = dayData.some((r) => r.commessa === 'ROL');
   const isFuture = dateStr ? new Date(dateStr) > today : false;
 
-  if (!dayData.length && !segnalazione) return { label: 'Vuoto', status: undefined };
+  if (!dayData.length && !segnalazione) {
+    return isFuture ? { label: 'Futuro', status: 'future' } : { label: 'Vuoto', status: undefined };
+  }
   if (hasFerie) return { label: 'Ferie', status: 'ferie' };
   if (hasMalattia) return { label: 'Malattia', status: 'malattia' };
   if (segnalazione) return { label: 'Segnalazione', status: 'admin-warning' };
   // Priority: ROL first, then PERMESSO (ROL is more specific/visible)
   if (hasRol && totalHours < 8) return { label: 'ROL/Parziale', status: 'rol' };
   if (hasPermesso && totalHours < 8) return { label: 'Permesso/Parziale', status: 'permesso' };
-  if (isFuture) return { label: 'Futuro', status: 'future' };
   if (totalHours === 8) return { label: 'Completo', status: 'complete' };
   if (totalHours > 0 && totalHours < 8) return { label: 'Parziale', status: 'partial' };
   return { label: 'Vuoto', status: undefined };
