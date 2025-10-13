@@ -1,30 +1,17 @@
 {
-  "realm": "master",
+  "realm": "traefik-realm",
   "enabled": true,
   "clients": [
     {
       "clientId": "traefik-client",
       "rootUrl": "http://frontend.localhost",
-      "adminUrl": "http://frontend.localhost",
-      "baseUrl": "/",
-      "redirectUris": [
-        "http://frontend.localhost/oauth2/callback"
-      ],
-      "webOrigins": [
-        "*"
-      ],
-      "publicClient": false,
+      "publicClient": true,
       "protocol": "openid-connect",
-      "standardFlowEnabled": true,
-      "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "authorizationServicesEnabled": false,
-      "attributes": {
-        "pkce.code.challenge.method": "S256"
-      },
-      "secret": "supersegreto",
-      "fullScopeAllowed": true
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
     }
   ],
   "users": [
@@ -41,8 +28,7 @@
           "value": "admin",
           "temporary": false
         }
-      ],
-      "realmRoles": ["offline_access", "uma_authorization"]
+      ]
     }
   ]
 }

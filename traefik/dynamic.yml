@@ -1,13 +1,24 @@
 http:
   middlewares:
-    my-jwt-middleware:
+    secure-api:
       plugin:
-        jwt-validation-middleware:
-          secret: ThisIsMyVerySecret
-          optional: true
-          payloadHeaders:
-            X-Custom-Header1: sub
-            X-Custom-Header2: name
-          authQueryParam: authToken
-          authCookieName: authToken
-          forwardAuth: false
+        jwt-plugin:
+          # Endpoint JWKS di Keycloak
+          jwks_urls:
+            - "http://keycloak:8080/realms/traefik-realm/protocol/openid-connect/certs"
+          
+          # Issuer previsto
+          issuers:
+            - "http://keycloak:8080/realms/traefik-realm"
+          
+          # Claim obbligatori
+          required_claims:
+            aud: traefik-client
+
+          # Headers da aggiungere
+          headers:
+            X-User-ID: sub
+            X-User-Roles: realm_access.roles
+
+          # Debug
+          log_level: debug

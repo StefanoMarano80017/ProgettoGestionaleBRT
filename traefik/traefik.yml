@@ -3,8 +3,8 @@ log:
 
 experimental:
   plugins:
-    jwt-validation-middleware:
-      moduleName: github.com/legege/jwt-validation-middleware
+    jwt-plugin:
+      moduleName: github.com/traefik-plugins/traefik-jwt-plugin
       version: v0.7.1
 
 entryPoints:
