@@ -13,15 +13,18 @@ services:
   traefik:
     image: traefik:v3.1
     container_name: traefik
-    command:
-      - "--configFile=/etc/traefik/traefik.yml"
+    command: ["/wait-for-keycloak.sh", "--configFile=/etc/traefik/traefik.yml"]
     ports:
       - "80:80"
       - "443:443"
       - "8081:8080"  # Dashboard
     volumes:
+      - "./traefik/wait-for-keycloak.sh:/wait-for-keycloak.sh:ro"
       - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    depends_on:
+      - keycloak
     networks:
       - gestionale_network
 
@@ -45,7 +48,7 @@ services:
     command:
       - start-dev
       - --hostname-strict=false
-      - --hostname-url=http://keycloak.localhost
+      - --hostname-url=http://keycloak:8080
       - --import-realm
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
@@ -57,6 +60,8 @@ services:
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./keycloak/import:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080" 
     depends_on:
       - postgres
     labels:
@@ -67,21 +72,19 @@ services:
     networks:
       - gestionale_network
 
-  # === FRONTEND (React o simile) ===
+  # === FRONTEND (React ) ===
   frontend:
     build: ./frontend
     container_name: frontend
     networks:
       - gestionale_network
     expose:
-      - "80"
+      - "8080:80"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`)"
       - "traefik.http.routers.frontend.entrypoints=web"
-      - "traefik.http.routers.frontend.middlewares=jwt"
+      - "traefik.http.routers.frontend.middlewares=secure-api@file"    
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
-
       - "traefik.http.routers.frontend-login.rule=Host(`frontend.localhost`) && Path(`/login`)"
       - "traefik.http.routers.frontend-login.entrypoints=web"
-      - "traefik.http.routers.frontend-login.middlewares="
