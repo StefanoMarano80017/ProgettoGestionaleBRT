@@ -236,201 +236,337 @@ export function getOperaioPersonalMap() {
 import { findUserById } from '@mocks/UsersMock';
 import { ensureEmployeeBalances, getEmployeeBalances, consumeBalances, refundBalances } from "./TimesheetBalancesMock";
 
-// Initialize balances for all employees
-// Realistic annual quotas: PERMESSO ~104h (13 days), ROL ~80h (10 days)
-// These reflect typical Italian labor contract allowances
-for (const emp of EMPLOYEES) {
-  ensureEmployeeBalances(emp.id, { permesso: 104, rol: 80 });
-}
-for (const op of OPERAI) {
-  ensureEmployeeBalances(op.id, { permesso: 104, rol: 80 });
+function initialiseBalances() {
+  EMPLOYEES.forEach((emp) => ensureEmployeeBalances(emp.id, { permesso: 104, rol: 80 }));
+  OPERAI.forEach((op) => ensureEmployeeBalances(op.id, { permesso: 104, rol: 80 }));
 }
 
-console.log('[ProjectMock] Balances initialized: PERMESSO=104h, ROL=80h per employee/operaio');
+function generateEmployeeTimesheets() {
+  const map = {};
+  EMPLOYEES.forEach((emp) => {
+    const assigned = EMPLOYEE_COMMESSE[emp.id] ?? EMPLOYEE_COMMESSE.default;
+    map[emp.id] = buildTimesheetForEmployee(emp, assigned);
+  });
+  return map;
+}
 
-// STEP 3: REFACTORED SEED GENERATION FOR EMPLOYEES
-// NO partial FERIE. Include ROL. No duplicate non-work rows. Respect balances.
-for (const emp of EMPLOYEES) {
-  const assigned = EMPLOYEE_COMMESSE[emp.id] ?? EMPLOYEE_COMMESSE.default;
-  const ts = {};
-  
+function buildTimesheetForEmployee(emp, assignedCommesse) {
+  const recordsByDay = {};
+  const segnalazioniGiornaliere = {};
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const key = toKey(d);
     if (isWeekend(d) || holidaySet.has(key)) continue;
 
-    const dayRecords = [];
-    const roll = Math.random();
+    const { entries, segnalazione } = generateDayEntries({ emp, assignedCommesse });
+    if (!entries.length) continue;
 
-    // 2% chance: MALATTIA (8h exclusive, no work)
-    if (roll < 0.02) {
-      dayRecords.push({
-        dipendente: emp.name,
-        commessa: "MALATTIA",
-        ore: 8,
-        descrizione: "Malattia",
-      });
-      // No work, no balances consumed
-    }
-    // 6% chance: Full-day absence (FERIE or PERMESSO/ROL=8)
-    else if (roll < 0.08) {
-      if (Math.random() < 0.5) {
-        // FERIE 8h
-        dayRecords.push({
-          dipendente: emp.name,
-          commessa: "FERIE",
-          ore: 8,
-          descrizione: "Giornata di ferie",
-        });
-      } else {
-        // PERMESSO/ROL = 8h (replacement for FERIE)
-        // Pick a split limited by balances
-        const balances = getEmployeeBalances(emp.id);
-        let wantP = getRandomInt(0, 8);
-        let wantR = 8 - wantP;
-        // Clamp to available balances
-        const gotP = Math.min(wantP, balances.permesso);
-        const gotR = Math.min(wantR, balances.rol);
-        if (gotP + gotR === 8) {
-          // Use PERMESSO/ROL
-          if (gotP > 0) {
-            dayRecords.push({
-              dipendente: emp.name,
-              commessa: "PERMESSO",
-              ore: gotP,
-              descrizione: "Permesso giornata intera",
-            });
-          }
-          if (gotR > 0) {
-            dayRecords.push({
-              dipendente: emp.name,
-              commessa: "ROL",
-              ore: gotR,
-              descrizione: "ROL giornata intera",
-            });
-          }
-          // Consume balances
-          try {
-            consumeBalances(emp.id, { permesso: gotP, rol: gotR });
-          } catch {
-            // Insufficient balance, fallback to FERIE
-            dayRecords.length = 0;
-            dayRecords.push({
-              dipendente: emp.name,
-              commessa: "FERIE",
-              ore: 8,
-              descrizione: "Giornata di ferie (fallback)",
-            });
-          }
-        } else {
-          // Insufficient balances, use FERIE instead
-          dayRecords.push({
-            dipendente: emp.name,
-            commessa: "FERIE",
-            ore: 8,
-            descrizione: "Giornata di ferie (fallback)",
-          });
-        }
-      }
-      // No work allowed on full-day absence
-    }
-    // Workday (maybe with partial PERMESSO/ROL)
-    else {
-      let targetHours = 8;
-      let nonWorkHours = 0;
+    const userMeta = findUserById(emp.id);
+    const role = userMeta?.roles?.[0] || "DIPENDENTE";
+    recordsByDay[key] = entries.map((entry, idx) => ({
+      ...entry,
+      dipendente: emp.name,
+      userId: emp.id,
+      userRole: role,
+      dateKey: key,
+      id: `${emp.id}-${key}-${idx}`,
+      _id: `${emp.id}-${key}-${idx}`,
+    }));
 
-      // Giornata incompleta (~12%)
-      if (Math.random() < 0.12) targetHours = getRandomInt(1, 7);
-
-      // 20% chance: add partial PERMESSO/ROL (1-3h) if balances allow
-      if (Math.random() < 0.2) {
-        const balances = getEmployeeBalances(emp.id);
-        let wantP = getRandomInt(0, Math.min(3, targetHours));
-        let wantR = getRandomInt(0, Math.min(3 - wantP, targetHours - wantP));
-        const gotP = Math.min(wantP, balances.permesso);
-        const gotR = Math.min(wantR, balances.rol);
-        if (gotP + gotR > 0) {
-          if (gotP > 0) {
-            dayRecords.push({
-              dipendente: emp.name,
-              commessa: "PERMESSO",
-              ore: gotP,
-              descrizione: "Permesso parziale",
-            });
-          }
-          if (gotR > 0) {
-            dayRecords.push({
-              dipendente: emp.name,
-              commessa: "ROL",
-              ore: gotR,
-              descrizione: "ROL parziale",
-            });
-          }
-          nonWorkHours = gotP + gotR;
-          // Consume balances
-          try {
-            consumeBalances(emp.id, { permesso: gotP, rol: gotR });
-          } catch {
-            // Should not happen but defensive
-            nonWorkHours = 0;
-            // Remove entries we just added
-            const removeCount = (gotP > 0 ? 1 : 0) + (gotR > 0 ? 1 : 0);
-            dayRecords.splice(dayRecords.length - removeCount, removeCount);
-          }
-        }
-      }
-
-      // Fill up to targetHours with work blocks (capped by 8 - nonWorkHours)
-      const workCap = Math.max(0, Math.min(targetHours, 8 - nonWorkHours));
-      let remaining = workCap;
-      while (remaining > 0) {
-        const block = getRandomInt(1, Math.min(4, remaining));
-        const commessaId =
-          assigned[getRandomInt(0, assigned.length - 1)] || COMMESSE[getRandomInt(0, COMMESSE.length - 1)];
-        dayRecords.push({
-          dipendente: emp.name,
-          commessa: commessaId,
-          ore: block,
-          descrizione: descrizioni[getRandomInt(0, descrizioni.length - 1)],
-        });
-        remaining -= block;
-      }
-
-      // Piccola probabilità di segnalazione amministrativa
-      if (Math.random() < 0.03) {
-        ts[`${key}_segnalazione`] = {
-          descrizione: segnalazioni[getRandomInt(0, segnalazioni.length - 1)],
-        };
-      }
-    }
-
-    if (dayRecords.length > 0) {
-      // Consolidate non-work entries (no duplicates)
-      const nonWorkEntries = dayRecords.filter((r) => NON_WORK.has(toCode(r.commessa)));
-      const workEntries = dayRecords.filter((r) => !NON_WORK.has(toCode(r.commessa)));
-      const consolidatedNonWork = consolidateNonWork(nonWorkEntries);
-      const nonWorkTotal = consolidatedNonWork.reduce((s, e) => s + e.ore, 0);
-
-      // Trim work entries if needed
-      const trimmedWork = trimWorkToCap(workEntries, nonWorkTotal);
-
-      // Merge and enrich
-      const finalRecords = [...consolidatedNonWork, ...trimmedWork];
-      const userMeta = findUserById(emp.id);
-      const role = userMeta?.roles?.[0] || "DIPENDENTE";
-      ts[key] = finalRecords.map((r, idx) => ({
-        ...r,
-        dipendente: emp.name,
-        userId: emp.id,
-        userRole: role,
-        dateKey: key,
-        id: `${emp.id}-${key}-${idx}`,
-        _id: `${emp.id}-${key}-${idx}`,
-      }));
+    if (segnalazione) {
+      segnalazioniGiornaliere[`${key}_segnalazione`] = { descrizione: segnalazione };
     }
   }
-
-  employeeTimesheetMock[emp.id] = ts;
+  return { ...recordsByDay, ...segnalazioniGiornaliere };
 }
+
+function generateDayEntries({ emp, assignedCommesse }) {
+  const roll = Math.random();
+  if (roll < 0.02) return { entries: createMalattiaDay(emp.name), segnalazione: null };
+  if (roll < 0.08) return { entries: createFullDayAbsence(emp.id, emp.name), segnalazione: null };
+  return createWorkday({ empId: emp.id, empName: emp.name, assignedCommesse });
+}
+
+function createMalattiaDay(name) {
+  return [{ dipendente: name, commessa: "MALATTIA", ore: 8, descrizione: "Malattia" }];
+}
+
+function createFullDayAbsence(empId, name) {
+  if (Math.random() < 0.5) {
+    return [{ dipendente: name, commessa: "FERIE", ore: 8, descrizione: "Giornata di ferie" }];
+  }
+
+  const balances = getEmployeeBalances(empId);
+  const desiredPerm = getRandomInt(0, 8);
+  const desiredRol = 8 - desiredPerm;
+  const perm = Math.min(desiredPerm, balances.permesso);
+  const rol = Math.min(desiredRol, balances.rol);
+
+  if (perm + rol !== 8) {
+    return [{ dipendente: name, commessa: "FERIE", ore: 8, descrizione: "Giornata di ferie (fallback)" }];
+  }
+
+  const entries = [];
+  if (perm > 0) entries.push({ dipendente: name, commessa: "PERMESSO", ore: perm, descrizione: "Permesso giornata intera" });
+  if (rol > 0) entries.push({ dipendente: name, commessa: "ROL", ore: rol, descrizione: "ROL giornata intera" });
+
+  try {
+    consumeBalances(empId, { permesso: perm, rol });
+    return entries;
+  } catch {
+    return [{ dipendente: name, commessa: "FERIE", ore: 8, descrizione: "Giornata di ferie (fallback)" }];
+  }
+}
+
+function createWorkday({ empId, empName, assignedCommesse }) {
+  let targetHours = 8;
+  if (Math.random() < 0.12) targetHours = getRandomInt(1, 7);
+
+  const nonWorkEntries = maybeCreatePartialPermessoRol(empId, empName, targetHours);
+  const nonWorkHours = nonWorkEntries.reduce((total, entry) => total + entry.ore, 0);
+  const workEntries = createWorkBlocks({
+    hoursBudget: Math.max(0, Math.min(targetHours, 8 - nonWorkHours)),
+    assignedCommesse,
+    empName,
+  });
+
+  const merged = [...nonWorkEntries, ...workEntries];
+  if (merged.length === 0) return { entries: [], segnalazione: null };
+
+  const consolidatedNonWork = consolidateNonWork(merged.filter((entry) => isNonWork(entry.commessa)));
+  const workTotal = consolidateWorkEntries(merged.filter((entry) => isWork(entry.commessa)), consolidatedNonWork);
+  const finalRecords = [...consolidatedNonWork, ...workTotal];
+
+  const maybeSegnalazione = Math.random() < 0.03 ? segnalazioni[getRandomInt(0, segnalazioni.length - 1)] : null;
+
+  return { entries: finalRecords, segnalazione: maybeSegnalazione };
+}
+
+function maybeCreatePartialPermessoRol(empId, empName, targetHours) {
+  if (targetHours <= 0 || Math.random() >= 0.2) return [];
+
+  const balances = getEmployeeBalances(empId);
+  const wantPerm = getRandomInt(0, Math.min(3, targetHours));
+  const wantRol = getRandomInt(0, Math.min(3 - wantPerm, targetHours - wantPerm));
+  const perm = Math.min(wantPerm, balances.permesso);
+  const rol = Math.min(wantRol, balances.rol);
+
+  if (perm + rol === 0) return [];
+
+  const entries = [];
+  if (perm > 0) entries.push({ dipendente: empName, commessa: "PERMESSO", ore: perm, descrizione: "Permesso parziale" });
+  if (rol > 0) entries.push({ dipendente: empName, commessa: "ROL", ore: rol, descrizione: "ROL parziale" });
+
+  try {
+    consumeBalances(empId, { permesso: perm, rol });
+    return entries;
+  } catch {
+    return [];
+  }
+}
+
+function createWorkBlocks({ hoursBudget, assignedCommesse, empName }) {
+  const blocks = [];
+  let remaining = hoursBudget;
+  while (remaining > 0) {
+    const block = Math.min(getRandomInt(1, Math.min(4, remaining)), remaining);
+    const commessaId = assignedCommesse[getRandomInt(0, assignedCommesse.length - 1)] || COMMESSE[getRandomInt(0, COMMESSE.length - 1)];
+    blocks.push({
+      dipendente: empName,
+      commessa: commessaId,
+      ore: block,
+      descrizione: descrizioni[getRandomInt(0, descrizioni.length - 1)],
+    });
+    remaining -= block;
+  }
+  return blocks;
+}
+
+function consolidateWorkEntries(workEntries, consolidatedNonWork) {
+  const nonWorkHours = consolidatedNonWork.reduce((total, entry) => total + entry.ore, 0);
+  return trimWorkToCap(workEntries, nonWorkHours);
+}
+
+function seedPersonalForOperai() {
+  const year = today.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const endOfRange = new Date(today);
+  OPERAI.forEach((op) => {
+    for (let d = new Date(startOfYear); d <= endOfRange; d.setDate(d.getDate() + 1)) {
+      const key = toKey(d);
+      if (isWeekend(d) || holidaySet.has(key)) continue;
+
+      const roll = Math.random();
+      if (roll < 0.02) {
+        ensureOperaioDay(op.id, key, [{ commessa: "MALATTIA", ore: 8 }]);
+        continue;
+      }
+
+      if (roll < 0.08) {
+        if (Math.random() < 0.5) {
+          ensureOperaioDay(op.id, key, [{ commessa: "FERIE", ore: 8 }]);
+          continue;
+        }
+
+        const balances = getEmployeeBalances(op.id);
+        const wantPerm = getRandomInt(0, 8);
+        const wantRol = 8 - wantPerm;
+        const perm = Math.min(wantPerm, balances.permesso);
+        const rol = Math.min(wantRol, balances.rol);
+        if (perm + rol === 8) {
+          const parts = [];
+          if (perm > 0) parts.push({ commessa: "PERMESSO", ore: perm });
+          if (rol > 0) parts.push({ commessa: "ROL", ore: rol });
+          ensureOperaioDay(op.id, key, parts);
+          try {
+            consumeBalances(op.id, { permesso: perm, rol });
+          } catch {
+            ensureOperaioDay(op.id, key, [{ commessa: "FERIE", ore: 8 }]);
+          }
+        } else {
+          ensureOperaioDay(op.id, key, [{ commessa: "FERIE", ore: 8 }]);
+        }
+        continue;
+      }
+
+      if (roll < 0.28) {
+        const balances = getEmployeeBalances(op.id);
+        const wantPerm = getRandomInt(0, 3);
+        const wantRol = getRandomInt(0, Math.max(0, 3 - wantPerm));
+        const perm = Math.min(wantPerm, balances.permesso);
+        const rol = Math.min(wantRol, balances.rol);
+        if (perm + rol > 0) {
+          const parts = [];
+          if (perm > 0) parts.push({ commessa: "PERMESSO", ore: perm });
+          if (rol > 0) parts.push({ commessa: "ROL", ore: rol });
+          ensureOperaioDay(op.id, key, parts);
+          try {
+            consumeBalances(op.id, { permesso: perm, rol });
+          } catch {
+            delete operaioPersonalMock?.[op.id]?.[key];
+          }
+        }
+      }
+    }
+  });
+}
+
+function ensureOperaioDay(opId, dateKey, entries) {
+  if (!operaioPersonalMock[opId]) operaioPersonalMock[opId] = {};
+  operaioPersonalMock[opId][dateKey] = entries;
+}
+
+function addDailyEntriesUntilToday(members, rotateOffset = 0) {
+  const entriesByDate = {};
+  const year = today.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const endOfRange = new Date(today);
+  let dayIndex = 0;
+  for (let d = new Date(startOfYear); d <= endOfRange; d.setDate(d.getDate() + 1)) {
+    const key = toKey(d);
+    if (isWeekend(d) || holidaySet.has(key)) continue;
+
+    const assegnazione = {};
+    let oreTot = 0;
+    members.forEach((opId) => {
+      const personal = operaioPersonalMock?.[opId]?.[key] || [];
+      const personalH = personal.reduce((sum, r) => sum + (Number(r.ore) || 0), 0);
+      let existing = 0;
+      Object.values(pmGroupsMock).forEach((group) => {
+        const list = group.timesheet?.[key] || [];
+        list.forEach((entry) => {
+          existing += Number(entry.assegnazione?.[opId] || 0);
+        });
+      });
+      const available = Math.max(0, 8 - personalH - existing);
+      assegnazione[opId] = available;
+      oreTot += available;
+    });
+
+    if (oreTot <= 0) continue;
+    const commessa = COMMESSE[(dayIndex + rotateOffset) % COMMESSE.length];
+    entriesByDate[key] = [{ commessa, assegnazione }];
+    dayIndex += 1;
+  }
+  return entriesByDate;
+}
+
+function buildAssignmentForDate(members, dateKey, targetPerMember, commessa) {
+  const assegnazione = {};
+  members.forEach((opId) => {
+    const personal = operaioPersonalMock?.[opId]?.[dateKey] || [];
+    const personalH = personal.reduce((sum, r) => sum + (Number(r.ore) || 0), 0);
+    let existing = 0;
+    Object.values(pmGroupsMock).forEach((group) => {
+      const list = group.timesheet?.[dateKey] || [];
+      list.forEach((entry) => {
+        existing += Number(entry.assegnazione?.[opId] || 0);
+      });
+    });
+    const available = Math.max(0, 8 - personalH - existing);
+    assegnazione[opId] = Math.min(available, Number(targetPerMember) || 0);
+  });
+  return { commessa, assegnazione };
+}
+
+function fillPreviousMonthCompleteness() {
+  const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const year = prevMonthDate.getFullYear();
+  const month = prevMonthDate.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+
+  for (let day = 1; day <= lastDay; day += 1) {
+    const date = new Date(year, month, day);
+    const key = toKey(date);
+    if (isWeekend(date) || holidaySet.has(key)) continue;
+
+    OPERAI.forEach((op, idx) => {
+      const opId = op.id;
+      let total = 0;
+      const personal = operaioPersonalMock?.[opId]?.[key] || [];
+      personal.forEach((entry) => { total += Number(entry.ore) || 0; });
+      Object.values(pmGroupsMock).forEach((group) => {
+        const list = group.timesheet?.[key] || [];
+        list.forEach((entry) => { total += Number(entry.assegnazione?.[opId] || 0); });
+      });
+
+      if (total >= 8) return;
+      const needed = 8 - total;
+      const commessa = COMMESSE[(day + idx) % COMMESSE.length] || COMMESSE[0];
+      if (!operaioPersonalMock[opId]) operaioPersonalMock[opId] = {};
+      if (!operaioPersonalMock[opId][key]) operaioPersonalMock[opId][key] = [];
+      operaioPersonalMock[opId][key].push({ commessa, ore: needed, descrizione: "Top-up mese precedente" });
+    });
+  }
+}
+
+function seedGroup(id, name, members, azienda, entriesByDate) {
+  pmGroupsMock[id] = { id, name, members: members.slice(0), azienda, timesheet: {} };
+  Object.entries(entriesByDate).forEach(([date, entries]) => {
+    const list = [];
+    for (const entry of entries) {
+      if (entry.assegnazione) {
+        const assegnazione = { ...entry.assegnazione };
+        const oreTot = Object.values(assegnazione).reduce((sum, value) => sum + (Number(value) || 0), 0);
+        list.push({ commessa: entry.commessa, oreTot, assegnazione });
+      } else {
+        const oreTot = Number(entry.oreTot) || 0;
+        const perHead = members.length > 0 ? Math.floor(oreTot / members.length) : 0;
+        const remainder = members.length > 0 ? oreTot % members.length : 0;
+        const assegnazione = {};
+        members.forEach((opId, idx) => {
+          assegnazione[opId] = perHead + (idx < remainder ? 1 : 0);
+        });
+        list.push({ commessa: entry.commessa, oreTot, assegnazione });
+      }
+    }
+    pmGroupsMock[id].timesheet[date] = list;
+  });
+}
+
+initialiseBalances();
+
+// Generate employee timesheets (shared across mocks)
+Object.assign(employeeTimesheetMock, generateEmployeeTimesheets());
 
 // Per compatibilità: esporta un dataset “default” (emp-001)
 export const projectsMock = employeeTimesheetMock["emp-001"] || {};
@@ -856,262 +992,43 @@ export function updateOperaioPersonalDay({ opId, dateKey, entries }) {
 // Seed iniziale per PM Campo: crea alcune squadre e inserisce ore su alcune date
 (() => {
   try {
-    if (Object.keys(pmGroupsMock).length > 0) return; // già popolato
-    const brtOps = OPERAI.filter((o) => o.azienda === "BRT").map((o) => o.id);
-    const inwaveOps = OPERAI.filter((o) => o.azienda === "INWAVE").map((o) => o.id);
-    const stepOps = OPERAI.filter((o) => o.azienda === "STEP").map((o) => o.id);
+    if (Object.keys(pmGroupsMock).length > 0) return;
 
-    const today = new Date();
-    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
 
-    const seedGroup = (id, name, members, azienda, entriesByDate) => {
-      pmGroupsMock[id] = { id, name, members: members.slice(0), azienda, timesheet: {} };
-      Object.entries(entriesByDate).forEach(([date, entries]) => {
-        const list = [];
-        for (const e of entries) {
-          // Se l'entry fornisce una assegnazione per-operaio, usala; altrimenti riparto uniforme
-          if (e.assegnazione) {
-            const assegnazione = { ...e.assegnazione };
-            const oreTot = Object.values(assegnazione).reduce((s, v) => s + (Number(v) || 0), 0);
-            list.push({ commessa: e.commessa, oreTot, assegnazione });
-          } else {
-            const oreTot = Number(e.oreTot) || 0;
-            const perHead = members.length > 0 ? Math.floor(oreTot / members.length) : 0;
-            const remainder = members.length > 0 ? oreTot % members.length : 0;
-            const assegnazione = {};
-            members.forEach((opId, idx) => {
-              assegnazione[opId] = perHead + (idx < remainder ? 1 : 0);
-            });
-            list.push({ commessa: e.commessa, oreTot, assegnazione });
-          }
-        }
-        pmGroupsMock[id].timesheet[date] = list;
-      });
-    };
+    const brtOps = OPERAI.filter((op) => op.azienda === "BRT").map((op) => op.id);
+    const inwaveOps = OPERAI.filter((op) => op.azienda === "INWAVE").map((op) => op.id);
+    const stepOps = OPERAI.filter((op) => op.azienda === "STEP").map((op) => op.id);
 
-    // STEP 3: REFACTORED SEED for operai personal entries
-    // NO partial FERIE. Include ROL. No duplicates. Respect balances.
-    const seedPersonalForOperai = () => {
-      const year = today.getFullYear();
-      const start = new Date(year, 0, 1);
-      const end = new Date(today);
-      OPERAI.forEach((op) => {
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-          const key = toKey(d);
-          if (isWeekend(d) || holidaySet.has(key)) continue;
+    seedPersonalForOperai();
 
-          const roll = Math.random();
-          // 2% MALATTIA (8h exclusive)
-          if (roll < 0.02) {
-            if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
-            operaioPersonalMock[op.id][key] = [{ commessa: "MALATTIA", ore: 8 }];
-          }
-          // 6% full-day absence: FERIE or PERMESSO/ROL=8
-          else if (roll < 0.08) {
-            if (Math.random() < 0.5) {
-              // FERIE 8h
-              if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
-              operaioPersonalMock[op.id][key] = [{ commessa: "FERIE", ore: 8 }];
-            } else {
-              // PERMESSO/ROL = 8 (split randomly, limited by balances)
-              const balances = getEmployeeBalances(op.id);
-              let wantP = getRandomInt(0, 8);
-              let wantR = 8 - wantP;
-              const gotP = Math.min(wantP, balances.permesso);
-              const gotR = Math.min(wantR, balances.rol);
-              if (gotP + gotR === 8) {
-                const parts = [];
-                if (gotP > 0) parts.push({ commessa: "PERMESSO", ore: gotP });
-                if (gotR > 0) parts.push({ commessa: "ROL", ore: gotR });
-                if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
-                operaioPersonalMock[op.id][key] = parts;
-                // Consume balances
-                try {
-                  consumeBalances(op.id, { permesso: gotP, rol: gotR });
-                } catch {
-                  // Fallback to FERIE if consume fails
-                  operaioPersonalMock[op.id][key] = [{ commessa: "FERIE", ore: 8 }];
-                }
-              } else {
-                // Insufficient, use FERIE
-                if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
-                operaioPersonalMock[op.id][key] = [{ commessa: "FERIE", ore: 8 }];
-              }
-            }
-          }
-          // 20% chance: partial PERMESSO/ROL on workday (1-3h)
-          else if (roll < 0.28) {
-            const balances = getEmployeeBalances(op.id);
-            let wantP = getRandomInt(0, 3);
-            let wantR = getRandomInt(0, Math.max(0, 3 - wantP));
-            const gotP = Math.min(wantP, balances.permesso);
-            const gotR = Math.min(wantR, balances.rol);
-            if (gotP + gotR > 0) {
-              const parts = [];
-              if (gotP > 0) parts.push({ commessa: "PERMESSO", ore: gotP });
-              if (gotR > 0) parts.push({ commessa: "ROL", ore: gotR });
-              if (!operaioPersonalMock[op.id]) operaioPersonalMock[op.id] = {};
-              operaioPersonalMock[op.id][key] = parts;
-              // Consume balances
-              try {
-                consumeBalances(op.id, { permesso: gotP, rol: gotR });
-              } catch {
-                // Should not happen but defensive: remove entry
-                delete operaioPersonalMock[op.id][key];
-              }
-            }
-          }
-          // Else: no personal entries (work will be filled by groups)
-        }
-      });
-    };
+    const brtCore = brtOps.slice(0, Math.min(4, brtOps.length));
+    const g1Members = brtCore.slice(0, 2);
+    const g1YearEntries = addDailyEntriesUntilToday(g1Members, 0);
+    const todayKey = toKey(today);
+    const yesterdayKey = toKey(yesterday);
+    g1YearEntries[todayKey] = [buildAssignmentForDate(g1Members, todayKey, 8, "VS-25-01")];
+    g1YearEntries[yesterdayKey] = [buildAssignmentForDate(g1Members, yesterdayKey, 5, "VS-25-02")];
+    seedGroup("grp-1", "Squadra Alfa", g1Members, "BRT", g1YearEntries);
 
-    // Helper per aggiungere voci giornaliere (tutti i feriali fino ad oggi) considerando le voci personali
-    const addDailyEntriesUntilToday = (members, rotateOffset = 0) => {
-      const entriesByDate = {};
-      const year = today.getFullYear();
-      const yearStart = new Date(year, 0, 1);
-      const endDate = new Date(today);
-      let dayIndex = 0;
-      for (let d = new Date(yearStart); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const key = toKey(d);
-        if (isWeekend(d) || holidaySet.has(key)) continue;
-        // Calcola ore disponibili per ogni membro tenendo conto delle voci personali
-        // e delle assegnazioni gia' presenti in altri gruppi (pmGroupsMock)
-        const assegnazione = {};
-        let oreTot = 0;
-        members.forEach((opId) => {
-          const personal = operaioPersonalMock?.[opId]?.[key] || [];
-          const personalH = personal.reduce((s, r) => s + (Number(r.ore) || 0), 0);
-          // Somma ore già assegnate a questo operaio da gruppi seedati in precedenza
-          let existing = 0;
-          Object.values(pmGroupsMock).forEach((g) => {
-            const list = g.timesheet?.[key] || [];
-            list.forEach((entry) => {
-              existing += Number(entry.assegnazione?.[opId] || 0);
-            });
-          });
-          const avail = Math.max(0, 8 - personalH - existing);
-          assegnazione[opId] = avail;
-          oreTot += avail;
-        });
-        if (oreTot <= 0) continue; // tutti occupati da personali
-        const commessa = COMMESSE[(dayIndex + rotateOffset) % COMMESSE.length];
-        entriesByDate[key] = [{ commessa, assegnazione }];
-        dayIndex++;
-      }
-      return entriesByDate;
-    };
-
-    const d1 = toKey(today);
-    const d0 = toKey(yesterday);
-
-    // BRT - Squadra Alfa (usa primi 2 BRT)
-  const brtCore = brtOps.slice(0, Math.min(4, brtOps.length));
-  const g1Id = "grp-1";
-  const g1Members = brtCore.slice(0, 2);
-  // Prima genera personali
-  seedPersonalForOperai();
-
-  const g1YearEntries = addDailyEntriesUntilToday(g1Members, 0);
-    // aggiungi anche alcuni casi specifici già presenti
-    // Instead of forcing oreTot (which may ignore personal entries), compute per-op assignment
-    const makeAssignmentForDate = (dateKey, targetPerMember) => {
-      const assegn = {};
-      g1Members.forEach((opId) => {
-        const personal = operaioPersonalMock?.[opId]?.[dateKey] || [];
-        const personalH = personal.reduce((s, r) => s + (Number(r.ore) || 0), 0);
-        // existing hours from already-seeded groups on this date
-        let existing = 0;
-        Object.values(pmGroupsMock).forEach((g) => {
-          const list = g.timesheet?.[dateKey] || [];
-          list.forEach((entry) => {
-            existing += Number(entry.assegnazione?.[opId] || 0);
-          });
-        });
-        const allowed = Math.max(0, 8 - personalH - existing);
-        assegn[opId] = Math.min(allowed, Number(targetPerMember) || 0);
-      });
-      return { commessa: "VS-25-01", assegnazione: assegn };
-    };
-    g1YearEntries[d1] = [makeAssignmentForDate(d1, 8)];
-    // for d0 use target 5 hours per member (but still respect personal/other groups)
-    const makeAssignmentForDateD0 = (dateKey, targetPerMember) => {
-      const assegn = {};
-      g1Members.forEach((opId) => {
-        const personal = operaioPersonalMock?.[opId]?.[dateKey] || [];
-        const personalH = personal.reduce((s, r) => s + (Number(r.ore) || 0), 0);
-        let existing = 0;
-        Object.values(pmGroupsMock).forEach((g) => {
-          const list = g.timesheet?.[dateKey] || [];
-          list.forEach((entry) => { existing += Number(entry.assegnazione?.[opId] || 0); });
-        });
-        const allowed = Math.max(0, 8 - personalH - existing);
-        assegn[opId] = Math.min(allowed, Number(targetPerMember) || 0);
-      });
-      return { commessa: "VS-25-02", assegnazione: assegn };
-    };
-    g1YearEntries[d0] = [makeAssignmentForDateD0(d0, 5)];
-    seedGroup(g1Id, "Squadra Alfa", g1Members, "BRT", g1YearEntries);
-
-    // INWAVE - Squadra Beta (due membri se disponibili)
-    const g2Id = "grp-2";
     const g2Members = inwaveOps.slice(0, 2);
-  const g2YearEntries = addDailyEntriesUntilToday(g2Members, 1);
-    seedGroup(g2Id, "Squadra Beta", g2Members, "INWAVE", g2YearEntries);
+    const g2YearEntries = addDailyEntriesUntilToday(g2Members, 1);
+    seedGroup("grp-2", "Squadra Beta", g2Members, "INWAVE", g2YearEntries);
 
-    // STEP - Squadra Gamma (due membri)
-    const g3Id = "grp-3";
     const g3Members = stepOps.slice(0, 2);
     if (g3Members.length > 0) {
-  const g3YearEntries = addDailyEntriesUntilToday(g3Members, 2);
-      seedGroup(g3Id, "Squadra Gamma", g3Members, "STEP", g3YearEntries);
+      const g3YearEntries = addDailyEntriesUntilToday(g3Members, 2);
+      seedGroup("grp-3", "Squadra Gamma", g3Members, "STEP", g3YearEntries);
     }
 
-    // NUOVO GRUPPO: Squadra Delta (BRT) con altri 2 BRT (evita sovrapposizioni con Alfa se possibile)
-    const g4Id = "grp-4";
-  const g4Members = brtCore.slice(2, 4);
+    const g4Members = brtCore.slice(2, 4);
     if (g4Members.length >= 2) {
-  const g4YearEntries = addDailyEntriesUntilToday(g4Members, 0);
-      seedGroup(g4Id, "Squadra Delta", g4Members, "BRT", g4YearEntries);
+      const g4YearEntries = addDailyEntriesUntilToday(g4Members, 0);
+      seedGroup("grp-4", "Squadra Delta", g4Members, "BRT", g4YearEntries);
     }
 
-    // Allinea il contatore ID gruppi al prossimo disponibile
-    // Ensure previous month completeness: for each operaio, for each working day of the previous month,
-    // top-up with personal entries so total hours == 8 (respecting existing group and personal entries).
-    const fillPreviousMonthCompleteness = () => {
-      const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const y = prevMonthDate.getFullYear();
-      const m = prevMonthDate.getMonth();
-      const lastDay = new Date(y, m + 1, 0).getDate();
-      for (let day = 1; day <= lastDay; day++) {
-        const d = new Date(y, m, day);
-        const key = toKey(d);
-        if (isWeekend(d) || holidaySet.has(key)) continue;
-        OPERAI.forEach((op, idx) => {
-          const opId = op.id;
-          // compute existing total
-          let total = 0;
-          // personal
-          const personal = operaioPersonalMock?.[opId]?.[key] || [];
-          personal.forEach(p => { total += Number(p.ore) || 0; });
-          // groups
-          Object.values(pmGroupsMock).forEach(g => {
-            const list = g.timesheet?.[key] || [];
-            list.forEach(entry => { total += Number(entry.assegnazione?.[opId] || 0); });
-          });
-          if (total >= 8) return; // already satisfied
-          const needed = 8 - total;
-          // create personal top-up (use rotating commessa to vary)
-          const commessa = COMMESSE[(day + idx) % COMMESSE.length] || COMMESSE[0];
-          if (!operaioPersonalMock[opId]) operaioPersonalMock[opId] = {};
-          if (!operaioPersonalMock[opId][key]) operaioPersonalMock[opId][key] = [];
-          operaioPersonalMock[opId][key].push({ commessa, ore: needed, descrizione: 'Top-up mese precedente' });
-        });
-      }
-    };
     fillPreviousMonthCompleteness();
-
     nextGroupId = Math.max(nextGroupId, 5);
   } catch {
     // ignora errori

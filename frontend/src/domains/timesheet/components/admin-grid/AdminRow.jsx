@@ -230,18 +230,9 @@ const AdminRow = memo(function AdminRow({
             today
           });
 
-          const NON_WORK_CODES = ['FERIE', 'MALATTIA', 'PERMESSO', 'ROL'];
-          const totalHours = mergedEntries.reduce((sum, rec) => {
-            const code = String(rec?.commessa || '').toUpperCase();
-            if (NON_WORK_CODES.includes(code)) return sum;
-            return sum + (Number(rec?.ore) || 0);
-          }, 0);
+          const totalHours = mergedEntries.reduce((sum, rec) => sum + (Number(rec?.ore) || 0), 0);
 
-          const baseHours = committedEntries.reduce((sum, rec) => {
-            const code = String(rec?.commessa || '').toUpperCase();
-            if (NON_WORK_CODES.includes(code)) return sum;
-            return sum + (Number(rec?.ore) || 0);
-          }, 0);
+          const baseHours = committedEntries.reduce((sum, rec) => sum + (Number(rec?.ore) || 0), 0);
 
           const stagedOp = stagedMetaForEmp?.[dateStr] || null;
           let stagedStatus = null;

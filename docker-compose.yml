@@ -77,11 +77,22 @@ services:
       - "80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`)"
+
+      # Router PROTETTO (tutto tranne assets/static/login)
+      - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`) && !PathPrefix(`/assets`) && !PathPrefix(`/static`) && !Path(`/favicon.ico`) && !Path(`/manifest.json`) && !PathPrefix(`/.well-known`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.middlewares=jwt"
+      - "traefik.http.routers.frontend.priority=10"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
+      # Router PUBBLICO per ASSETS (Vite: /assets, CRA: /static + file “sciolti”)
+      - "traefik.http.routers.frontend-assets.rule=Host(`frontend.localhost`) && (PathPrefix(`/assets`) || PathPrefix(`/static`) || Path(`/favicon.ico`) || Path(`/manifest.json`))"
+      - "traefik.http.routers.frontend-assets.entrypoints=web"
+      - "traefik.http.routers.frontend-assets.priority=1000"
+      - "traefik.http.routers.frontend-assets.service=frontend"
+
+      # Router PUBBLICO per /login (togli la label middlewares vuota)
       - "traefik.http.routers.frontend-login.rule=Host(`frontend.localhost`) && Path(`/login`)"
       - "traefik.http.routers.frontend-login.entrypoints=web"
-      - "traefik.http.routers.frontend-login.middlewares="
+      - "traefik.http.routers.frontend-login.priority=1000"
+      - "traefik.http.routers.frontend-login.service=frontend"
