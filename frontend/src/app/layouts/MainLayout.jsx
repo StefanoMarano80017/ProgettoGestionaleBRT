@@ -1,8 +1,9 @@
 // src/layouts/MainLayout.jsx
 import { Outlet } from "react-router-dom";
-import { Box } from "@mui/material";
+import { Box, Container } from "@mui/material";
 import Sidebar from "@shared/components/Bars/Sidebar";
 import Header from "@shared/components/Bars/Header";
+import { Footer } from '@shared/components/Footer/';
 
 export default function MainLayout() {
   // Removed unused collapsed state/handler (sidebar currently handles its own internal state)
@@ -14,6 +15,9 @@ export default function MainLayout() {
         <Header />
           <Box sx={{ flexGrow: 1, overflowY: "auto", overflowX: "hidden" }}>
             <Outlet />
+            <Container maxWidth="xl">
+              <Footer/>
+            </Container>
           </Box>
       </Box>
     </Box>

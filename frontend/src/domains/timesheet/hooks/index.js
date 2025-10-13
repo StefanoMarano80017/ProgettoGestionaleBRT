@@ -3,8 +3,8 @@ export * from './calendar';
 export * from './dayEntry';
 export * from './staging';
 // Provider & context (canonical path)
-export { TimesheetProvider, useTimesheetContext } from './TimesheetProvider.jsx';
-export { useOptionalTimesheetContext, useTimesheetSelector } from './TimesheetProvider.jsx';
+export { TimesheetProvider } from './TimesheetProvider.jsx';
+export { TimesheetContext, useTimesheetContext, useOptionalTimesheetContext, useTimesheetSelector } from './TimesheetContext.js';
 export { default as useDayEditor } from './useDayEditor.js';
 export { default as useEmployeeTimesheetLoader } from './useEmployeeTimesheetLoader.js';
 export { default as useStableMergedDataMap } from './useStableMergedDataMap.js';
@@ -16,6 +16,8 @@ export { default as useTimesheetFilters } from './useTimesheetFilters.js';
 export { default as useSegnalazione } from './useSegnalazione.js';
 export { default as useDayAndMonthDetails } from './useDayAndMonthDetails.js';
 export { default as useEmployeeMonthGridRows } from './useEmployeeMonthGridRows.js';
+export { default as useBadgeData } from './useBadgeData.js';
+export { usePmCampoTimesheetState } from './pmCampo/usePmCampoTimesheetState.js';
 // TODO: migrate remaining legacy hooks (selection, referenceData, filters, api, etc.) then remove below re-export.
 // Removed broad legacy re-export to avoid leaking deprecated modules.
 // If additional legacy symbols are still required, export them explicitly above.

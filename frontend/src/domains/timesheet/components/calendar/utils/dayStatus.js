@@ -11,6 +11,17 @@
 // Output: { status, showHours, iconTopRight }
 import { NON_WORK_CODES } from '@domains/timesheet/hooks/utils/timesheetModel';
 
+/**
+ * Helper to sum non-work hours (FERIE, MALATTIA, PERMESSO, ROL)
+ */
+function sumNonWork(entries) {
+  return (entries || []).reduce((s, rec) => {
+    const code = String(rec?.commessa || '').toUpperCase();
+    if (NON_WORK_CODES.includes(code)) return s + (Number(rec?.ore) || 0);
+    return s;
+  }, 0);
+}
+
 export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, isHoliday, today = new Date() }) {
   // Normalize totals
   const totalHours = (dayData || []).reduce((sum, rec) => sum + (Number(rec?.ore) || 0), 0);
@@ -46,17 +57,7 @@ export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, is
   if (!dayData || dayData.length === 0) {
     return { status: undefined, showHours: false, iconTopRight: false };
   }
-  // Check for full non-work day (sum of NON_WORK codes == 8) first
-  const nonWorkTotal = (dayData || []).reduce((s, rec) => {
-    const code = String(rec?.commessa || '').toUpperCase();
-    if (NON_WORK_CODES.includes(code)) return s + (Number(rec?.ore) || 0);
-    return s;
-  }, 0);
-  if (nonWorkTotal === 8) {
-    return { status: 'non-work-full', showHours: false, iconTopRight: false };
-  }
-
-  // Special commesse (individual types)
+  // Special commesse (individual types) - check BEFORE generic non-work-full
   if (dayData.some((rec) => String(rec?.commessa || '').toUpperCase() === 'FERIE')) {
     return { status: 'ferie', showHours: false, iconTopRight: false };
   }
@@ -65,6 +66,26 @@ export function computeDayStatus({ dayData, dayOfWeek, segnalazione, dateStr, is
   }
   if (dayData.some((rec) => String(rec?.commessa || '').toUpperCase() === 'PERMESSO')) {
     return { status: 'permesso', showHours: true, iconTopRight: true };
+  }
+  if (dayData.some((rec) => String(rec?.commessa || '').toUpperCase() === 'ROL')) {
+    return { status: 'rol', showHours: true, iconTopRight: true };
+  }
+
+  // Check for partial non-work (PERMESSO/ROL) before full non-work
+  const permessoRolTotal = (dayData || []).reduce((s, rec) => {
+    const code = String(rec?.commessa || '').toUpperCase();
+    if (code === 'PERMESSO' || code === 'ROL') return s + (Number(rec?.ore) || 0);
+    return s;
+  }, 0);
+  
+  if (permessoRolTotal > 0 && permessoRolTotal < 8) {
+    return { status: 'non-work-partial', showHours: true, iconTopRight: true };
+  }
+
+  // Check for full non-work day (sum of NON_WORK codes == 8) - fallback for other non-work codes like ROL
+  const nonWorkTotal = sumNonWork(dayData);
+  if (nonWorkTotal === 8) {
+    return { status: 'non-work-full', showHours: false, iconTopRight: false };
   }
 
   // Future days without entries
@@ -97,25 +118,40 @@ export function getCommittedStatusForDay(entries) {
 
   const totalHours = entries.reduce((sum, rec) => sum + (Number(rec?.ore) || 0), 0);
 
-  // Check for full non-work day (sum of NON_WORK codes == 8) first
-  const nonWorkTotal = entries.reduce((s, rec) => {
+  // Special status based on business rules
+  const hasMalattia = entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'MALATTIA');
+  const hasFerie = entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'FERIE');
+  const nonWorkTotal = sumNonWork(entries);
+  const permessoRolTotal = entries.reduce((s, rec) => {
     const code = String(rec?.commessa || '').toUpperCase();
-    if (NON_WORK_CODES.includes(code)) return s + (Number(rec?.ore) || 0);
+    if (code === 'PERMESSO' || code === 'ROL') return s + (Number(rec?.ore) || 0);
     return s;
   }, 0);
-  if (nonWorkTotal === 8) {
+  
+  if (hasMalattia && nonWorkTotal === 8) {
     return 'non-work-full';
   }
-
-  // Special commesse (individual types)
-  if (entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'FERIE')) {
+  else if (hasFerie && nonWorkTotal === 8) {
+    return 'non-work-full';
+  }
+  else if (permessoRolTotal === 8 && nonWorkTotal === 8) {
+    // Full-day PERMESSO/ROL replacement (no work)
+    return 'non-work-full';
+  }
+  else if (permessoRolTotal > 0 && permessoRolTotal < 8) {
+    return 'non-work-partial';
+  }
+  else if (hasFerie) {
     return 'ferie';
   }
-  if (entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'MALATTIA')) {
+  else if (hasMalattia) {
     return 'malattia';
   }
-  if (entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'PERMESSO')) {
+  else if (entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'PERMESSO')) {
     return 'permesso';
+  }
+  else if (entries.some((rec) => String(rec?.commessa || '').toUpperCase() === 'ROL')) {
+    return 'rol';
   }
 
   // Hours-based states

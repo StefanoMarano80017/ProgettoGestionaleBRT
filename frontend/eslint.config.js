@@ -28,7 +28,7 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
-  'custom/jsx-single-line-box': ['warn', { elements: ['*'], maxProps: 10, maxChildLength: 140 }],
+      'custom/jsx-single-line-box': ['warn', { elements: ['Box', 'Stack'], maxProps: 10, maxChildLength: 140 }],
     },
   },
 ])

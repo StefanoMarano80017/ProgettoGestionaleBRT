@@ -11,7 +11,9 @@ import {
 	ClickAwayListener,
 	Typography,
 	InputAdornment,
+	alpha,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
 
 export default function SearchBar() {
@@ -53,7 +55,7 @@ export default function SearchBar() {
 
 	return (
 		<ClickAwayListener onClickAway={handleClickAway}>
-			<Box sx={{ position: "relative" }}>
+			<Box sx={{ position: "relative", minWidth: 280 }}>
 				<TextField
 					fullWidth
 					placeholder="Cerca..."
@@ -64,35 +66,117 @@ export default function SearchBar() {
 					onFocus={() => setOpen(true)}
 					size="small"
 					InputProps={{
+						startAdornment: (
+							<InputAdornment position="start">
+								<SearchIcon 
+									fontSize="small" 
+									sx={{ color: 'primary.main' }} 
+								/>
+							</InputAdornment>
+						),
 						endAdornment: (
 							<InputAdornment position="end">
-								<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-									<KeyboardIcon fontSize="small" />
-									<Typography variant="caption" color="textSecondary"> Ctrl + K </Typography>
+								<Box 
+									sx={{ 
+										display: "flex", 
+										alignItems: "center", 
+										gap: 0.5,
+										bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+										px: 1,
+										py: 0.25,
+										borderRadius: 1,
+										border: '1px solid',
+										borderColor: (theme) => alpha(theme.palette.primary.main, 0.2),
+									}}
+								>
+									<KeyboardIcon 
+										fontSize="small" 
+										sx={{ 
+											fontSize: 14,
+											color: 'primary.main',
+										}} 
+									/>
+									<Typography 
+										variant="caption" 
+										sx={{ 
+											fontSize: '0.7rem',
+											fontWeight: 500,
+											letterSpacing: 0.5,
+											color: 'primary.main',
+										}}
+									>
+										Ctrl+K
+									</Typography>
 								</Box>
 							</InputAdornment>
 						),
-						sx: { paddingY: 0, fontSize: "0.875rem" },
+						sx: { 
+							borderRadius: 2,
+							bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
+							'&:hover': {
+								bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+							},
+							'&.Mui-focused': {
+								bgcolor: 'background.paper',
+							},
+							transition: 'all 0.2s ease',
+						},
 					}}
-					inputProps={{ sx: { paddingY: 0.5 } }}
+					sx={{
+						'& .MuiOutlinedInput-root': {
+							'& fieldset': {
+								borderColor: 'divider',
+								transition: 'all 0.2s ease',
+							},
+							'&:hover fieldset': {
+								borderColor: 'primary.main',
+							},
+							'&.Mui-focused fieldset': {
+								borderColor: 'primary.main',
+								borderWidth: 2,
+							},
+						},
+					}}
 				/>
 				<Popper
 					open={open}
 					anchorEl={inputRef.current}
 					placement="bottom-start"
-					style={{ width: inputRef.current?.offsetWidth }}
+					style={{ width: inputRef.current?.offsetWidth, zIndex: 1300 }}
 				>
-					<Paper elevation={3}>
-						<List dense>
+					<Paper 
+						elevation={8}
+						sx={{
+							mt: 0.5,
+							border: 1,
+							borderColor: 'divider',
+							borderRadius: 2,
+							overflow: 'hidden',
+						}}
+					>
+						<List dense sx={{ py: 0.5 }}>
 							{searchScopes.map((scope) => (
 								<ListItem key={scope} disablePadding>
-									<ListItemButton onClick={() => handleSelect(scope)}>
+									<ListItemButton 
+										onClick={() => handleSelect(scope)}
+										sx={{
+											py: 1,
+											px: 2,
+											'&:hover': {
+												bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+											},
+										}}
+									>
 										<ListItemText
 											primary={
 												query.length > 0
 													? `Cerca "${query}" in ${scope}`
 													: `Cerca in ${scope}`
 											}
+											primaryTypographyProps={{
+												fontSize: '0.875rem',
+												fontWeight: 500,
+											}}
 										/>
 									</ListItemButton>
 								</ListItem>

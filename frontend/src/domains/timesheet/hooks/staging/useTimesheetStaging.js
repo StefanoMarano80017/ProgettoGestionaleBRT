@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { DEBUG_TS } from '@config/debug';
 import { useOptionalTimesheetStaging } from './useStagingContextHooks.js';
-import { useOptionalTimesheetContext } from '@domains/timesheet/hooks/TimesheetProvider.jsx';
+import { useOptionalTimesheetContext } from '@domains/timesheet/hooks/TimesheetContext';
 
 export function useTimesheetStaging() {
 	const tsCtx = useOptionalTimesheetContext();

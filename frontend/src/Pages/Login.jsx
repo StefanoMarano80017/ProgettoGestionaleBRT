@@ -81,6 +81,23 @@ export default function Login() {
             </form>
           </Paper>
         </Stack>
+        
+        {/* Footer */}
+        <Box 
+          sx={{ 
+            position: 'absolute',
+            bottom: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            textAlign: 'center',
+            width: '100%',
+            px: 2,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Sistema Gestionale BRT • Developed by : <strong>Andrea Manfellotti & Stefano Marano</strong>
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );

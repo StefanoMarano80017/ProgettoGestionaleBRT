@@ -15,12 +15,13 @@ import computeDayUsed from '@domains/timesheet/hooks/utils/computeDayUsed.js';
 import { semanticHash } from '@domains/timesheet/hooks/utils/semanticTimesheet.js';
 import { useTimesheetStaging } from '@domains/timesheet/hooks/staging';
 import { validateDayRecords, validateEmployeeId, validateDateKey } from '@domains/timesheet/hooks/utils/timesheetValidation.js';
+import { EMPLOYEE_COMMESSE, NON_WORK } from '@mocks/ProjectMock';
 
 export function DayEntryPanel({
 	selectedDay,
 	data = {},
 	onAddRecord = () => {},
-	commesse = [],
+	commesse: commesseProp = [],
 	readOnly = false,
 	mode: modeProp,
 	maxHoursPerDay = 8,
@@ -30,6 +31,14 @@ export function DayEntryPanel({
 	onDraftChange,
 }) {
 	if (modeProp === 'readonly') readOnly = true; // legacy support
+
+	// Load commesse from mock if employeeId is provided
+	const commesse = useMemo(() => {
+		if (!employeeId) return commesseProp;
+		const employeeCommesse = EMPLOYEE_COMMESSE[employeeId] || [];
+		// Filter out NON_WORK codes
+		return employeeCommesse.filter(c => !NON_WORK.has(String(c).toUpperCase()));
+	}, [employeeId, commesseProp]);
 
 	const { records: baseRecords, segnalazione, totalHours } = useDayEntryDerived(selectedDay, data, maxHoursPerDay);
 	const staging = useTimesheetStaging();
@@ -114,7 +123,7 @@ export function DayEntryPanel({
 			userEditRef.current = false;
 		}, 450);
 		return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-	}, [records, autoStage, employeeId, effectiveDate, staging, mergedRecords, baseCommitted]);
+		}, [records, autoStage, employeeId, effectiveDate, staging, mergedRecords, baseCommitted, maxHoursPerDay]);
 
 	useEffect(() => { if (typeof onDraftChange === 'function') onDraftChange(records); }, [records, onDraftChange]);
 
@@ -233,8 +242,37 @@ export function DayEntryPanel({
 				<Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
 					<Box sx={{ display: 'flex', flexDirection: 'column' }}>
 						<Typography variant="body2">Riepilogo Giornaliero</Typography>
-						<Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 0.5 }}>
+						<Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 0.5, flexWrap: 'wrap' }}>
 							<Chip size="small" label={`Totale giornata: ${totalHours}h`} sx={{ borderRadius: 1 }} />
+							{(() => {
+								// Calculate hours by absence type
+								const absenceHours = {};
+								mergedRecords.forEach(r => {
+									const commessa = String(r.commessa).toUpperCase();
+									if (NON_WORK.has(commessa)) {
+										absenceHours[commessa] = (absenceHours[commessa] || 0) + (r.ore || 0);
+									}
+								});
+								// Color mapping for absence types (PERMESSO and ROL use same info blue)
+								const colors = {
+									FERIE: { bg: '#e3f2fd', text: '#1976d2' },
+									MALATTIA: { bg: '#fce4ec', text: '#c2185b' },
+									PERMESSO: { bg: '#e3f2fd', text: '#1976d2' },
+									ROL: { bg: '#e3f2fd', text: '#1976d2' },
+								};
+								return Object.entries(absenceHours).map(([type, hours]) => (
+									<Chip
+										key={type}
+										size="small"
+										label={`${type}: ${hours}h`}
+										sx={{
+											borderRadius: 1,
+											bgcolor: colors[type]?.bg || '#e0e0e0',
+											color: colors[type]?.text || '#424242',
+										}}
+									/>
+								));
+							})()}
 						</Box>
 					</Box>
 				</Box>
@@ -262,7 +300,7 @@ export function DayEntryPanel({
 					employeeId={employeeId}
 					dateKey={effectiveDate}
 					initial={mergedRecords}
-					onChangeDraft={(d) => { /* no-op for now */ }}
+					onChangeDraft={() => { /* no-op for now */ }}
 					onCancel={() => setAbsenceEditorOpen(false)}
 					onConfirm={(rows) => {
 						// Build draft rows: remove existing non-work rows and append these

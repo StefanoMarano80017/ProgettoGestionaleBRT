@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getTimesheetForEmployee } from '@mocks/ProjectMock';
-import { useTimesheetContext } from '@domains/timesheet/hooks/TimesheetProvider.jsx';
+import { useTimesheetContext } from '@domains/timesheet/hooks/TimesheetContext';
 
 // Loads timesheet data for one employee once.
 export default function useEmployeeTimesheetLoader(employeeId) {

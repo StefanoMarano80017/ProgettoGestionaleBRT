@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTimesheetContext } from './TimesheetProvider.jsx';
+import { useTimesheetContext } from './TimesheetContext';
 
 // Minimal month completeness calculation (counts days with any record vs total working days)
 export default function useMonthCompleteness() {

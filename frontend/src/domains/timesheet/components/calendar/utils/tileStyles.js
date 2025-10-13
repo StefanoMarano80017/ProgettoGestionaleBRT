@@ -86,15 +86,26 @@ export function getTileSx(theme, {
         backgroundColor = alpha(theme.palette.error.main, 0.12);
         color = theme.palette.error.main;
         break;
-      case 'ferie':
-        backgroundColor = alpha(theme.palette.customPink?.main || theme.palette.secondary.main, 0.10);
+      case 'ferie': {
+        // Match legend: customPink/secondary color for both border and background
+        const ferieColor = theme.palette.customPink?.main || theme.palette.secondary.main;
+        border = `1px solid ${ferieColor}`;
+        backgroundColor = alpha(ferieColor, 0.10);
         break;
+      }
       case 'non-work-full':
         // Distinct soft gray/neutral background to indicate a full non-work day (committed or staged)
         backgroundColor = alpha(theme.palette.action.disabledBackground || theme.palette.grey[200], 0.12);
         border = `1px solid ${theme.palette.action.disabledBackground || theme.palette.grey[300]}`;
         break;
+      case 'non-work-partial':
+        // Partial absence (PERMESSO/ROL) - subtle info-colored background
+        border = `1px solid ${theme.palette.info.main}`;
+        backgroundColor = alpha(theme.palette.info.main, 0.08);
+        break;
       case 'malattia':
+        // Match legend: success color for both border and background
+        border = `1px solid ${theme.palette.success.main}`;
         backgroundColor = alpha(theme.palette.success.main, 0.12);
         break;
       case 'permesso':

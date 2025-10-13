@@ -17,7 +17,6 @@ export function DayCell({
   isSelected = false,
   isHoliday = false,
   isOutOfMonth = false,
-  dayOfWeek,
   segnalazione,
   onClick,
   onDoubleClick,
@@ -32,7 +31,7 @@ export function DayCell({
   const showHours = totalHours > 0 && status !== 'ferie' && status !== 'malattia' && status !== 'non-work-full';
   
   // Determine icon position
-  const iconTopRight = status === 'complete' || status === 'partial' || status === 'permesso';
+  const iconTopRight = status === 'complete' || status === 'partial' || status === 'permesso' || status === 'rol';
   
   // Generate tooltip content
   const tooltipContent = formatDayTooltip(entries, segnalazione, totalHours);
@@ -72,7 +71,6 @@ DayCell.propTypes = {
   isSelected: PropTypes.bool,
   isHoliday: PropTypes.bool,
   isOutOfMonth: PropTypes.bool,
-  dayOfWeek: PropTypes.number,
   segnalazione: PropTypes.any,
   onClick: PropTypes.func,
   onDoubleClick: PropTypes.func,

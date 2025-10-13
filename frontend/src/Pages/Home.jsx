@@ -1,22 +1,32 @@
 // src/pages/Home.jsx
 import React from "react";
-import { Box, Container, Typography } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Box, Container, Typography, Chip, Stack } from "@mui/material";
 import { PAGES } from "@/Routes/pagesConfig";
+import useAuth from "@/domains/auth/hooks/useAuth";
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import WavingHandIcon from '@mui/icons-material/WavingHand';
+import { PageHero } from '@shared/components/PageHeader/';
+import { StatCard } from '@shared/components/Stats/';
+import { ServiceCard } from '@shared/components/ServiceCard/';
 
-const renderIcon = (IconOrElement, sx) => {
-  // Se è già un elemento <Icon />, clona e aggiungi sx
+// Service descriptions mapping
+const SERVICE_DESCRIPTIONS = {
+  'TimeSheet': 'Gestisci le tue ore di lavoro e monitora i progetti assegnati',
+  'Commesse': 'Gestisci e monitora le commesse aziendali e l\'assegnazione delle risorse',
+};
+
+const renderIcon = (IconOrElement) => {
   if (React.isValidElement(IconOrElement)) {
-    return React.cloneElement(IconOrElement, {
-      sx: { ...(IconOrElement.props?.sx || {}), ...sx },
-    });
+    return IconOrElement.type;
   }
-  // Se è un componente (es. AccessTimeIcon), istanzialo
-  const IconComp = IconOrElement;
-  return IconComp ? <IconComp sx={sx} /> : null;
+  return IconOrElement;
 };
 
 export default function Home() {
+  const { user } = useAuth();
+  const displayName = user ? `${user.nome} ${user.cognome}` : 'Utente';
+  const firstName = user?.nome || 'Utente';
+
   // Filtra via la voce Home
   const SERVICES = React.useMemo(
     () => PAGES.filter((p) => p?.path?.toLowerCase() !== "/home" && p?.text?.toLowerCase() !== "home"),
@@ -24,58 +34,114 @@ export default function Home() {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* Box wrapper coordinato come negli altri pannelli */}
-      <Box
-        sx={{
-          boxShadow: 8,
-          borderRadius: 2,
-          bgcolor: "customBackground.main",
-          p: { xs: 2, md: 4 },
-        }}
-      >
-        <Typography variant="h6" sx={{ mb: 2 }}> Servizi </Typography>
+    <Box 
+      sx={{ 
+        minHeight: '100%',
+        bgcolor: 'background.default',
+        py: 4,
+      }}
+    >
+      <Container maxWidth="xl">
+        {/* Hero Section - Welcome */}
+        <PageHero
+          title={`Benvenuto, ${firstName}!`}
+          subtitle="Gestisci il tuo lavoro in modo efficiente con il sistema gestionale BRT"
+          icon={WavingHandIcon}
+          color="primary"
+          showAnimation={true}
+          useCustomBlueGradient={true}
+        />
 
-        {/* Griglia responsive a capo */}
+        {/* Quick Stats */}
+        <Box 
+          sx={{ 
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(1, 1fr)',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(4, 1fr)',
+            },
+            gap: 3,
+            mb: 4,
+          }}
+        >
+          <StatCard
+            label="Servizi Attivi"
+            value={1}
+            icon={TrendingUpIcon}
+            color="success"
+          />
+
+          <StatCard
+            label="Utente"
+            value={displayName}
+            color="secondary"
+            valueVariant="body1"
+            badge={
+              <Chip 
+                label="Attivo" 
+                size="small" 
+                color="success" 
+                sx={{ height: 20, fontSize: '0.7rem' }}
+              />
+            }
+          />
+
+          <StatCard
+            label="Ultima Visita"
+            value="Oggi"
+            color="warning"
+            valueVariant="body1"
+          />
+
+          <StatCard
+            label="Versione"
+            value="v1.0.0"
+            color="info"
+            valueVariant="body1"
+          />
+        </Box>
+
+        {/* Main Navigation Hub */}
+        <Typography 
+          variant="h5" 
+          sx={{ 
+            mb: 3, 
+            fontWeight: 700,
+            color: 'text.primary',
+          }}
+        >
+          Applicazioni
+        </Typography>
+
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 2.5,
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(1, 1fr)',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+            },
+            gap: 3,
           }}
         >
           {SERVICES.map(({ text, icon, path }) => {
-            const iconNode = renderIcon(icon, { fontSize: 40, color: "primary.main", mb: 1 });
+            const IconComponent = renderIcon(icon);
+            const description = SERVICE_DESCRIPTIONS[text] || 'Accedi ai servizi e alle funzionalità dell\'applicazione';
+            
             return (
-              <Box
+              <ServiceCard
                 key={text}
-                component={RouterLink}
-                to={path}
-                sx={{
-                  textDecoration: "none",
-                  color: "inherit",
-                  boxShadow: 8,
-                  borderRadius: 2,
-                  bgcolor: "background.default",
-                  p: 3,
-                  height: 140,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "transform 120ms ease, box-shadow 120ms ease",
-                  "&:hover": { transform: "translateY(-2px)", boxShadow: 12 },
-                }}
-              >
-                {iconNode}
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {text}
-                </Typography>
-              </Box>
+                title={text}
+                description={description}
+                path={path}
+                icon={IconComponent}
+              />
             );
           })}
         </Box>
-      </Box>
-    </Container>
+
+      </Container>
+    </Box>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import BeachAccessIcon from "@mui/icons-material/BeachAccess";     // FERIE
 import LocalHospitalIcon from "@mui/icons-material/LocalHospital"; // MALATTIA
-import EventAvailableIcon from "@mui/icons-material/EventAvailable"; // PERMESSO
+import ScheduleIcon from "@mui/icons-material/Schedule";           // PERMESSO/ROL
 
 export function useDayEntryDerived(selectedDay, data = {}, maxHoursPerDay = 8) {
   const records = useMemo(() => (selectedDay ? (data[selectedDay] || []) : []), [selectedDay, data]);
@@ -23,7 +23,7 @@ export function useDayEntryDerived(selectedDay, data = {}, maxHoursPerDay = 8) {
   const getChipProps = (commessa) => {
     if (commessa === 'FERIE') return { color: 'success', icon: React.createElement(BeachAccessIcon, { fontSize: 'small' }) };
     if (commessa === 'MALATTIA') return { color: 'secondary', icon: React.createElement(LocalHospitalIcon, { fontSize: 'small' }) };
-    if (commessa === 'PERMESSO') return { color: 'info', icon: React.createElement(EventAvailableIcon, { fontSize: 'small' }) };
+    if (commessa === 'PERMESSO' || commessa === 'ROL') return { color: 'info', icon: React.createElement(ScheduleIcon, { fontSize: 'small' }) };
     return { color: 'default', icon: undefined };
   };
 

@@ -1,0 +1,150 @@
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Typography,
+  Box,
+  Chip,
+  Alert
+} from '@mui/material';
+
+export default function FullDayPermessoEditor({
+  open,
+  employeeName,
+  dateKey,
+  onChangeDraft,
+  onConfirm,
+  onCancel,
+  balances = { permesso: 0, rol: 0 }
+}) {
+  const [permesso, setPermesso] = useState(8);
+  const [rol, setRol] = useState(0);
+
+  const total = permesso + rol;
+  const isValidTotal = total === 8;
+  const hasInsufficientBalance = permesso > balances.permesso || rol > balances.rol;
+  const canSave = isValidTotal && !hasInsufficientBalance;
+
+  const handleSave = () => {
+    if (!canSave) return;
+    
+    const arr = [];
+    if (permesso > 0) arr.push({ commessa: 'PERMESSO', ore: permesso });
+    if (rol > 0) arr.push({ commessa: 'ROL', ore: rol });
+    
+    onChangeDraft(arr);
+    onConfirm();
+  };
+
+  const handlePermessoChange = (value) => {
+    const newPermesso = Math.max(0, Math.min(8, Number(value) || 0));
+    setPermesso(newPermesso);
+    setRol(8 - newPermesso);
+  };
+
+  const handleRolChange = (value) => {
+    const newRol = Math.max(0, Math.min(8, Number(value) || 0));
+    setRol(newRol);
+    setPermesso(8 - newRol);
+  };
+
+  return (
+    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        Assenza 8h (Permesso/ROL) - {employeeName}
+        <Typography variant="caption" display="block" color="textSecondary">
+          Data: {dateKey}
+        </Typography>
+      </DialogTitle>
+      
+      <DialogContent>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+          Inserisci assenza a giornata intera (8h totali) usando PERMESSO e/o ROL. Non può coesistere con lavoro.
+        </Typography>
+
+        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <TextField
+            label="PERMESSO"
+            type="number"
+            value={permesso}
+            onChange={(e) => handlePermessoChange(e.target.value)}
+            inputProps={{ min: 0, max: 8, step: 0.5 }}
+            fullWidth
+            error={permesso > balances.permesso}
+            helperText={permesso > balances.permesso ? 'Saldo insufficiente' : ''}
+          />
+          <TextField
+            label="ROL"
+            type="number"
+            value={rol}
+            onChange={(e) => handleRolChange(e.target.value)}
+            inputProps={{ min: 0, max: 8, step: 0.5 }}
+            fullWidth
+            error={rol > balances.rol}
+            helperText={rol > balances.rol ? 'Saldo insufficiente' : ''}
+          />
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <Chip 
+            label={`Saldo PERMESSO: ${balances.permesso}h`} 
+            size="small" 
+            variant="outlined"
+            color={permesso > balances.permesso ? 'error' : 'default'}
+          />
+          <Chip 
+            label={`Saldo ROL: ${balances.rol}h`} 
+            size="small" 
+            variant="outlined"
+            color={rol > balances.rol ? 'error' : 'default'}
+          />
+        </Box>
+
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          Totale: {total}h (deve essere esattamente 8h)
+        </Typography>
+
+        {!isValidTotal && (
+          <Alert severity="warning" sx={{ mb: 1 }}>
+            Il totale deve essere esattamente 8 ore per l'assenza a giornata intera
+          </Alert>
+        )}
+
+        {hasInsufficientBalance && (
+          <Alert severity="error">
+            Saldo insufficiente per le ore richieste
+          </Alert>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onCancel}>Annulla</Button>
+        <Button 
+          onClick={handleSave} 
+          variant="contained" 
+          disabled={!canSave}
+        >
+          Salva
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+FullDayPermessoEditor.propTypes = {
+  open: PropTypes.bool.isRequired,
+  employeeName: PropTypes.string.isRequired,
+  dateKey: PropTypes.string.isRequired,
+  onChangeDraft: PropTypes.func.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  balances: PropTypes.shape({
+    permesso: PropTypes.number,
+    rol: PropTypes.number
+  })
+};

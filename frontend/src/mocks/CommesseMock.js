@@ -13,7 +13,7 @@ const COMMESSE_REGISTRY = [
     descrizione: 'Progetto di ammodernamento infrastrutture viabilità urbana',
     sottocommesse: [
       {
-        id: 'VS-25-01-S1',
+        id: 'VS-25-01-DL',
         nome: 'DL+Collaudo',
         descrizione: 'Direzione lavori e collaudo finale',
         servizi: ['DL', 'COLLAUDO'],
@@ -21,7 +21,7 @@ const COMMESSE_REGISTRY = [
         budgetOre: 480
       },
       {
-        id: 'VS-25-01-S2',
+        id: 'VS-25-01-INST',
         nome: 'Installazione',
         descrizione: 'Installazione impianti elettrici e sistemi SCADA',
         servizi: ['INST_ELE', 'SCADA'],
@@ -41,7 +41,7 @@ const COMMESSE_REGISTRY = [
     descrizione: 'Servizi di manutenzione ordinaria e straordinaria',
     sottocommesse: [
       {
-        id: 'VS-25-02-S1',
+        id: 'VS-25-02-MANUT',
         nome: 'Manutenzione Generale',
         descrizione: 'Manutenzione preventiva e correttiva',
         servizi: ['MANUT'],
@@ -60,7 +60,7 @@ const COMMESSE_REGISTRY = [
     descrizione: 'Progettazione esecutiva e sistemi antincendio per nuovo centro commerciale',
     sottocommesse: [
       {
-        id: 'VS-25-03-S1',
+        id: 'VS-25-03-PROG',
         nome: 'Progettazione Completa',
         descrizione: 'Progettazione esecutiva, BIM e sistemi antincendio',
         servizi: ['PROG_ESEC', 'BIM', 'ANTINC'],
@@ -80,7 +80,7 @@ const COMMESSE_REGISTRY = [
     descrizione: 'Rilievi topografici per espansione zona industriale',
     sottocommesse: [
       {
-        id: 'VS-24-04-S1',
+        id: 'VS-24-04-RILIEVI',
         nome: 'Rilievi e Tarature',
         descrizione: 'Rilievi topografici e taratura strumentazione',
         servizi: ['RILIEVI', 'TARATURE'],
@@ -284,6 +284,66 @@ export const getSottocommesseAttive = async () => {
 };
 
 /**
+ * Restituisce tutte le sottocommesse (flat list) con info della commessa parent
+ * @param {Object} options - Opzioni di filtro
+ * @param {boolean} options.includeClosed - Include le sottocommesse di commesse chiuse
+ * @returns {Promise<Array>} Lista piatta di sottocommesse
+ */
+export const listAllSottocommesse = async ({ includeClosed = false } = {}) => {
+  await new Promise(resolve => setTimeout(resolve, 50));
+  
+  let filtered = commesseStorage;
+  if (!includeClosed) {
+    filtered = commesseStorage.filter(c => c.stato !== 'CHIUSA');
+  }
+  
+  return filtered.flatMap(commessa => 
+    commessa.sottocommesse.map(sotto => ({
+      id: sotto.id,
+      nome: sotto.nome,
+      descrizione: sotto.descrizione,
+      servizi: [...sotto.servizi],
+      responsabile: sotto.responsabile,
+      budgetOre: sotto.budgetOre,
+      // Info della commessa parent
+      commessaId: commessa.id,
+      commessaNome: commessa.nome,
+      commessaStato: commessa.stato,
+      commessaCliente: commessa.cliente,
+      commessaDataInizio: commessa.dataInizio,
+      commessaDataFine: commessa.dataFine,
+      commessaDataChiusura: commessa.dataChiusura
+    }))
+  );
+};
+
+/**
+ * Verifica se una sottocommessa è chiusa (basato sulla commessa parent)
+ * @param {string} sottocommessaId - ID della sottocommessa
+ * @param {string} dateKey - Data da verificare (formato YYYY-MM-DD)
+ * @returns {Promise<boolean>} True se la sottocommessa/commessa è chiusa alla data
+ */
+export const isSottocommessaClosedOn = async (sottocommessaId, dateKey) => {
+  await new Promise(resolve => setTimeout(resolve, 20));
+  
+  // Trova la commessa parent di questa sottocommessa
+  for (const commessa of commesseStorage) {
+    const hasSottocommessa = commessa.sottocommesse.some(s => s.id === sottocommessaId);
+    if (hasSottocommessa) {
+      // Verifica se la commessa parent è chiusa
+      if (!commessa.dataChiusura) return false;
+      
+      const dataChiusura = new Date(commessa.dataChiusura);
+      const dataVerifica = new Date(dateKey);
+      
+      return dataVerifica >= dataChiusura;
+    }
+  }
+  
+  return false; // Sottocommessa non trovata
+};
+
+/**
  * Restituisce statistiche sulle commesse
  * @returns {Promise<Object>} Statistiche delle commesse
  */
@@ -325,8 +385,10 @@ export default {
   listCommesse,
   getCommessa,
   listSottocommesse,
+  listAllSottocommesse,
   isSottocommessaServiceAware,
   isCommessaClosedOn,
+  isSottocommessaClosedOn,
   pickRandomSottocommessa,
   pickRandomServizio,
   getSottocommesseAttive,

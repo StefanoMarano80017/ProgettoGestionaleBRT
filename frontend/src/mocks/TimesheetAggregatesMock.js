@@ -33,7 +33,7 @@ export async function getEmployeeMonthSummary(employeeId, year, month, opts = {}
         if (includeNonWork && ore > 0) {
           nonWorkCounts.total += ore;
           // Only accumulate into known keys (FERIE/MALATTIA/PERMESSO/ROL).
-          if (nonWorkCounts.hasOwnProperty(codice)) nonWorkCounts[codice] += ore;
+          if (Object.hasOwn(nonWorkCounts, codice)) nonWorkCounts[codice] += ore;
         }
         return;
       }
@@ -83,7 +83,7 @@ export async function getGlobalMonthByCommessa({ year, month, employeeIds = [], 
         if (!isWorkCode(codice)) {
           if (includeNonWork && ore > 0) {
             nonWorkCounts.total += ore;
-            if (nonWorkCounts.hasOwnProperty(codice)) nonWorkCounts[codice] += ore;
+            if (Object.hasOwn(nonWorkCounts, codice)) nonWorkCounts[codice] += ore;
           }
           return;
         }

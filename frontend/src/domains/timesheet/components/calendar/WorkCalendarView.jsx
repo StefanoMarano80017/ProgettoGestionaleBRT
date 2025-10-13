@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import DayEntryTile from '@domains/timesheet/components/calendar/DayEntryTile';
 import CalendarHeader from '@domains/timesheet/components/calendar/CalendarHeader';
 import TileLegend from '@shared/components/Calendar/TileLegend';
+import { StagedChangesCompact } from '@domains/timesheet/components/staging';
 import { computeDayStatus } from '@domains/timesheet/components/calendar/utils';
 import formatDayTooltip from '@domains/timesheet/components/calendar/formatDayTooltip';
 
@@ -25,8 +26,7 @@ export function WorkCalendarView({
   stagedStatusMap,
   onPrevMonth,
   onNextMonth,
-  onToday,
-  onVisibleRangeChange,
+  onDateSelect,
   // View-specific props
   renderDayTooltip,
   highlightedDays,
@@ -44,15 +44,18 @@ export function WorkCalendarView({
   }, [onKeyDown, selectedDateKey]);
 
   return (
-    <Box sx={{ width: "100%", position: 'relative', bgcolor: 'background.default', borderRadius: 1, p: 2, height: '100%' }}>
+    <Box sx={{ width: "100%", position: 'relative', bgcolor: 'background.default', borderRadius: 1, p: 1, height: '100%' }}>
       {/* Calendar header with navigation */}
       <CalendarHeader
         month={month}
         year={year}
         onPrevMonth={onPrevMonth}
         onNextMonth={onNextMonth}
-        onToday={onToday}
+        onDateSelect={onDateSelect}
       />
+
+      {/* Compact staging panel */}
+      <StagedChangesCompact />
 
       {/* Week days header */}
       <Box
@@ -157,8 +160,7 @@ WorkCalendarView.propTypes = {
   stagedStatusMap: PropTypes.object.isRequired,
   onPrevMonth: PropTypes.func.isRequired,
   onNextMonth: PropTypes.func.isRequired,
-  onToday: PropTypes.func.isRequired,
-  onVisibleRangeChange: PropTypes.func,
+  onDateSelect: PropTypes.func,
   // View-specific props
   renderDayTooltip: PropTypes.func,
   highlightedDays: PropTypes.oneOfType([PropTypes.instanceOf(Set), PropTypes.array]),
