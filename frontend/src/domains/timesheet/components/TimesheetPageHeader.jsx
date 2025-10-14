@@ -1,14 +1,12 @@
 import React from 'react';
 import { Stack, Typography, Box, Paper, Chip } from '@mui/material';
 import { AccessTime, TrendingUp, CalendarMonth } from '@mui/icons-material';
-import { BadgeCompact } from '@shared/components/BadgeCard';
-import PropTypes from 'prop-types';
 
 /**
  * TimesheetPageHeader
  * Header component for timesheet page with title and badge indicator
  */
-export function TimesheetPageHeader({ badgeData }) {
+export function TimesheetPageHeader() {
   const today = new Date();
   const dayName = today.toLocaleDateString('it-IT', { weekday: 'long' });
   const dateStr = today.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -114,32 +112,9 @@ export function TimesheetPageHeader({ badgeData }) {
         />
       </Paper>
 
-      {/* Badge Section */}
-      {badgeData?.hasBadge && (
-        <BadgeCompact 
-          isBadgiato={badgeData.isBadgiato}
-          badgeNumber={badgeData.badgeNumber}
-          lastBadgeTime={badgeData.lastBadgeTime}
-          lastBadgeType={badgeData.lastBadgeType}
-          lastBadgeLabel={badgeData.lastBadgeLabel}
-          width={420}
-        />
-      )}
     </Stack>
   );
 }
-
-TimesheetPageHeader.propTypes = {
-  badgeData: PropTypes.shape({
-    hasBadge: PropTypes.bool,
-    isBadgiato: PropTypes.bool,
-    badgeNumber: PropTypes.string,
-    lastBadgeTime: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]),
-    lastBadgeType: PropTypes.string,
-    lastBadgeLabel: PropTypes.string
-  })
-};
-
 TimesheetPageHeader.displayName = 'TimesheetPageHeader';
 
 export default TimesheetPageHeader;

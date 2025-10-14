@@ -81,6 +81,14 @@ export function getTileSx(theme, {
         // subtle glow to draw attention
         boxShadow = `0 0 0 6px ${alpha(theme.palette.warning.main || '#ffb74d', 0.06)}`;
         break;
+      case 'range-highlight': {
+        const base = theme.palette.customBlue2?.main || theme.palette.primary.main;
+        border = `1px solid ${base}`;
+        backgroundColor = alpha(base, 0.16);
+        color = theme.palette.text.primary;
+        boxShadow = `0 0 0 6px ${alpha(base, 0.08)}`;
+        break;
+      }
       case 'admin-warning':
         border = `1px solid ${theme.palette.error.main}`;
         backgroundColor = alpha(theme.palette.error.main, 0.12);
