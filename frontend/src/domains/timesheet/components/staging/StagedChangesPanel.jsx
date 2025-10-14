@@ -1,17 +1,15 @@
 // Minimal, clean staging panel implementation.
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Stack, Typography, Button, Chip, Tooltip, Snackbar, Divider } from '@mui/material';
+import { Box, Stack, Typography, Button, Chip, Snackbar } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import EditOutlinedIcon from '@mui/icons-material/ModeEditOutline';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import UndoIcon from '@mui/icons-material/Undo';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTimesheetStaging, useOptionalTimesheetContext, useTimesheetApi } from '@domains/timesheet/hooks';
-import { computeDayDiff, summarizeDayDiff } from '@domains/timesheet/hooks/utils/timesheetModel.js';
+import { StagedChangesSummary } from './StagedChangesSummary.jsx';
+import { StagedChangesLegend } from './StagedChangesLegend.jsx';
 
 const EMPTY_ARRAY = Object.freeze([]);
 const EMPTY_OBJECT = Object.freeze({});
@@ -75,25 +73,6 @@ export default function StagedChangesPanel({ showLegend = true, validateDraft })
   };
 
   // Legend helper
-  const chipStyle = (theme, paletteKey) => ({
-    bgcolor: alpha(theme.palette[paletteKey].main, 0.15),
-    borderColor: theme.palette[paletteKey].main,
-    color: theme.palette[paletteKey].dark,
-    '& .MuiChip-deleteIcon': {
-      color: theme.palette[paletteKey].main,
-      opacity: 0.8,
-      '&:hover': { color: theme.palette[paletteKey].dark }
-    }
-  });
-
-  const Legend = showLegend ? (
-    <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.75 }}>
-      <Chip size="small" label="Nuovo" icon={<AddCircleOutlineIcon fontSize="inherit" />} variant="outlined" sx={(t) => chipStyle(t, 'success')} />
-      <Chip size="small" label="Modificato" icon={<EditOutlinedIcon fontSize="inherit" />} variant="outlined" sx={(t) => chipStyle(t, 'warning')} />
-      <Chip size="small" label="Eliminato" icon={<DeleteOutlineIcon fontSize="inherit" />} variant="outlined" sx={(t) => chipStyle(t, 'error')} />
-    </Stack>
-  ) : null;
-
   const ConfirmButtons = (
         <Stack direction="row" justifyContent="flex-end" spacing={1}>
           <Button variant="outlined" size="small" onClick={clearAll} disabled={!flat.length}>Annulla</Button>
@@ -101,24 +80,6 @@ export default function StagedChangesPanel({ showLegend = true, validateDraft })
         </Stack>
   );
   // (Removed early return to keep layout consistent even with 0 changes)
-
-  // Utility: format dates as gg-MM-yyyy (Italian)
-  const formatDateIt = (value) => {
-    if (!value) return value;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) { // yyyy-MM-dd
-      const [y, m, d] = value.split('-');
-      return `${d}-${m}-${y}`;
-    }
-    // Try Date fallback
-    const dt = new Date(value);
-    if (!isNaN(dt)) {
-      const d = String(dt.getDate()).padStart(2, '0');
-      const m = String(dt.getMonth() + 1).padStart(2, '0');
-      const y = dt.getFullYear();
-      return `${d}-${m}-${y}`;
-    }
-    return value;
-  };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 3, width: '100%' }}>
@@ -153,63 +114,12 @@ export default function StagedChangesPanel({ showLegend = true, validateDraft })
             alignItems: 'center',
           }}
         >
-          {flat.map((item) => {
-            const diff = computeDayDiff(item.base || [], item.draft);
-            let paletteKey = 'default';
-            let icon = null;
-            if (['new-day'].includes(diff.type)) { paletteKey = 'success'; icon = <AddCircleOutlineIcon fontSize="inherit" />; }
-            else if (['day-delete', 'delete-only'].includes(diff.type)) { paletteKey = 'error'; icon = <DeleteOutlineIcon fontSize="inherit" />; }
-            else if (['mixed', 'update', 'update-only'].includes(diff.type)) { paletteKey = 'warning'; icon = <EditOutlinedIcon fontSize="inherit" />; }
-            const summary = summarizeDayDiff(diff);
-            const validation = typeof validateDraft === 'function' ? validateDraft(item.employeeId, item.dateKey, item.draft) : { ok: true };
-            const invalid = validation && validation.ok === false;
-            const tooltipContent = (
-              <Box sx={{ p: 0.5 }}>
-                <Typography variant="caption" sx={{ fontWeight: 600 }}>{formatDateIt(item.dateKey)}</Typography>
-                <Divider sx={{ my: 0.5 }} />
-                <Typography variant="caption">{summary}</Typography>
-                {invalid && (
-                  <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
-                    {validation.error || 'Bozza non valida per le regole PM Campo'}
-                  </Typography>
-                )}
-              </Box>
-            );
-            const chipSx = (theme) => {
-              if (invalid) {
-                return {
-                  borderColor: alpha(theme.palette.error.main, 0.6),
-                  color: theme.palette.error.dark,
-                  bgcolor: alpha(theme.palette.error.main, 0.12),
-                };
-              }
-              return paletteKey === 'default' ? { bgcolor: theme.palette.action.hover } : chipStyle(theme, paletteKey);
-            };
-            return (
-              <Tooltip
-                key={item.key}
-                title={tooltipContent}
-                arrow
-              >
-                <Chip
-                  size="small"
-                  label={formatDateIt(item.dateKey)}
-                  onDelete={(e) => { e.stopPropagation(); destage(item); }}
-                  deleteIcon={<CloseIcon />}
-                  icon={icon}
-                  variant="outlined"
-                  sx={chipSx}
-                />
-              </Tooltip>
-            );
-          })}
-          {!flat.length && (
-            <Stack alignItems="center" justifyContent="center" sx={{ width: '100%', opacity: 0.7 }}>
-              <Typography variant="caption" color="text.secondary">Nessuna modifica</Typography>
-            </Stack>
-          )}
+          <StagedChangesSummary items={flat} onRemove={destage} validateDraft={validateDraft} />
         </Box>
-        <Box display="flex" justifyContent="space-between" sx={{ pt: 1 }}>{Legend} {ConfirmButtons} </Box>
+        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ pt: 1 }}>
+          {showLegend ? <StagedChangesLegend sx={{ mt: 0.75 }} /> : <Box />}
+          {ConfirmButtons}
+        </Box>
       </Box>
 
       <Snackbar
