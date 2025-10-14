@@ -13,6 +13,7 @@ import { ServiceCard } from '@shared/components/ServiceCard/';
 const SERVICE_DESCRIPTIONS = {
   'TimeSheet': 'Gestisci le tue ore di lavoro e monitora i progetti assegnati',
   'Commesse': 'Gestisci e monitora le commesse aziendali e l\'assegnazione delle risorse',
+  'Dashboard Coordinatore': 'Visualizza lo stato delle commesse, assegna risorse e monitora il workload del team',
 };
 
 const renderIcon = (IconOrElement) => {
@@ -67,7 +68,7 @@ export default function Home() {
         >
           <StatCard
             label="Servizi Attivi"
-            value={1}
+            value={SERVICES.length}
             icon={TrendingUpIcon}
             color="success"
           />

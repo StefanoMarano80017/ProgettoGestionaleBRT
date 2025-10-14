@@ -1,14 +1,20 @@
 // Mock per il Registro Commesse Centralizzato
 // Fornisce un catalogo di commesse con sottocommesse e gestione stati
+import { EMPLOYEE_COMMESSE } from './ProjectMock.js';
 
 // Registry centralizzato delle commesse
 const COMMESSE_REGISTRY = [
   {
     id: 'VS-25-01',
+    codice: 'VS-25-01',
     nome: 'Progetto Infrastrutture Viabilità',
     stato: 'ATTIVA',
     dataInizio: '2025-01-15',
     dataFine: '2025-12-31',
+    createdAt: '2025-01-10',
+    updatedAt: '2025-09-15',
+    lastActivityAt: '2025-09-18',
+    tags: ['Priorità A', 'Viabilità'],
     cliente: 'Comune di Milano',
     descrizione: 'Progetto di ammodernamento infrastrutture viabilità urbana',
     sottocommesse: [
@@ -32,11 +38,16 @@ const COMMESSE_REGISTRY = [
   },
   {
     id: 'VS-25-02',
+    codice: 'VS-25-02',
     nome: 'Manutenzione Impianti Industriali',
     stato: 'CHIUSA',
     dataInizio: '2025-03-01',
     dataFine: '2025-08-31',
     dataChiusura: '2025-09-01',
+    createdAt: '2025-02-20',
+    updatedAt: '2025-09-01',
+    lastActivityAt: '2025-09-01',
+    tags: ['Manutenzione'],
     cliente: 'Azienda Manifatturiera SpA',
     descrizione: 'Servizi di manutenzione ordinaria e straordinaria',
     sottocommesse: [
@@ -52,10 +63,15 @@ const COMMESSE_REGISTRY = [
   },
   {
     id: 'VS-25-03',
+    codice: 'VS-25-03',
     nome: 'Centro Commerciale Green Plaza',
     stato: 'ATTIVA',
     dataInizio: '2025-02-01',
     dataFine: '2026-03-31',
+    createdAt: '2025-01-20',
+    updatedAt: '2025-09-12',
+    lastActivityAt: '2025-09-12',
+    tags: ['Retail', 'Green'],
     cliente: 'Green Plaza Development',
     descrizione: 'Progettazione esecutiva e sistemi antincendio per nuovo centro commerciale',
     sottocommesse: [
@@ -71,11 +87,16 @@ const COMMESSE_REGISTRY = [
   },
   {
     id: 'VS-24-04',
+    codice: 'VS-24-04',
     nome: 'Rilievi Topografici Zona Industriale',
     stato: 'CHIUSA',
     dataInizio: '2024-11-01',
     dataFine: '2025-04-30',
     dataChiusura: '2025-05-15',
+    createdAt: '2024-10-20',
+    updatedAt: '2025-05-15',
+    lastActivityAt: '2025-05-15',
+    tags: ['Rilievi'],
     cliente: 'Consorzio Industriale Nord',
     descrizione: 'Rilievi topografici per espansione zona industriale',
     sottocommesse: [
@@ -380,10 +401,145 @@ export const getServiziUtilizzati = async () => {
   return Array.from(servizi).sort();
 };
 
+const delay = (ms = 60) => new Promise(resolve => setTimeout(resolve, ms));
+
+const normalizeState = (stato) => String(stato || '').toLowerCase();
+
+const buildCommessaSummary = (commessa) => {
+  const lastActivity = commessa.lastActivityAt || commessa.updatedAt || commessa.dataFine || commessa.dataChiusura || commessa.dataInizio;
+  const dateObj = lastActivity ? new Date(lastActivity) : null;
+  const year = dateObj?.getFullYear?.() ?? null;
+  const month = dateObj ? dateObj.getMonth() + 1 : null;
+  return {
+    id: commessa.id,
+    codice: commessa.codice || commessa.id,
+    stato: normalizeState(commessa.stato),
+    createdAt: commessa.createdAt || commessa.dataInizio,
+    updatedAt: commessa.updatedAt || commessa.dataFine || commessa.createdAt,
+    lastActivityAt: commessa.lastActivityAt || commessa.updatedAt || commessa.dataFine || commessa.dataInizio,
+    tags: Array.isArray(commessa.tags) ? [...commessa.tags] : [],
+    parentId: commessa.parentId || null,
+    year,
+    month,
+  };
+};
+
+export const listAllCommesse = async ({ includeClosed = true } = {}) => {
+  await delay();
+  const filtered = includeClosed ? commesseStorage : commesseStorage.filter(c => normalizeState(c.stato) !== 'chiusa');
+  return filtered
+    .map((commessa) => buildCommessaSummary(commessa))
+    .sort((a, b) => new Date(b.lastActivityAt || 0) - new Date(a.lastActivityAt || 0));
+};
+
+const buildAssignedEmployees = (commessaId) => {
+  if (!commessaId) return [];
+  const prefix = `${commessaId}-`;
+  return Object.entries(EMPLOYEE_COMMESSE)
+    .filter(([employeeId]) => employeeId !== 'default')
+    .filter(([, assignments]) => Array.isArray(assignments))
+    .filter(([, assignments]) => assignments.some((code) => code === commessaId || code?.startsWith(prefix)))
+    .map(([employeeId]) => employeeId);
+};
+
+export const getCommessaDetails = async (commessaId) => {
+  await delay();
+  const commessa = commesseStorage.find((c) => c.id === commessaId);
+  if (!commessa) return null;
+  return {
+    id: commessa.id,
+    codice: commessa.codice || commessa.id,
+    stato: normalizeState(commessa.stato),
+    sottocommesse: commessa.sottocommesse.map((s) => s.id),
+    assignedEmployeeIds: buildAssignedEmployees(commessa.id),
+    lastActivityAt: commessa.lastActivityAt || commessa.updatedAt,
+    tags: Array.isArray(commessa.tags) ? [...commessa.tags] : [],
+  };
+};
+
+const ensureEmployeeAssignments = (employeeId) => {
+  if (!employeeId) return [];
+  const existing = EMPLOYEE_COMMESSE[employeeId];
+  if (Array.isArray(existing)) {
+    return existing;
+  }
+  const base = Array.isArray(EMPLOYEE_COMMESSE.default) ? [...EMPLOYEE_COMMESSE.default] : [];
+  EMPLOYEE_COMMESSE[employeeId] = base;
+  return base;
+};
+
+const touchCommessaMetadata = (commessa) => {
+  if (!commessa) return;
+  const now = new Date().toISOString();
+  commessa.updatedAt = now;
+  commessa.lastActivityAt = now;
+};
+
+const getCommessaById = (commessaId) => commesseStorage.find((c) => c.id === commessaId) || null;
+
+export const addEmployeeCommessa = async (employeeId, commessaId) => {
+  await delay(120);
+  const commessa = getCommessaById(commessaId);
+  if (!commessa) {
+    throw new Error('Commessa non trovata');
+  }
+  if (normalizeState(commessa.stato) === 'chiusa') {
+    throw new Error('La commessa è chiusa');
+  }
+
+  const current = ensureEmployeeAssignments(employeeId);
+  const next = new Set(current);
+  const subIds = commessa.sottocommesse.map((s) => s.id);
+  if (subIds.length === 0) {
+    next.add(commessa.id);
+  } else {
+    subIds.forEach((id) => next.add(id));
+  }
+  const updated = Array.from(next);
+  EMPLOYEE_COMMESSE[employeeId] = updated;
+  touchCommessaMetadata(commessa);
+  return { ok: true, assigned: [...updated] };
+};
+
+export const removeEmployeeCommessa = async (employeeId, commessaId) => {
+  await delay(120);
+  const commessa = getCommessaById(commessaId);
+  if (!commessa) {
+    throw new Error('Commessa non trovata');
+  }
+
+  const current = ensureEmployeeAssignments(employeeId);
+  const prefix = `${commessa.id}-`;
+  const updated = current.filter((code) => !(code === commessa.id || (typeof code === 'string' && code.startsWith(prefix))));
+  EMPLOYEE_COMMESSE[employeeId] = updated;
+  touchCommessaMetadata(commessa);
+  return { ok: true, assigned: [...updated] };
+};
+
+export const setEmployeeCommesse = async (employeeId, commesse) => {
+  await delay(120);
+  if (!employeeId) {
+    throw new Error('employeeId richiesto');
+  }
+  const safeList = Array.isArray(commesse) ? commesse.filter(Boolean) : [];
+  EMPLOYEE_COMMESSE[employeeId] = Array.from(new Set(safeList));
+  // Heuristically touch all commesse to keep explorer updated
+  safeList
+    .map((code) => (typeof code === 'string' ? code.split('-')[0] : null))
+    .filter(Boolean)
+    .forEach((commessaId) => {
+      const commessa = getCommessaById(commessaId);
+      if (commessa) touchCommessaMetadata(commessa);
+    });
+  return { ok: true, assigned: [...EMPLOYEE_COMMESSE[employeeId]] };
+};
+
 // Export di default per compatibilità
 export default {
   listCommesse,
+  listAllCommesse,
   getCommessa,
+  getCommessaDetails,
   listSottocommesse,
   listAllSottocommesse,
   isSottocommessaServiceAware,
@@ -393,5 +549,8 @@ export default {
   pickRandomServizio,
   getSottocommesseAttive,
   getStatisticheCommesse,
-  getServiziUtilizzati
+  getServiziUtilizzati,
+  addEmployeeCommessa,
+  removeEmployeeCommessa,
+  setEmployeeCommesse,
 };

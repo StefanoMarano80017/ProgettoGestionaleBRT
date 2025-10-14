@@ -2,17 +2,12 @@
 // Ora integrato con il nuovo COMMESSE_REGISTRY
 // IMPORTANTE: I dipendenti sono assegnati alle SOTTOCOMMESSE, non alle commesse principali
 import { listCommesse, isSottocommessaClosedOn } from './CommesseMock.js';
+import { EMPLOYEE_COMMESSE } from './ProjectMock.js';
 
-// Mapping dipendenti -> sottocommesse (IDs)
-// In un timesheet reale, i dipendenti lavorano su sottocommesse specifiche
-// IDs ora includono il tipo di lavoro per maggiore chiarezza (es: VS-25-01-DL, VS-25-01-INST)
-const EMPLOYEE_COMMESSE_MAPPING = {
-  "emp-001": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-03-PROG"], // DL+Collaudo, Installazione, Progettazione
-  "emp-002": ["VS-25-01-DL", "VS-25-03-PROG"], // DL+Collaudo, Progettazione
-  "emp-003": ["VS-25-02-MANUT"], // Manutenzione Generale
-  "emp-004": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
-  "emp-005": ["VS-25-03-PROG"], // Progettazione Completa
-  default: ["VS-25-01-DL", "VS-25-01-INST", "VS-25-03-PROG"], // Default: multiple sottocommesse
+const readAssignments = (employeeId) => {
+  const list = EMPLOYEE_COMMESSE[employeeId];
+  if (Array.isArray(list)) return [...list];
+  return Array.isArray(EMPLOYEE_COMMESSE.default) ? [...EMPLOYEE_COMMESSE.default] : [];
 };
 
 /**
@@ -25,7 +20,7 @@ export async function getActiveCommesseForEmployee(employeeId) {
   await new Promise(resolve => setTimeout(resolve, 200)); // simulazione chiamata remota
   
   // Ottieni gli ID delle sottocommesse assegnate al dipendente
-  const assignedSottocommesseIds = EMPLOYEE_COMMESSE_MAPPING[employeeId] ?? EMPLOYEE_COMMESSE_MAPPING.default;
+  const assignedSottocommesseIds = readAssignments(employeeId);
   
   // Ottieni solo le commesse non chiuse dal registry
   const activeCommesse = await listCommesse({ includeClosed: false });
@@ -55,7 +50,7 @@ export async function getActiveCommesseForEmployeeV2(employeeId, { onDate = null
   const dateKey = onDate || new Date().toISOString().slice(0, 10);
   
   // Ottieni gli ID delle sottocommesse assegnate al dipendente
-  const assignedSottocommesseIds = EMPLOYEE_COMMESSE_MAPPING[employeeId] ?? EMPLOYEE_COMMESSE_MAPPING.default;
+  const assignedSottocommesseIds = readAssignments(employeeId);
   
   if (includeClosed) {
     // Se includeClosed=true, restituisce tutte le sottocommesse assegnate
