@@ -1,8 +1,17 @@
 import React from 'react';
 import { NON_WORK_CODES, isWorkCode } from '@domains/timesheet/hooks/utils/timesheetModel.js';
-import { DISCIPLINE_LABEL } from '@shared/utils/discipline.js';
 
 const NON_WORK = new Set(NON_WORK_CODES.map((code) => String(code || '').toUpperCase()));
+const dateFormatter = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+const extractCommessaId = (code) => {
+  if (!code) return null;
+  const parts = String(code).split('-');
+  if (parts.length >= 3) {
+    return parts.slice(0, 3).join('-');
+  }
+  return code;
+};
 
 const toDate = (value) => {
   if (value instanceof Date) return value;
@@ -75,7 +84,7 @@ const normalizeEntries = (entries) => (Array.isArray(entries) ? entries : []);
 
 const toFullName = (employee) => `${employee?.nome ?? ''} ${employee?.cognome ?? ''}`.trim() || employee?.id;
 
-export default function usePeopleWorkloadData({ timesheetMap, employees, periodStart, periodEnd }) {
+export default function usePeopleWorkloadData({ timesheetMap, employees, periodStart, periodEnd, commessaMeta }) {
   return React.useMemo(() => {
     const start = toDate(periodStart) || addDays(new Date(), -30);
     const end = toDate(periodEnd) || new Date();
@@ -88,12 +97,15 @@ export default function usePeopleWorkloadData({ timesheetMap, employees, periodS
 
     const employeeList = Array.isArray(employees) ? employees : [];
     const timesheets = timesheetMap && typeof timesheetMap === 'object' ? timesheetMap : {};
+    const commessaMap = commessaMeta instanceof Map ? commessaMeta : new Map();
 
     const rows = employeeList.map((employee) => {
       const sheet = timesheets[employee.id] || {};
       let workHours = 0;
       let nonWorkHours = 0;
       const distinctDays = new Set();
+      let lastActivityDate = null;
+      const workByCommessa = new Map();
 
       Object.entries(sheet).forEach(([key, value]) => {
         if (key.endsWith('_segnalazione')) return;
@@ -110,26 +122,77 @@ export default function usePeopleWorkloadData({ timesheetMap, employees, periodS
             nonWorkHours += hours;
           } else if (isWorkCode(code)) {
             workHours += hours;
+            const commessaId = extractCommessaId(code);
+            if (commessaId) {
+              workByCommessa.set(commessaId, (workByCommessa.get(commessaId) || 0) + hours);
+            }
           } else {
             workHours += hours;
+            const commessaId = extractCommessaId(code);
+            if (commessaId) {
+              workByCommessa.set(commessaId, (workByCommessa.get(commessaId) || 0) + hours);
+            }
           }
         });
+
+        if (dayEntries.some((entry) => isWorkCode(entry?.commessa))) {
+          if (!lastActivityDate || date > lastActivityDate) {
+            lastActivityDate = date;
+          }
+        }
       });
 
       const capacity = Math.max(workingDays * 8, 1);
       const utilization = Math.min(workHours / capacity, 1);
+      const assigned = Array.from(workByCommessa.entries())
+        .filter(([, hours]) => hours > 0)
+        .map(([commessaId, hours]) => {
+          const meta = commessaMap.get(commessaId);
+          const types = Array.isArray(meta?.types)
+            ? meta.types.map((value) => String(value || '').toUpperCase()).filter(Boolean)
+            : Array.isArray(meta?.tipo)
+              ? meta.tipo.map((value) => String(value || '').toUpperCase()).filter(Boolean)
+              : meta?.tipo
+                ? [String(meta.tipo).toUpperCase()]
+                : ['ENGINEERING'];
+          const normalizedTypes = types.length ? Array.from(new Set(types)) : ['ENGINEERING'];
+          if (meta && !normalizedTypes.includes('ENGINEERING')) {
+            return null;
+          }
+          const label = meta ? `${meta.codice} · ${meta.nome}` : commessaId;
+          return {
+            id: commessaId,
+            code: meta?.codice || commessaId,
+            name: meta?.nome || commessaId,
+            label,
+            hours: Number((hours || 0).toFixed(1)),
+            types: normalizedTypes,
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.hours - a.hours);
+
+      const firstName = employee?.nome || '';
+      const lastName = employee?.cognome || '';
 
       return {
         employeeId: employee.id,
         name: toFullName(employee),
-        discipline: employee.discipline,
-        disciplineLabel: DISCIPLINE_LABEL[employee.discipline] || employee.discipline || 'N/D',
+        firstName,
+        lastName,
+        company: employee.azienda || 'N/D',
+        assigned,
         workHours: Number(workHours.toFixed(1)),
         nonWorkHours: Number(nonWorkHours.toFixed(1)),
         utilization,
         utilizationPercent: Math.round(utilization * 100),
         workingDays,
         distinctDays: distinctDays.size,
+        isActive: distinctDays.size > 0,
+  activeAssignments: assigned.length,
+  totalAssignments: assigned.length,
+        lastActivity: lastActivityDate,
+        lastActivityLabel: lastActivityDate ? dateFormatter.format(lastActivityDate) : null,
         periodStart: start,
         periodEnd: end,
       };
@@ -137,9 +200,9 @@ export default function usePeopleWorkloadData({ timesheetMap, employees, periodS
 
     const summary = {
       total: rows.length,
-      withTimesheet: rows.filter((row) => row.distinctDays > 0).length,
+      withTimesheet: rows.filter((row) => row.isActive).length,
     };
 
     return { rows, summary };
-  }, [timesheetMap, employees, periodStart, periodEnd]);
+  }, [timesheetMap, employees, periodStart, periodEnd, commessaMeta]);
 }

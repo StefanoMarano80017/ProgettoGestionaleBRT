@@ -35,6 +35,7 @@ export default function CoordinatoreDashboardContainer() {
     status: 'all',
     period: 'month',
     onlyRecent: false,
+    sort: 'created',
   });
   const [commesse, setCommesse] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
@@ -97,6 +98,10 @@ export default function CoordinatoreDashboardContainer() {
     setFilters((prev) => ({ ...prev, onlyRecent: Boolean(next) }));
   }, []);
 
+  const handleSortChange = React.useCallback((value) => {
+    setFilters((prev) => ({ ...prev, sort: value }));
+  }, []);
+
   const handleSelectCommessa = React.useCallback((commessaId) => {
     setSelectedCommessaId(commessaId);
   }, []);
@@ -124,6 +129,7 @@ export default function CoordinatoreDashboardContainer() {
       periodStart={periodStart}
       error={error}
       recentBoundary={recentBoundary}
+      onSortChange={handleSortChange}
     />
   );
 
@@ -131,7 +137,6 @@ export default function CoordinatoreDashboardContainer() {
     <PeopleWorkloadContainer
       period={filters.period}
       periodStart={periodStart}
-      onlyRecent={filters.onlyRecent}
     />
   );
 

@@ -13,10 +13,16 @@ export default function CommessaListContainer({
   periodStart,
   recentBoundary,
   error,
+  onSortChange,
 }) {
   const data = useCommessaListData({ commesse, filters, periodStart, recentBoundary });
   const virtuosoRef = React.useRef(null);
-  const [expandedIds, setExpandedIds] = React.useState(() => new Set());
+  const [expandedIds, setExpandedIds] = React.useState(() => new Set()); // Start with all collapsed
+  const sortValue = filters?.sort || 'created';
+  const handleSortChange = React.useCallback((next) => {
+    if (!next || next === sortValue) return;
+    onSortChange?.(next);
+  }, [onSortChange, sortValue]);
 
   React.useEffect(() => {
     setExpandedIds((prev) => {
@@ -37,17 +43,17 @@ export default function CommessaListContainer({
 
   React.useEffect(() => {
     if (!selectedCommessaId) return;
-    setExpandedIds((prev) => {
-      if (prev.has(selectedCommessaId)) return prev;
-      const next = new Set(prev);
-      next.add(selectedCommessaId);
-      return next;
-    });
+    // Just scroll to selected item, don't auto-expand
     const index = data.indexById.get(selectedCommessaId);
     if (index != null && virtuosoRef.current?.scrollToIndex) {
       virtuosoRef.current.scrollToIndex({ index, align: 'center', behavior: 'smooth' });
     }
   }, [selectedCommessaId, data.indexById]);
+
+  React.useEffect(() => {
+    if (!virtuosoRef.current?.scrollToIndex) return;
+    virtuosoRef.current.scrollToIndex({ index: 0, align: 'start', behavior: 'auto' });
+  }, [sortValue]);
 
   const handleToggleExpand = React.useCallback((commessaId) => {
     setExpandedIds((prev) => {
@@ -86,6 +92,8 @@ export default function CommessaListContainer({
       renderAssignments={renderAssignments}
       virtuosoRef={virtuosoRef}
       error={error}
+      sort={sortValue}
+      onSortChange={handleSortChange}
     />
   );
 }
@@ -96,6 +104,7 @@ CommessaListContainer.propTypes = {
     search: PropTypes.string,
     status: PropTypes.string,
     onlyRecent: PropTypes.bool,
+    sort: PropTypes.string,
   }),
   selectedCommessaId: PropTypes.string,
   onSelectCommessa: PropTypes.func,
@@ -103,4 +112,5 @@ CommessaListContainer.propTypes = {
   periodStart: PropTypes.instanceOf(Date),
   recentBoundary: PropTypes.instanceOf(Date),
   error: PropTypes.object,
+  onSortChange: PropTypes.func,
 };

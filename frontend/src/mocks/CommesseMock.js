@@ -9,6 +9,7 @@ const COMMESSE_REGISTRY = [
     codice: 'VS-25-01',
     nome: 'Progetto Infrastrutture Viabilità',
     stato: 'ATTIVA',
+    tipo: ['ENGINEERING', 'NETWORK'],
     dataInizio: '2025-01-15',
     dataFine: '2025-12-31',
     createdAt: '2025-01-10',
@@ -41,6 +42,7 @@ const COMMESSE_REGISTRY = [
     codice: 'VS-25-02',
     nome: 'Manutenzione Impianti Industriali',
     stato: 'CHIUSA',
+    tipo: ['NETWORK'],
     dataInizio: '2025-03-01',
     dataFine: '2025-08-31',
     dataChiusura: '2025-09-01',
@@ -66,6 +68,7 @@ const COMMESSE_REGISTRY = [
     codice: 'VS-25-03',
     nome: 'Centro Commerciale Green Plaza',
     stato: 'ATTIVA',
+    tipo: ['ENGINEERING'],
     dataInizio: '2025-02-01',
     dataFine: '2026-03-31',
     createdAt: '2025-01-20',
@@ -90,6 +93,7 @@ const COMMESSE_REGISTRY = [
     codice: 'VS-24-04',
     nome: 'Rilievi Topografici Zona Industriale',
     stato: 'CHIUSA',
+    tipo: ['ENGINEERING'],
     dataInizio: '2024-11-01',
     dataFine: '2025-04-30',
     dataChiusura: '2025-05-15',
@@ -109,12 +113,154 @@ const COMMESSE_REGISTRY = [
         budgetOre: 150
       }
     ]
+  },
+  {
+    id: 'EN-25-04',
+    codice: 'EN-25-04',
+    nome: 'Impianto Energetico Campus Universitario',
+    stato: 'ATTIVA',
+    tipo: ['ENGINEERING'],
+    dataInizio: '2025-05-01',
+    dataFine: '2026-01-31',
+    createdAt: '2025-04-22',
+    updatedAt: '2025-09-05',
+    lastActivityAt: '2025-09-20',
+    tags: ['Energia', 'Sostenibilità'],
+    cliente: 'Università Regionale',
+    descrizione: 'Progettazione impianti energetici ad alta efficienza per un nuovo campus universitario',
+    sottocommesse: [
+      {
+        id: 'EN-25-04-STR',
+        nome: 'Strutturale e Fondazioni',
+        descrizione: 'Analisi strutturale e progettazione fondazioni',
+        servizi: ['STRUTTURALE', 'GEOTECNICA'],
+        responsabile: 'Laura Sarti',
+        budgetOre: 420
+      },
+      {
+        id: 'EN-25-04-MEP',
+        nome: 'Impianti MEP',
+        descrizione: 'Progettazione impianti meccanici ed elettrici',
+        servizi: ['MEP', 'HVAC'],
+        responsabile: 'Giovanni Lodi',
+        budgetOre: 380
+      }
+    ]
+  },
+  {
+    id: 'EN-25-05',
+    codice: 'EN-25-05',
+    nome: 'Polo Logistico Automatizzato',
+    stato: 'ATTIVA',
+    tipo: ['ENGINEERING'],
+    dataInizio: '2025-07-10',
+    dataFine: '2026-05-30',
+    createdAt: '2025-06-28',
+    updatedAt: '2025-09-22',
+    lastActivityAt: '2025-09-24',
+    tags: ['Logistica', 'Automazione'],
+    cliente: 'Global Logistics SA',
+    descrizione: 'Progettazione integrata impianti di automazione per hub logistico',
+    sottocommesse: [
+      {
+        id: 'EN-25-05-PROG',
+        nome: 'Progettazione impianti',
+        descrizione: 'Coordinamento progettazione impianti automatici e layout',
+        servizi: ['PROG_ESEC', 'BIM'],
+        responsabile: 'Marta Orsi',
+        budgetOre: 520
+      },
+      {
+        id: 'EN-25-05-FIRE',
+        nome: 'Prevenzione incendi',
+        descrizione: 'Analisi rischio incendio e progettazione sistemi di sicurezza',
+        servizi: ['ANTINC', 'SICUREZZA'],
+        responsabile: 'Mattia Ferrero',
+        budgetOre: 260
+      }
+    ]
+  },
+  {
+    id: 'NW-25-04',
+    codice: 'NW-25-04',
+    nome: 'Espansione Rete Fibra Metropolitana',
+    stato: 'ATTIVA',
+    tipo: ['NETWORK'],
+    dataInizio: '2025-04-05',
+    dataFine: '2025-11-30',
+    createdAt: '2025-03-18',
+    updatedAt: '2025-09-08',
+    lastActivityAt: '2025-09-21',
+    tags: ['Fibra', 'Metropolitana'],
+    cliente: 'Città Metropolitana',
+    descrizione: 'Realizzazione dorsali in fibra ottica per il potenziamento della connettività urbana',
+    sottocommesse: [
+      {
+        id: 'NW-25-04-DEP',
+        nome: 'Deployment dorsali',
+        descrizione: 'Posa cavi primari e giunzione dorsali',
+        servizi: ['POSA_FIBRA', 'GIUNZIONE'],
+        responsabile: 'Federico Serra',
+        budgetOre: 300
+      },
+      {
+        id: 'NW-25-04-POP',
+        nome: 'Installazione POP',
+        descrizione: 'Installazione punti di presenza e apparati attivi',
+        servizi: ['INSTALL_POP', 'CONFIG_RETE'],
+        responsabile: 'Giusy Perri',
+        budgetOre: 240
+      }
+    ]
+  },
+  {
+    id: 'NW-25-05',
+    codice: 'NW-25-05',
+    nome: 'Upgrade Rete Wireless Portuale',
+    stato: 'ATTIVA',
+    tipo: ['NETWORK'],
+    dataInizio: '2025-06-01',
+    dataFine: '2025-12-15',
+    createdAt: '2025-05-18',
+    updatedAt: '2025-09-19',
+    lastActivityAt: '2025-09-26',
+    tags: ['Wireless', 'Portuale'],
+    cliente: 'Autorità Portuale',
+    descrizione: 'Aggiornamento infrastruttura wireless per aree operative portuali',
+    sottocommesse: [
+      {
+        id: 'NW-25-05-SURV',
+        nome: 'Survey radio',
+        descrizione: 'Rilievi radio e pianificazione coperture',
+        servizi: ['SURVEY_RADIO', 'RF_PLANNING'],
+        responsabile: 'Chiara Bassi',
+        budgetOre: 180
+      },
+      {
+        id: 'NW-25-05-UPG',
+        nome: 'Upgrade apparati wireless',
+        descrizione: 'Installazione e configurazione apparati Wi-Fi 6E e ponti radio',
+        servizi: ['INSTALL_WIFI', 'CONFIG_RADIO'],
+        responsabile: 'Stefano Rizzo',
+        budgetOre: 260
+      }
+    ]
   }
 ];
+
+const normalizeTipo = (value) => {
+  if (!value) return ['ENGINEERING'];
+  const rawList = Array.isArray(value) ? value : [value];
+  const cleaned = rawList
+    .map((item) => String(item || '').toUpperCase())
+    .filter((item) => item.length > 0);
+  return cleaned.length ? Array.from(new Set(cleaned)) : ['ENGINEERING'];
+};
 
 // Storage in memoria - clona i dati per preservare l'immutabilità
 let commesseStorage = COMMESSE_REGISTRY.map(commessa => ({
   ...commessa,
+  tipo: normalizeTipo(commessa.tipo),
   sottocommesse: commessa.sottocommesse.map(sotto => ({
     ...sotto,
     servizi: [...sotto.servizi]
@@ -137,6 +283,7 @@ export const listCommesse = async ({ includeClosed = false } = {}) => {
   
   return filtered.map(commessa => ({
     ...commessa,
+    tipo: [...commessa.tipo],
     sottocommesse: commessa.sottocommesse.map(sotto => ({
       ...sotto,
       servizi: [...sotto.servizi]
@@ -157,6 +304,7 @@ export const getCommessa = async (id) => {
   
   return {
     ...commessa,
+    tipo: [...commessa.tipo],
     sottocommesse: commessa.sottocommesse.map(sotto => ({
       ...sotto,
       servizi: [...sotto.servizi]
@@ -177,6 +325,7 @@ export const listSottocommesse = async (commessaId) => {
   
   return commessa.sottocommesse.map(sotto => ({
     ...sotto,
+    tipo: [...commessa.tipo],
     servizi: [...sotto.servizi]
   }));
 };
@@ -297,6 +446,7 @@ export const getSottocommesseAttive = async () => {
     .flatMap(c => 
       c.sottocommesse.map(s => ({
         ...s,
+        tipo: [...c.tipo],
         commessaId: c.id,
         commessaNome: c.nome,
         servizi: [...s.servizi]
@@ -330,6 +480,7 @@ export const listAllSottocommesse = async ({ includeClosed = false } = {}) => {
       commessaId: commessa.id,
       commessaNome: commessa.nome,
       commessaStato: commessa.stato,
+      commessaTipo: [...commessa.tipo],
       commessaCliente: commessa.cliente,
       commessaDataInizio: commessa.dataInizio,
       commessaDataFine: commessa.dataFine,
@@ -414,6 +565,7 @@ const buildCommessaSummary = (commessa) => {
     id: commessa.id,
     codice: commessa.codice || commessa.id,
     stato: normalizeState(commessa.stato),
+    tipo: [...commessa.tipo],
     createdAt: commessa.createdAt || commessa.dataInizio,
     updatedAt: commessa.updatedAt || commessa.dataFine || commessa.createdAt,
     lastActivityAt: commessa.lastActivityAt || commessa.updatedAt || commessa.dataFine || commessa.dataInizio,
@@ -450,6 +602,7 @@ export const getCommessaDetails = async (commessaId) => {
     id: commessa.id,
     codice: commessa.codice || commessa.id,
     stato: normalizeState(commessa.stato),
+    tipo: [...commessa.tipo],
     sottocommesse: commessa.sottocommesse.map((s) => s.id),
     assignedEmployeeIds: buildAssignedEmployees(commessa.id),
     lastActivityAt: commessa.lastActivityAt || commessa.updatedAt,
