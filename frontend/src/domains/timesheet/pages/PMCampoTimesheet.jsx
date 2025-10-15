@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Box, Paper, Typography, CircularProgress, Alert, Grid, Stack, Button } from '@mui/material';
+import { Box, Paper, Typography, CircularProgress, Alert, Grid, Stack, Button } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { TimesheetProvider, usePmCampoTimesheetState } from '@domains/timesheet/hooks';
@@ -53,7 +53,7 @@ function PMCampoInner() {
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', py: 3 }}>
-      <Container maxWidth="xl">
+      <Box sx={{ width: '100%', px: { xs: 2, md: 4 } }}>
         <Paper
           elevation={0}
           sx={{
@@ -162,7 +162,7 @@ function PMCampoInner() {
           data={activeEmployeeData}
           commesse={commesseForEmployee}
         />
-      </Container>
+      </Box>
     </Box>
   );
 }

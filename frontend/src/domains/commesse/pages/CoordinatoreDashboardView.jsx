@@ -7,7 +7,6 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import {
   Box,
-  Container,
   Stack,
   TextField,
   ToggleButton,
@@ -49,7 +48,7 @@ export default function CoordinatoreDashboardView({
 }) {
   return (
     <Box sx={{ minHeight: '100%', bgcolor: 'background.default', py: 4 }}>
-      <Container maxWidth="xl">
+      <Box sx={{ width: '100%', px: { xs: 2, md: 4 } }}>
         <Box sx={{ mb: 3 }}>
           <PageHero
             title="Dashboard Coordinatore"
@@ -187,7 +186,7 @@ export default function CoordinatoreDashboardView({
             {workloadSlot}
           </Box>
         </Stack>
-      </Container>
+      </Box>
     </Box>
   );
 }

@@ -1,6 +1,6 @@
 // src/pages/Home.jsx
 import React from "react";
-import { Box, Container, Typography, Chip, Stack } from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 import { PAGES } from "@/Routes/pagesConfig";
 import useAuth from "@/domains/auth/hooks/useAuth";
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -42,7 +42,13 @@ export default function Home() {
         py: 4,
       }}
     >
-      <Container maxWidth="xl">
+      <Box
+        sx={{
+          width: '100%',
+          px: { xs: 2, md: 4 },
+          mx: 'auto',
+        }}
+      >
         {/* Hero Section - Welcome */}
         <PageHero
           title={`Benvenuto, ${firstName}!`}
@@ -141,8 +147,7 @@ export default function Home() {
             );
           })}
         </Box>
-
-      </Container>
+      </Box>
     </Box>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Container } from '@mui/material';
+import { Box } from '@mui/material';
 import { 
   TimesheetProvider, 
   useTimesheetContext, 
@@ -98,7 +98,7 @@ function InnerDipendente({ employeeId }) {
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', overflow: 'auto' }}>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Box sx={{ width: '100%', py: 4, px: { xs: 2, md: 4 } }}>
         <TimesheetMainLayout
           employeeId={employeeId}
           mergedData={mergedData}
@@ -124,7 +124,7 @@ function InnerDipendente({ employeeId }) {
           data={mergedData}
           commesse={commesseList}
         />
-      </Container>
+      </Box>
     </Box>
   );
 }

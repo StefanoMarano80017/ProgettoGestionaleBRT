@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Box, Container, Typography, Paper, Button, Alert } from '@mui/material';
+import { Box, Typography, Paper, Button, Alert } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -311,7 +311,7 @@ function InnerDashboardAmministrazione() {
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', py: 3 }}>
-      <Container maxWidth="xl">
+      <Box sx={{ width: '100%', px: { xs: 2, md: 4 } }}>
         {/* Page Header - Compact */}
         <Paper
           elevation={0}
@@ -425,7 +425,7 @@ function InnerDashboardAmministrazione() {
           employeeName={editingEmployeeName}
           data={editingEmployeeData}
         />
-      </Container>
+      </Box>
     </Box>
   );
 }
@@ -447,8 +447,8 @@ export default function DashboardAmministrazioneTimesheet() {
 
   if (!isAuthorized) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
+      <Box sx={{ width: '100%', py: 8, px: { xs: 2, md: 4 }, display: 'flex', justifyContent: 'center' }}>
+        <Paper sx={{ p: 4, textAlign: 'center', width: '100%', maxWidth: 640 }}>
           <Alert severity="error" sx={{ mb: 3 }}>
             <Typography variant="h6" sx={{ mb: 1 }}>
               Accesso Non Autorizzato
@@ -466,7 +466,7 @@ export default function DashboardAmministrazioneTimesheet() {
             Torna alla Home
           </Button>
         </Paper>
-      </Container>
+      </Box>
     );
   }
 
