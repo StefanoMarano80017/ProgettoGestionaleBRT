@@ -3,7 +3,6 @@ import CoordinatoreDashboardView from './CoordinatoreDashboardView.jsx';
 import { listAllCommesse } from '@mocks/CommesseMock.js';
 import FileExplorerContainer from '../components/coordinatore/FileExplorer/FileExplorerContainer.jsx';
 import CommessaListContainer from '../components/coordinatore/CommessaList/CommessaListContainer.jsx';
-import PeopleWorkloadContainer from '../components/coordinatore/PeopleWorkload/PeopleWorkloadContainer.jsx';
 
 const PERIOD_TO_DAYS = {
   week: 7,
@@ -171,17 +170,10 @@ export default function CoordinatoreDashboardContainer() {
     />
   );
 
-  const workloadSlot = (
-    <PeopleWorkloadContainer
-      onCommessaOpen={handleSelectCommessa}
-    />
-  );
-
   return (
     <CoordinatoreDashboardView
       explorerSlot={explorerSlot}
       commessaListSlot={commessaListSlot}
-      workloadSlot={workloadSlot}
     />
   );
 }

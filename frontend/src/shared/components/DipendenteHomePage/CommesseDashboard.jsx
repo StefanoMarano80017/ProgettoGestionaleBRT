@@ -1,18 +1,25 @@
-import React, { useMemo, useState, useCallback } from 'react';
+﻿import React, { useMemo, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Stack, Typography, Paper, Chip, Divider, IconButton, Tabs, Tab, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { Box, Stack, Typography, Paper, IconButton, Tabs, Tab, ToggleButtonGroup, ToggleButton, LinearProgress, Chip, Divider, Avatar } from '@mui/material';
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import WorkIcon from '@mui/icons-material/Work';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import FolderIcon from '@mui/icons-material/Folder';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { parseKeyToDate, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, inRange } from '@/shared/utils/dateRangeUtils';
-import { PieChart } from '@mui/x-charts/PieChart';
+import { BarChart } from '@mui/x-charts/BarChart';
 import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaColors';
+
+const NON_WORK_COMMESSE = new Set(['FERIE', 'MALATTIA', 'PERMESSO', 'ROL', 'ROL_P', 'ROL_C', 'ROL_F']);
 
 export default function CommesseDashboard({ assignedCommesse = [], data = {}, period = 'month', refDate = new Date(), onPeriodChange, onCommessaSelect }) {
 	const [selectedCommessa, setSelectedCommessa] = useState(null);
-	const [commesseFilter, setCommesseFilter] = useState('active'); // 'active' or 'closed'
 	const handlePeriodToggle = useCallback((event, nextValue) => {
 		if (!onPeriodChange) return;
 		if (nextValue === null) {
@@ -33,53 +40,146 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 		}
 		return { start: startOfMonth(refDate), end: endOfMonth(refDate) };
 	}, [period, refDate]);
-	const listStats = useMemo(() => {
-		const map = new Map();
-		(assignedCommesse || []).forEach((c) => map.set(c, { commessa: c, total: 0, days: 0, lastDate: null }));
-		Object.entries(data || {}).forEach(([key, records]) => {
-			if (key.endsWith('_segnalazione')) return;
-			const dayDate = parseKeyToDate(key);
-			if (!inRange(dayDate, range.start, range.end)) return;
-			const perDay = new Set();
-			(records || []).forEach((rec) => {
-				const comm = rec && rec.commessa;
-				if (!comm || !map.has(comm)) return;
-				const stat = map.get(comm);
-				stat.total += Number(rec.ore || 0);
-				if (!perDay.has(comm)) { stat.days += 1; perDay.add(comm); }
-				if (!stat.lastDate || dayDate > stat.lastDate) stat.lastDate = dayDate;
-			});
-		});
-		const allStats = Array.from(map.values()).sort((a, b) => String(a.commessa).localeCompare(String(b.commessa)));
-		// Filter based on commesseFilter
-		return allStats.filter((s) => {
-			if (commesseFilter === 'active') return s.total > 0;
-			if (commesseFilter === 'closed') return s.total === 0;
-			return true;
-		});
-	}, [assignedCommesse, data, range, commesseFilter]);
 	const chartData = useMemo(() => {
-		const sums = new Map((assignedCommesse || []).map((c) => [c, 0]));
+		if (period === 'none') {
+			const dayKey = refDate.toISOString().slice(0, 10);
+			const dayRecords = data[dayKey] || [];
+			
+			// Build a map of commessa -> activities with hours
+			const commessaActivities = new Map();
+
+			dayRecords.forEach((rec) => {
+				if (!rec || !rec.commessa) return;
+				const commessa = String(rec.commessa).trim();
+				if (!commessa) return;
+				const normalized = commessa.toUpperCase();
+				if (NON_WORK_COMMESSE.has(normalized)) return;
+				
+				const hours = Number(rec.ore || 0);
+				const activity = rec.attivita || rec.sottocommessa || 'Attività generale';
+				
+				if (!commessaActivities.has(commessa)) {
+					commessaActivities.set(commessa, {
+						total: 0,
+						activities: new Map(),
+					});
+				}
+				
+				const commessaData = commessaActivities.get(commessa);
+				commessaData.total += hours;
+				
+				if (!commessaData.activities.has(activity)) {
+					commessaData.activities.set(activity, 0);
+				}
+				commessaData.activities.set(activity, commessaData.activities.get(activity) + hours);
+			});
+
+			const entries = Array.from(commessaActivities.entries()).filter(([, data]) => data.total > 0);
+			if (entries.length === 0) {
+				return { series: [], xAxis: [], isEmpty: true, isStacked: false, xLabel: 'Commesse', width: 360, isDailyView: true, dailyData: [] };
+			}
+
+			const commessaList = entries.map(([commessa]) => commessa);
+			const series = entries.map(([commessa, data], idx, arr) => ({
+				data: arr.map((_, dataIdx) => (dataIdx === idx ? data.total : 0)),
+				label: commessa,
+				color: getCommessaColor(commessa),
+			}));
+
+			// Create detailed daily data with activities
+			const dailyData = entries.map(([commessa, data]) => ({
+				commessa,
+				hours: data.total,
+				activities: Array.from(data.activities.entries()).map(([name, hours]) => ({ name, hours })),
+			}));
+
+			return {
+				series,
+				xAxis: commessaList,
+				isEmpty: false,
+				isStacked: false,
+				xLabel: 'Commesse',
+				width: Math.max(360, commessaList.length * 70),
+				isDailyView: true,
+				dailyData, // Store detailed activity data
+			};
+		}
+
+		const bucketMap = new Map(); // bucketKey -> { date: Date, values: Map(commessa -> hours) }
+		const commessaSet = new Set();
+
 		Object.entries(data || {}).forEach(([key, records]) => {
 			if (key.endsWith('_segnalazione')) return;
-			const d = parseKeyToDate(key);
-			if (!inRange(d, range.start, range.end)) return;
+			const currentDate = parseKeyToDate(key);
+			if (!inRange(currentDate, range.start, range.end)) return;
+
+			let bucketKey;
+			let bucketDate;
+			if (period === 'week') {
+				bucketKey = currentDate.toISOString().slice(0, 10);
+				bucketDate = currentDate;
+			} else if (period === 'month') {
+				const weekStart = startOfWeek(currentDate);
+				bucketKey = weekStart.toISOString().slice(0, 10);
+				bucketDate = weekStart;
+			} else {
+				const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+				bucketKey = monthStart.toISOString().slice(0, 10);
+				bucketDate = monthStart;
+			}
+
+			if (!bucketMap.has(bucketKey)) {
+				bucketMap.set(bucketKey, { date: bucketDate, values: new Map() });
+			}
+			const bucket = bucketMap.get(bucketKey);
+
 			(records || []).forEach((rec) => {
 				if (!rec || !rec.commessa) return;
-				if (!sums.has(rec.commessa)) return;
-				sums.set(rec.commessa, sums.get(rec.commessa) + Number(rec.ore || 0));
+				const commessa = String(rec.commessa).trim();
+				if (!commessa) return;
+				const normalized = commessa.toUpperCase();
+				if (NON_WORK_COMMESSE.has(normalized)) return;
+				const hours = Number(rec.ore || 0);
+				if (hours <= 0) return;
+				commessaSet.add(commessa);
+				bucket.values.set(commessa, (bucket.values.get(commessa) || 0) + hours);
 			});
 		});
-		// Filter out commesse with 0 hours for cleaner pie chart
-		const filteredEntries = Array.from(sums.entries()).filter(([, value]) => value > 0);
-		const pieData = filteredEntries.map(([label, value], i) => ({
-			id: i,
-			value,
-			label,
-			color: getCommessaColor(label) // Use hash-based color
+
+		if (!bucketMap.size) {
+			return { series: [], xAxis: [], isEmpty: true, isStacked: true, xLabel: 'Periodo', width: 400 };
+		}
+
+		const buckets = Array.from(bucketMap.values()).sort((a, b) => a.date - b.date);
+		const commessaList = Array.from(commessaSet).sort();
+
+		const xAxis = buckets.map((bucket, idx) => {
+			if (period === 'week') {
+				return bucket.date.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit' });
+			}
+			if (period === 'month') {
+				return `Sett ${idx + 1}`;
+			}
+			return bucket.date.toLocaleDateString('it-IT', { month: 'short' });
+		});
+
+		const series = commessaList.map((commessa) => ({
+			data: buckets.map((bucket) => bucket.values.get(commessa) || 0),
+			label: commessa,
+			color: getCommessaColor(commessa),
+			stack: 'total',
 		}));
-		return { pieData, labels: filteredEntries.map(([label]) => label), values: filteredEntries.map(([, value]) => value) };
-	}, [assignedCommesse, data, range]);
+
+		return {
+			series,
+			xAxis,
+			isEmpty: false,
+			isStacked: true,
+			xLabel: period === 'week' ? 'Giorni' : period === 'month' ? 'Settimane' : 'Mesi',
+			width: Math.max(400, buckets.length * 60),
+			isDailyView: false,
+		};
+	}, [data, period, range, refDate]);
 	const riepilogo = useMemo(() => {
 		if (data && data.__monthlySummary) return {
 			ferie: data.__monthlySummary.ferie || { days: 0, hours: 0 },
@@ -128,62 +228,278 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 	};
 	return (
 		<Paper sx={{ p: 2, borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-			<Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, fontStyle: 'italic' }}>
-				Dashboard delle commesse: visualizza il grafico a torta delle ore lavorate, il riepilogo con ferie/malattie/permessi/ROL, 
-				i controlli per cambiare periodo (settimana/mese/anno), e l'elenco delle commesse assegnate con statistiche dettagliate.
-			</Typography>
 			<Stack spacing={1} sx={{ height: '100%' }}>
 				<Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
 					<Box sx={{ flex: '1 1 280px', minWidth: 0, minHeight: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-						{chartData.pieData && chartData.pieData.length ? (
-							<PieChart
-								series={[
-									{
-										data: chartData.pieData,
-										highlightScope: { fade: 'global', highlight: 'item' },
-										faded: { 
-											innerRadius: 70, 
-											additionalRadius: -15, 
-											color: '#999',
-										},
-										highlighted: {
-											additionalRadius: 10,
-										},
-										paddingAngle: 3,
-										cornerRadius: 0,
-										innerRadius: 70,
-										outerRadius: 110,
-										arcLabel: (item) => `${item.value}h`,
-										arcLabelMinAngle: 45,
-									},
-								]}
-								width={400}
-								height={280}
-								margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-								sx={{
-									'& .MuiPieArc-root': {
-										stroke: 'none',
-										transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-										'&:hover': {
-											filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
-											opacity: 1,
-										},
-										'&[data-highlighting="faded"]': {
-											opacity: 0.4,
-										},
-										'&[data-highlighting="highlighted"]': {
-											opacity: 1,
-										},
-									},
-									'& .MuiChartsLegend-root': {
-										display: 'none !important',
-									},
-								}}
-							/>
+						{chartData.isDailyView ? (
+							// Daily View: Commesse and Activities breakdown
+							!chartData.isEmpty && chartData.dailyData?.length > 0 ? (
+								<Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 1 }}>
+									{/* Summary header */}
+									<Paper 
+										elevation={0}
+										sx={{ 
+											p: 2, 
+											borderRadius: 2,
+											border: '1px solid',
+											borderColor: 'divider',
+											background: 'linear-gradient(135deg, rgba(0, 166, 251, 0.08) 0%, rgba(0, 100, 148, 0.08) 100%)',
+										}}
+									>
+										<Stack direction="row" alignItems="center" justifyContent="space-between">
+											<Stack direction="row" alignItems="center" spacing={1.5}>
+												<Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
+													<WorkIcon />
+												</Avatar>
+												<Box>
+													<Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+														{chartData.dailyData.length} {chartData.dailyData.length === 1 ? 'Commessa' : 'Commesse'}
+													</Typography>
+													<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+														Attive oggi
+													</Typography>
+												</Box>
+											</Stack>
+											<Box sx={{ textAlign: 'right' }}>
+												<Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main', lineHeight: 1 }}>
+													{chartData.dailyData.reduce((sum, item) => sum + item.hours, 0)}h
+												</Typography>
+												<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+													Totale
+												</Typography>
+											</Box>
+										</Stack>
+									</Paper>
+
+									{/* Commesse cards with activities */}
+									<Box sx={{ flex: 1, overflowY: 'auto', pr: 0.5 }}>
+										<Stack spacing={2}>
+											{chartData.dailyData.map((item) => {
+												const { commessa, hours, activities } = item;
+												const commessaColor = getCommessaColor(commessa);
+												const commessaBgColor = getCommessaColorLight(commessa, 0.08);
+												const isSelected = selectedCommessa === commessa;
+												const totalHours = chartData.dailyData.reduce((sum, i) => sum + i.hours, 0);
+												const percentage = totalHours > 0 ? (hours / totalHours) * 100 : 0;
+
+												return (
+													<Paper
+														key={commessa}
+														elevation={isSelected ? 3 : 0}
+														onClick={() => handleSelectCommessa(commessa)}
+														sx={{
+															borderRadius: 2,
+															border: '1px solid',
+															borderColor: isSelected ? commessaColor : 'divider',
+															bgcolor: isSelected ? commessaBgColor : 'background.paper',
+															cursor: 'pointer',
+															overflow: 'hidden',
+															transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+															'&:hover': {
+																borderColor: commessaColor,
+																bgcolor: commessaBgColor,
+																transform: 'translateY(-2px)',
+																boxShadow: `0 4px 12px ${commessaBgColor}`,
+															},
+														}}
+													>
+														{/* Commessa header */}
+														<Box
+															sx={{
+																p: 2,
+																background: `linear-gradient(135deg, ${commessaBgColor} 0%, ${getCommessaColorLight(commessa, 0.03)} 100%)`,
+																borderBottom: '1px solid',
+																borderColor: 'divider',
+															}}
+														>
+															<Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+																<Stack direction="row" alignItems="center" spacing={1.5}>
+																	<Avatar 
+																		sx={{ 
+																			bgcolor: commessaColor, 
+																			width: 36, 
+																			height: 36,
+																			fontSize: '0.9rem',
+																			fontWeight: 700,
+																		}}
+																	>
+																		<FolderIcon fontSize="small" />
+																	</Avatar>
+																	<Box>
+																		<Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+																			{commessa}
+																		</Typography>
+																		<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+																			{activities.length} {activities.length === 1 ? 'attività' : 'attività'}
+																		</Typography>
+																	</Box>
+																</Stack>
+																<Stack alignItems="flex-end" spacing={0.5}>
+																	<Typography variant="h5" sx={{ fontWeight: 700, color: commessaColor, lineHeight: 1 }}>
+																		{hours}h
+																	</Typography>
+																	<Chip
+																		size="small"
+																		label={`${percentage.toFixed(0)}%`}
+																		sx={{
+																			height: 18,
+																			fontSize: '0.65rem',
+																			fontWeight: 600,
+																			bgcolor: commessaColor,
+																			color: '#fff',
+																		}}
+																	/>
+																</Stack>
+															</Stack>
+														</Box>
+
+														{/* Activities list */}
+														<Box sx={{ p: 1.5 }}>
+															<Stack spacing={1}>
+																{activities.map((activity, idx) => {
+																	const activityPercentage = hours > 0 ? (activity.hours / hours) * 100 : 0;
+																	
+																	return (
+																		<Box
+																			key={idx}
+																			sx={{
+																				p: 1.5,
+																				borderRadius: 1.5,
+																				bgcolor: 'background.paper',
+																				border: '1px solid',
+																				borderColor: 'divider',
+																				transition: 'all 0.2s',
+																				'&:hover': {
+																					borderColor: commessaColor,
+																					bgcolor: commessaBgColor,
+																				},
+																			}}
+																		>
+																			<Stack spacing={1}>
+																				<Stack direction="row" alignItems="center" justifyContent="space-between">
+																					<Stack direction="row" alignItems="center" spacing={1}>
+																						<AssignmentIcon sx={{ fontSize: 16, color: commessaColor }} />
+																						<Typography 
+																							variant="body2" 
+																							sx={{ 
+																								fontWeight: 600, 
+																								fontSize: '0.8rem',
+																								flex: 1,
+																							}}
+																						>
+																							{activity.name}
+																						</Typography>
+																					</Stack>
+																					<Stack direction="row" alignItems="center" spacing={0.5}>
+																						<AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+																						<Typography 
+																							variant="caption" 
+																							sx={{ 
+																								fontWeight: 700, 
+																								color: commessaColor,
+																								fontSize: '0.75rem',
+																							}}
+																						>
+																							{activity.hours}h
+																						</Typography>
+																					</Stack>
+																				</Stack>
+																				
+																				{/* Activity progress bar */}
+																				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+																					<LinearProgress 
+																						variant="determinate" 
+																						value={activityPercentage} 
+																						sx={{
+																							flex: 1,
+																							height: 4,
+																							borderRadius: 2,
+																							bgcolor: getCommessaColorLight(commessa, 0.15),
+																							'& .MuiLinearProgress-bar': {
+																								bgcolor: commessaColor,
+																								borderRadius: 2,
+																							},
+																						}}
+																					/>
+																					<Typography 
+																						variant="caption" 
+																						sx={{ 
+																							fontSize: '0.65rem', 
+																							color: 'text.secondary',
+																							fontWeight: 600,
+																							minWidth: 35,
+																							textAlign: 'right',
+																						}}
+																					>
+																						{activityPercentage.toFixed(0)}%
+																					</Typography>
+																				</Box>
+																			</Stack>
+																		</Box>
+																	);
+																})}
+															</Stack>
+														</Box>
+													</Paper>
+												);
+											})}
+										</Stack>
+									</Box>
+								</Box>
+							) : (
+								<Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+									<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+										Nessuna attività registrata oggi.
+									</Typography>
+								</Box>
+							)
 						) : (
-							<Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-								<Typography variant="body2">Nessun dato nel periodo selezionato.</Typography>
-							</Box>
+							// Period View: Bar chart
+							!chartData.isEmpty && chartData.series.length > 0 ? (
+								<BarChart
+									series={chartData.series}
+									xAxis={[{
+										scaleType: 'band',
+										data: chartData.xAxis,
+										categoryGapRatio: 0.3,
+										barGapRatio: chartData.isStacked ? 0.15 : 0.4,
+										label: chartData.xLabel,
+									}]}
+									yAxis={[{
+										label: 'Ore',
+									}]}
+									width={chartData.width}
+									height={280}
+									margin={{ top: 20, right: 24, bottom: 70, left: 60 }}
+									slotProps={{
+										legend: {
+											hidden: !chartData.isStacked,
+										},
+									}}
+									sx={{
+										'& .MuiBarElement-root': {
+											transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+											'&:hover': {
+												filter: 'brightness(1.15)',
+												cursor: 'pointer',
+											},
+										},
+										'& .MuiChartsAxis-tickLabel': {
+											fontSize: '0.7rem',
+										},
+										'& .MuiChartsAxis-label': {
+											fontSize: '0.75rem',
+											fontWeight: 600,
+										},
+									}}
+								/>
+							) : (
+								<Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+									<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+										Nessun dato nel periodo selezionato.
+									</Typography>
+								</Box>
+							)
 						)}
 					</Box>
 					<Box sx={{ 
@@ -417,183 +733,8 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 
 						</Stack>
 					</Box>
+
 				</Stack>
-				
-				<Divider />
-				
-				{/* Commesse List Section - Bordered Container */}
-				<Box sx={{ 
-					bgcolor: 'background.paper',
-					borderRadius: 2,
-					overflow: 'hidden',
-					border: '1px solid',
-					borderColor: 'divider',
-					display: 'flex',
-					flexDirection: 'column',
-					flex: 1,
-					minHeight: 0
-				}}>
-					{/* Header */}
-					<Box sx={{ 
-						bgcolor: 'background.paper',
-						px: 2,
-						py: 1.5,
-						borderBottom: '1px solid',
-						borderColor: 'divider'
-					}}>
-						<Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-							<Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700, fontSize: '0.9rem' }}>
-								Commesse Assegnate
-							</Typography>
-							<Tabs
-								value={commesseFilter}
-								onChange={(e, newValue) => setCommesseFilter(newValue)}
-								sx={{
-									minHeight: 28,
-									'& .MuiTabs-indicator': {
-										height: 2,
-										borderRadius: '2px 2px 0 0'
-									},
-									'& .MuiTab-root': {
-										fontSize: '0.65rem',
-										textTransform: 'none',
-										minHeight: 28,
-										minWidth: 'auto',
-										fontWeight: 600,
-										px: 1.5,
-										py: 0.5,
-										color: 'text.secondary',
-										transition: 'all 0.2s',
-										'&:hover': {
-											color: 'primary.main',
-											bgcolor: 'action.hover',
-										},
-										'&.Mui-selected': {
-											color: 'primary.main',
-											fontWeight: 700,
-										},
-									},
-								}}
-							>
-								<Tab label="Attive" value="active" />
-								<Tab label="Chiuse" value="closed" />
-							</Tabs>
-						</Stack>
-					</Box>
-					
-					{/* Scrollable list */}
-					<Box sx={{ overflowY: 'auto', flex: 1, px: 2, py: 1.5, bgcolor: 'background.default' }}>
-						<Stack spacing={0.75}>
-						{(listStats || []).map((s) => {
-							const commessaColor = getCommessaColor(s.commessa);
-							const commessaBgColor = getCommessaColorLight(s.commessa, 0.08);
-							
-							return (
-							<Box 
-								key={s.commessa}
-								onClick={() => handleSelectCommessa(s.commessa)} 
-								tabIndex={0} 
-								role="button" 
-								aria-pressed={selectedCommessa === s.commessa} 
-								sx={{ 
-									p: 0.75, 
-									display: 'flex', 
-									alignItems: 'center', 
-									justifyContent: 'space-between', 
-									cursor: 'pointer',
-									borderRadius: 1,
-									border: '1px solid',
-									borderColor: selectedCommessa === s.commessa ? commessaColor : 'rgba(0,0,0,0.08)',
-									borderLeft: `3px solid ${commessaColor}`,
-									bgcolor: selectedCommessa === s.commessa ? commessaBgColor : 'background.paper',
-									boxShadow: selectedCommessa === s.commessa ? `0 2px 8px ${commessaBgColor}` : 'none',
-									transition: 'all 0.2s',
-									'&:hover': {
-										bgcolor: commessaBgColor,
-										borderColor: commessaColor,
-										transform: 'translateX(4px)',
-										boxShadow: `0 2px 8px ${commessaBgColor}`
-									}
-								}}
-							>
-								<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flex: 1 }}>
-									{/* Color Dot */}
-									<Box 
-										sx={{ 
-											width: 8, 
-											height: 8, 
-											borderRadius: '50%', 
-											backgroundColor: commessaColor,
-											flexShrink: 0,
-											boxShadow: `0 0 0 2px ${commessaBgColor}`
-										}} 
-									/>
-									<Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-										<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem' }} noWrap>{s.commessa}</Typography>
-										<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-											{`${s.days}g • ${s.lastDate ? new Date(s.lastDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '—'}`}
-										</Typography>
-									</Box>
-								</Box>
-								<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-									<Typography variant="caption" sx={{ 
-										fontWeight: 700, 
-										fontSize: '0.75rem',
-										color: commessaColor,
-										minWidth: 32,
-										textAlign: 'right'
-									}}>
-										{s.total}h
-									</Typography>
-									{s.total > 0 ? (
-										<Box sx={{ 
-											width: 6, 
-											height: 6, 
-											borderRadius: '50%', 
-											bgcolor: 'success.main',
-											flexShrink: 0
-										}} />
-									) : (
-										<Box sx={{ 
-											width: 6, 
-											height: 6, 
-											borderRadius: '50%', 
-											bgcolor: 'text.disabled',
-											flexShrink: 0
-										}} />
-									)}
-									<IconButton 
-										size="small" 
-										onClick={(e) => {
-											e.stopPropagation();
-											// TODO: Navigate to commessa detail page
-											console.log('Navigate to commessa:', s.commessa);
-										}}
-										sx={{ 
-											ml: 0.5,
-											padding: '2px',
-											'&:hover': {
-												color: commessaColor
-											}
-										}}
-										aria-label={`Apri pagina della commessa ${s.commessa}`}
-									>
-										<OpenInNewIcon sx={{ fontSize: 14 }} />
-									</IconButton>
-								</Box>
-							</Box>
-							);
-						})}
-						{(listStats || []).length === 0 && (
-							<Box sx={{ py: 2, textAlign: 'center' }}>
-								<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-									{commesseFilter === 'active' ? 'Nessuna commessa attiva nel periodo selezionato.' : 'Nessuna commessa chiusa.'}
-								</Typography>
-							</Box>
-						)}
-					</Stack>
-				</Box>
-				</Box>
 			</Stack>
 		</Paper>
 	);

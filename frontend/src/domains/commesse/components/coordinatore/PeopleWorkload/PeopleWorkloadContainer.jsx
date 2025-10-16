@@ -11,8 +11,6 @@ export default function PeopleWorkloadContainer({ onCommessaOpen }) {
   const [timesheets, setTimesheets] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
-  const [search, setSearch] = React.useState('');
-  const [selectedCommessa, setSelectedCommessa] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [commessaMeta, setCommessaMeta] = React.useState(() => new Map());
 
@@ -83,76 +81,37 @@ export default function PeopleWorkloadContainer({ onCommessaOpen }) {
 
   const rows = Array.isArray(workloadData?.rows) ? workloadData.rows : [];
 
-  const commessaOptions = React.useMemo(() => {
-    const map = new Map();
-    rows.forEach((row) => {
-      row.assigned.forEach((commessa) => {
-        if (!map.has(commessa.id)) {
-          map.set(commessa.id, {
-            id: commessa.id,
-            label: commessa.label,
-          });
-        }
-      });
-    });
-    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, 'it-IT'));
-  }, [rows]);
-
-  React.useEffect(() => {
-    if (!selectedCommessa) return;
-    const exists = commessaOptions.some((option) => option.id === selectedCommessa.id);
-    if (!exists) {
-      setSelectedCommessa(null);
-    }
-  }, [commessaOptions, selectedCommessa]);
-
   const filteredRows = React.useMemo(() => {
-    const searchValue = search.toLowerCase().trim();
     return rows
-      .filter((row) => (selectedCommessa ? row.assigned.some((item) => item.id === selectedCommessa.id) : true))
-      .filter((row) => {
-        if (!searchValue) return true;
-        return row.name.toLowerCase().includes(searchValue) || row.employeeId.toLowerCase().includes(searchValue);
-      })
       .sort((a, b) => {
         if (a.isActive === b.isActive) {
           return b.workHours - a.workHours;
         }
         return a.isActive ? -1 : 1;
-    });
-  }, [rows, search, selectedCommessa]);
+      });
+  }, [rows]);
 
-  const displaySummary = React.useMemo(() => ({
-    total: filteredRows.length,
-    withTimesheet: filteredRows.filter((row) => row.isActive).length,
-  }), [filteredRows]);
-
-  const handleSearchChange = React.useCallback((value) => setSearch(value), []);
-  const handleCommessaChange = React.useCallback((value) => {
-    setSelectedCommessa(value);
-    if (value?.id) {
-      onCommessaOpen?.(value.id);
-    }
-  }, [onCommessaOpen]);
   const handleToggleDrawer = React.useCallback(() => setDrawerOpen((prev) => !prev), []);
   const handleCloseDrawer = React.useCallback(() => setDrawerOpen(false), []);
+  const handleOpenTimesheet = React.useCallback((employeeId) => {
+    if (!employeeId) return;
+    const url = `/dipendente?employeeId=${employeeId}`;
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
 
   return (
     <PeopleWorkloadView
       loading={loading}
       error={error}
       rows={filteredRows}
-      summary={displaySummary}
-      search={search}
-      onSearchChange={handleSearchChange}
-      commessaOptions={commessaOptions}
-      selectedCommessa={selectedCommessa}
-      onCommessaChange={handleCommessaChange}
       isMobile={isMobile}
       drawerOpen={drawerOpen}
       onToggleDrawer={handleToggleDrawer}
       onCloseDrawer={handleCloseDrawer}
       onCommessaOpen={onCommessaOpen}
+      onOpenTimesheet={handleOpenTimesheet}
     />
   );
 }

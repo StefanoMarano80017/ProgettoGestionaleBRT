@@ -25,10 +25,11 @@ export function getTileSx(theme, {
   };
 
   let boxShadow;
+  const defaultBackground = theme.palette.customBackground?.main || theme.palette.background.paper;
 
   // Defaults
   let border = `1px solid ${theme.palette.divider}`;
-  let backgroundColor = "transparent";
+  let backgroundColor = defaultBackground;
   let color = theme.palette.text.primary;
 
   if (isSelected) {
@@ -144,9 +145,12 @@ export function getTileSx(theme, {
     ? {
         '&:hover': {
           borderColor: alpha(theme.palette.primary.main, 0.5),
-          backgroundColor: backgroundColor === "transparent"
-            ? alpha(theme.palette.primary.main, 0.04)
-            : backgroundColor,
+          backgroundColor:
+            backgroundColor === defaultBackground
+              ? alpha(defaultBackground, theme.palette.mode === 'dark' ? 0.92 : 0.98)
+              : backgroundColor === "transparent"
+                ? alpha(theme.palette.primary.main, 0.04)
+                : backgroundColor,
         },
       }
     : {

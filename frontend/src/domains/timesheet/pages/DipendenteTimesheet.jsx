@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Box } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { 
   TimesheetProvider, 
   useTimesheetContext, 
@@ -30,9 +31,10 @@ function InnerDipendente({ employeeId }) {
   useEmployeeTimesheetLoader(employeeId);
 
   // State management
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [period, setPeriod] = useState('month');
   const todayRef = useMemo(() => new Date(), []);
+  const todayKey = useMemo(() => todayRef.toISOString().slice(0, 10), [todayRef]);
+  const [selectedDay, setSelectedDay] = useState(todayKey);
+  const [period, setPeriod] = useState('none');
 
   const defaultRefDate = useMemo(() => {
     const year = Number.isFinite(ctx?.year) ? ctx.year : todayRef.getFullYear();
@@ -51,7 +53,6 @@ function InnerDipendente({ employeeId }) {
   const stagedMetaAll = useStagedMetaMap(staging);
   const stagedMeta = useMemo(() => stagedMetaAll[employeeId] || {}, [stagedMetaAll, employeeId]);
 
-  const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const isBadgiatoToday = useMemo(
     () => Boolean(mergedData?.[todayKey]?.length),
     [mergedData, todayKey]
@@ -97,8 +98,8 @@ function InnerDipendente({ employeeId }) {
   };
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', overflow: 'auto' }}>
-      <Box sx={{ width: '100%', py: 4, px: { xs: 2, md: 4 } }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', py: 3 }}>
+      <Box sx={{ width: '100%', px: { xs: 2, md: 4 } }}>
         <TimesheetMainLayout
           employeeId={employeeId}
           mergedData={mergedData}
@@ -113,6 +114,7 @@ function InnerDipendente({ employeeId }) {
           refDate={refDate}
           onPeriodChange={setPeriod}
           badgeData={badgeData}
+          employeeName={getEmployeeName()}
         />
 
         <DayEntryDialog
@@ -136,10 +138,12 @@ function InnerDipendente({ employeeId }) {
  */
 export default function DipendenteTimesheet({ employeeId: propEmployeeId }) {
   const { user } = useAuth() || {};
-  const effectiveId = propEmployeeId || user?.id || 'emp-001';
+  const [searchParams] = useSearchParams();
+  const queryEmployeeId = searchParams.get('employeeId');
+  const effectiveId = propEmployeeId || queryEmployeeId || user?.id || 'emp-001';
   
   return (
-    <TimesheetProvider scope="single" employeeIds={[effectiveId]}>
+    <TimesheetProvider key={effectiveId} scope="single" employeeIds={[effectiveId]}>
       <InnerDipendente employeeId={effectiveId} />
     </TimesheetProvider>
   );

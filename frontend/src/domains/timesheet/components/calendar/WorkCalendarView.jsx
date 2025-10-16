@@ -47,13 +47,9 @@ export function WorkCalendarView({
     <Box sx={{ 
       width: '100%',
       position: 'relative',
-      bgcolor: 'background.paper',
-      borderRadius: 2,
-      overflow: 'hidden',
-      border: '1px solid',
-      borderColor: 'divider',
       height: '100%',
-      flexDirection: 'column'
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       {/* Calendar header with navigation */}
       <CalendarHeader

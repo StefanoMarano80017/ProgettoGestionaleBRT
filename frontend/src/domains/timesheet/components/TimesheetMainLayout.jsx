@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Alert } from '@mui/material';
+import { Box, Typography, Alert, Paper, Stack } from '@mui/material';
 import PropTypes from 'prop-types';
 import WorkCalendar from '@domains/timesheet/components/calendar/WorkCalendar';
 import CommesseDashboard from '@shared/components/DipendenteHomePage/CommesseDashboard';
@@ -24,27 +24,18 @@ export function TimesheetMainLayout({
   period,
   refDate,
   onPeriodChange,
-  badgeData
+  badgeData,
+  employeeName,
 }) {
   return (
-    <Box
-      sx={{
-        borderRadius: 2,
-        bgcolor: 'customBackground.main',
-        py: 3,
-        px: { xs: 2, md: 6 },
-        mb: 4,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1
-      }}
-    >
+    <>
       {/* Header with badge */}
-  <TimesheetPageHeader />
+      <TimesheetPageHeader employeeName={employeeName} />
 
       {/* Two-column bento layout */}
       <Box
         sx={{
+          mt: 2,
           display: 'flex',
           flexDirection: 'row',
           flexWrap: { xs: 'wrap', md: 'nowrap' },
@@ -60,33 +51,47 @@ export function TimesheetMainLayout({
             display: 'flex',
             flexDirection: 'column',
             height: { xs: 'auto', md: 850 },
-            bgcolor: 'background.default',
-            borderRadius: 2,
-            p: 2
           }}
         >
-          {badgeData?.hasBadge && (
-            <Box sx={{ mb: 2 }}>
-              <BadgeCompact
-                isBadgiato={badgeData.isBadgiato}
-                badgeNumber={badgeData.badgeNumber}
-                lastBadgeTime={badgeData.lastBadgeTime}
-                lastBadgeType={badgeData.lastBadgeType}
-                lastBadgeLabel={badgeData.lastBadgeLabel}
-                width="100%"
-              />
-            </Box>
-          )}
+          <Stack spacing={1.5}>
+            {badgeData?.hasBadge && (
+              <Box>
+                <BadgeCompact
+                  isBadgiato={badgeData.isBadgiato}
+                  badgeNumber={badgeData.badgeNumber}
+                  lastBadgeTime={badgeData.lastBadgeTime}
+                  lastBadgeType={badgeData.lastBadgeType}
+                  lastBadgeLabel={badgeData.lastBadgeLabel}
+                  width="100%"
+                />
+              </Box>
+            )}
 
-          <WorkCalendar
-            data={mergedData}
-            selectedDay={selectedDay}
-            onDaySelect={onDaySelect}
-            onDayDoubleClick={onDayDoubleClick}
-            variant="wide"
-            highlightedDays={highlightedDays}
-            stagedMeta={stagedMeta}
-          />
+            <Paper
+              elevation={0}
+              sx={(theme) => ({
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark'
+                  ? 'rgba(255, 255, 255, 0.08)'
+                  : theme.palette.divider,
+                bgcolor: theme.palette.mode === 'dark'
+                  ? theme.palette.background.main
+                  : theme.palette.background.main,
+                overflow: 'hidden',
+              })}
+            >
+              <WorkCalendar
+                data={mergedData}
+                selectedDay={selectedDay}
+                onDaySelect={onDaySelect}
+                onDayDoubleClick={onDayDoubleClick}
+                variant="wide"
+                highlightedDays={highlightedDays}
+                stagedMeta={stagedMeta}
+              />
+            </Paper>
+          </Stack>
         </Box>
 
         {/* Right: Dashboard */}
@@ -119,7 +124,7 @@ export function TimesheetMainLayout({
           </Box>
         </Box>
       </Box>
-    </Box>
+    </>
   );
 }
 
@@ -136,7 +141,8 @@ TimesheetMainLayout.propTypes = {
   period: PropTypes.oneOf(['week', 'month', 'year', 'none']).isRequired,
   refDate: PropTypes.instanceOf(Date).isRequired,
   onPeriodChange: PropTypes.func.isRequired,
-  badgeData: PropTypes.object
+  badgeData: PropTypes.object,
+  employeeName: PropTypes.string,
 };
 
 TimesheetMainLayout.displayName = 'TimesheetMainLayout';

@@ -124,9 +124,11 @@ function CommessaDetailPanel({ commessaId, summary, onRefresh }) {
   const meta = detail || summary || {};
   const stateLabel = normalizeState(meta.stato);
   const tags = Array.isArray(meta.tags) ? meta.tags : summary?.tags || [];
+  const colorSeed = meta.codice || summary?.codice || meta.nome || summary?.nome || commessaId;
+  const commessaColor = getCommessaColor(colorSeed);
 
   return (
-    <Stack spacing={2} sx={{ flex: 1, minHeight: 0 }}>
+    <Stack spacing={3} sx={{ flex: 1, minHeight: 0, p: 3 }}>
       {loading ? (
         <Stack alignItems="center" justifyContent="center" sx={{ py: 8 }}>
           <CircularProgress size={32} />
@@ -140,220 +142,152 @@ function CommessaDetailPanel({ commessaId, summary, onRefresh }) {
         </Alert>
       ) : (
         <>
-          {/* Header Card with Gradient */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 2.5,
-              border: '1px solid',
-              borderColor: 'divider',
-              overflow: 'hidden',
-            }}
-          >
-            <Box
-              sx={{
-                background: (theme) =>
-                  `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(
-                    theme.palette.primary.light,
-                    0.04
-                  )} 100%)`,
-                p: 2,
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={2} alignItems="flex-start" justifyContent="space-between">
-                  <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                      {meta.nome || meta.displayLabel || meta.codice}
-                    </Typography>
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                      <Chip
-                        label={meta.codice}
-                        size="small"
-                        sx={{
-                          fontWeight: 600,
-                          bgcolor: getCommessaColorLight(meta.codice || meta.nome, 0.12),
-                          color: getCommessaColor(meta.codice || meta.nome),
-                          border: '1px solid',
-                          borderColor: getCommessaColor(meta.codice || meta.nome),
-                          height: 26,
-                        }}
-                      />
-                      <Chip
-                        label={stateLabel}
-                        size="small"
-                        color={stateLabel === 'Attiva' ? 'success' : 'default'}
-                        sx={{ fontWeight: 600, height: 26 }}
-                      />
-                      {tags.length > 0 &&
-                        tags.map((tag) => (
-                          <Chip
-                            key={tag}
-                            label={tag}
-                            size="small"
-                            variant="outlined"
-                            sx={{ fontWeight: 500, height: 26 }}
-                          />
-                        ))}
-                    </Stack>
-                  </Stack>
+          {/* Header Section */}
+          <Stack spacing={2}>
+            {/* Title and Status */}
+            <Box>
+              <Stack direction="row" spacing={1.5} alignItems="flex-start" flexWrap="wrap" useFlexGap>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', flex: 1, minWidth: 200 }}>
+                  {meta.nome || meta.displayLabel || meta.codice}
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Chip
+                    label={meta.codice}
+                    size="medium"
+                    sx={{
+                      fontWeight: 700,
+                      bgcolor: getCommessaColorLight(meta.codice || meta.nome, 0.15),
+                      color: getCommessaColor(meta.codice || meta.nome),
+                      border: '2px solid',
+                      borderColor: getCommessaColor(meta.codice || meta.nome),
+                      fontSize: '0.875rem',
+                      px: 1,
+                    }}
+                  />
+                  <Chip
+                    label={stateLabel}
+                    size="medium"
+                    color={stateLabel === 'Attiva' ? 'success' : 'default'}
+                    sx={{ fontWeight: 700, fontSize: '0.875rem', px: 1 }}
+                  />
                 </Stack>
               </Stack>
+              {tags.length > 0 && (
+                <Stack direction="row" spacing={0.75} sx={{ mt: 1.5 }} flexWrap="wrap" useFlexGap>
+                  {tags.map((tag) => (
+                    <Chip
+                      key={tag}
+                      label={tag}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontWeight: 500, borderRadius: 1.5 }}
+                    />
+                  ))}
+                </Stack>
+              )}
             </Box>
 
-            <CardContent sx={{ p: 2.5 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={4}>
-                  <Card
-                    elevation={0}
-                    sx={{
-                      bgcolor: 'background.default',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      height: '100%',
-                    }}
-                  >
-                    <CardContent sx={{ p: 2.5 }}>
-                      <Stack spacing={1.5}>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <BusinessIcon fontSize="small" sx={{ color: 'primary.main' }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              textTransform: 'uppercase',
-                              letterSpacing: 1,
-                              fontWeight: 700,
-                              color: 'text.secondary',
-                            }}
-                          >
-                            Cliente
-                          </Typography>
-                        </Stack>
-                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                          {meta.cliente || '—'}
-                        </Typography>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Card
-                    elevation={0}
-                    sx={{
-                      bgcolor: 'background.default',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      height: '100%',
-                    }}
-                  >
-                    <CardContent sx={{ p: 2.5 }}>
-                      <Stack spacing={1.5}>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <CategoryIcon fontSize="small" sx={{ color: 'primary.main' }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              textTransform: 'uppercase',
-                              letterSpacing: 1,
-                              fontWeight: 700,
-                              color: 'text.secondary',
-                            }}
-                          >
-                            Tipologia
-                          </Typography>
-                        </Stack>
-                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                          {Array.isArray(meta.tipo) && meta.tipo.length ? meta.tipo.join(' • ') : '—'}
-                        </Typography>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <Card
-                    elevation={0}
-                    sx={{
-                      bgcolor: 'background.default',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      height: '100%',
-                    }}
-                  >
-                    <CardContent sx={{ p: 2.5 }}>
-                      <Stack spacing={1.5}>
-                        <Stack direction="row" spacing={0.75} alignItems="center">
-                          <EventIcon fontSize="small" sx={{ color: 'success.main' }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              textTransform: 'uppercase',
-                              letterSpacing: 1,
-                              fontWeight: 700,
-                              color: 'text.secondary',
-                              fontSize: '0.65rem',
-                            }}
-                          >
-                            Inizio
-                          </Typography>
-                        </Stack>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {formatDate(meta.dataInizio || meta.createdAt)}
-                        </Typography>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <Card
-                    elevation={0}
-                    sx={{
-                      bgcolor: 'background.default',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      height: '100%',
-                    }}
-                  >
-                    <CardContent sx={{ p: 2.5 }}>
-                      <Stack spacing={1.5}>
-                        <Stack direction="row" spacing={0.75} alignItems="center">
-                          <EventIcon fontSize="small" sx={{ color: 'error.main' }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              textTransform: 'uppercase',
-                              letterSpacing: 1,
-                              fontWeight: 700,
-                              color: 'text.secondary',
-                              fontSize: '0.65rem',
-                            }}
-                          >
-                            Fine
-                          </Typography>
-                        </Stack>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {formatDate(meta.dataFine)}
-                        </Typography>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
+            <Divider />
 
-              {meta.descrizione && (
-                <Stack spacing={1.5} sx={{ mt: 3 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
+            {/* Info Grid - Cleaner 2-row layout */}
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Stack spacing={0.75}>
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <BusinessIcon fontSize="small" sx={{ color: 'primary.main' }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontWeight: 700,
+                        color: 'text.secondary',
+                      }}
+                    >
+                      Cliente
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body1" sx={{ fontWeight: 600, pl: 3 }}>
+                    {meta.cliente || '—'}
+                  </Typography>
+                </Stack>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Stack spacing={0.75}>
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <CategoryIcon fontSize="small" sx={{ color: 'primary.main' }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontWeight: 700,
+                        color: 'text.secondary',
+                      }}
+                    >
+                      Tipologia
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body1" sx={{ fontWeight: 600, pl: 3 }}>
+                    {Array.isArray(meta.tipo) && meta.tipo.length ? meta.tipo.join(' • ') : '—'}
+                  </Typography>
+                </Stack>
+              </Grid>
+              <Grid item xs={6} sm={6} md={3}>
+                <Stack spacing={0.75}>
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <EventIcon fontSize="small" sx={{ color: 'success.main' }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontWeight: 700,
+                        color: 'text.secondary',
+                      }}
+                    >
+                      Inizio
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body1" sx={{ fontWeight: 600, pl: 3 }}>
+                    {formatDate(meta.dataInizio || meta.createdAt)}
+                  </Typography>
+                </Stack>
+              </Grid>
+              <Grid item xs={6} sm={6} md={3}>
+                <Stack spacing={0.75}>
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <EventIcon fontSize="small" sx={{ color: 'error.main' }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontWeight: 700,
+                        color: 'text.secondary',
+                      }}
+                    >
+                      Fine
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body1" sx={{ fontWeight: 600, pl: 3 }}>
+                    {formatDate(meta.dataFine)}
+                  </Typography>
+                </Stack>
+              </Grid>
+            </Grid>
+
+            {meta.descrizione && (
+              <>
+                <Divider />
+                <Stack spacing={1}>
+                  <Stack direction="row" spacing={0.75} alignItems="center">
                     <DescriptionIcon fontSize="small" sx={{ color: 'primary.main' }} />
                     <Typography
                       variant="caption"
                       sx={{
                         textTransform: 'uppercase',
-                        letterSpacing: 1,
+                        letterSpacing: 0.5,
                         fontWeight: 700,
                         color: 'text.secondary',
                       }}
@@ -361,36 +295,33 @@ function CommessaDetailPanel({ commessaId, summary, onRefresh }) {
                       Descrizione
                     </Typography>
                   </Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, pl: 3 }}>
                     {meta.descrizione}
                   </Typography>
                 </Stack>
-              )}
+              </>
+            )}
+          </Stack>
 
-              <Box sx={{ mt: meta.descrizione ? 3 : 2 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <PersonAddIcon fontSize="small" sx={{ color: 'primary.main' }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      textTransform: 'uppercase',
-                      letterSpacing: 1,
-                      fontWeight: 700,
-                      color: 'text.secondary',
-                    }}
-                  >
-                    Gestione risorse
-                  </Typography>
-                </Stack>
-                <Box sx={{ mt: 2 }}>
-                  <CommessaAssignmentsContainer
-                    key={`assignments-${commessaId}`}
-                    commessaId={commessaId}
-                    commessaMeta={meta}
-                    onAssignmentsChange={onRefresh}
-                  />
-                </Box>
-              </Box>
+          <Divider sx={{ my: 1 }} />
+
+          {/* Assignments Section */}
+          <Card
+            elevation={0}
+            sx={{
+              borderRadius: 2.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.default',
+            }}
+          >
+            <CardContent sx={{ p: 2.5 }}>
+              <CommessaAssignmentsContainer
+                key={`assignments-${commessaId}`}
+                commessaId={commessaId}
+                commessaMeta={meta}
+                onAssignmentsChange={onRefresh}
+              />
             </CardContent>
           </Card>
         </>
@@ -499,13 +430,8 @@ export default function CommessaListView({
               minHeight: 44,
               textTransform: 'none',
               fontWeight: 600,
-              transition: 'background-color 0.2s ease',
-            },
-            '& .MuiTab-root:not(.Mui-selected)': {
-              bgcolor: 'customBackground.main',
-            },
-            '& .MuiTab-root.Mui-selected': {
-              bgcolor: 'background.default',
+              transition: 'background-color 0.2s ease, color 0.2s ease',
+              mr: 1,
             },
           }}
         >
@@ -517,21 +443,62 @@ export default function CommessaListView({
               iconPosition="end"
               label={(
                 <Stack direction="row" spacing={0.75} alignItems="center">
-                  <Typography variant="body2" sx={{ fontWeight: tab.id === value ? 700 : 500 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: tab.id === value ? 700 : 500, color: 'inherit' }}
+                  >
                     {tab.label}
                   </Typography>
                   {tab.kind === 'commessa' && (
                     <IconButton
                       size="small"
                       onClick={(event) => handleClose(event, tab.id)}
-                      sx={{ ml: 0.25 }}
+                      sx={{ ml: 0.25, color: 'inherit', '&:hover': { bgcolor: 'transparent' } }}
                     >
                       <CloseIcon fontSize="inherit" />
                     </IconButton>
                   )}
                 </Stack>
               )}
-              sx={{ alignItems: 'center' }}
+              sx={() => {
+                if (tab.kind !== 'commessa') {
+                  return {
+                    alignItems: 'center',
+                    bgcolor: 'customBackground.main',
+                    color: 'text.secondary',
+                    '&.Mui-selected': {
+                      bgcolor: 'background.default',
+                      color: 'text.primary',
+                    },
+                    '&:hover': {
+                      bgcolor: 'background.default',
+                    },
+                  };
+                }
+
+                const colorSeed = tab.summary?.codice || tab.summary?.nome || tab.commessaId;
+                const tabColor = getCommessaColor(colorSeed);
+
+                return {
+                  alignItems: 'center',
+                  bgcolor: 'customBackground.main',
+                  color: 'text.secondary',
+                  '&.Mui-selected': {
+                    bgcolor: alpha(tabColor, 0.18),
+                    color: tabColor,
+                    boxShadow: `0 0 0 1px ${alpha(tabColor, 0.24)}`,
+                  },
+                  '&.Mui-selected .MuiIconButton-root': {
+                    color: tabColor,
+                  },
+                  '&:hover': {
+                    bgcolor: alpha(tabColor, 0.12),
+                  },
+                  '&.Mui-selected:hover': {
+                    bgcolor: alpha(tabColor, 0.24),
+                  },
+                };
+              }}
             />
           ))}
         </Tabs>

@@ -14,12 +14,8 @@ import {
   Collapse,
   IconButton,
   TextField,
-  ToggleButtonGroup,
-  ToggleButton,
-  Button,
   InputAdornment,
   LinearProgress,
-  Popover,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
@@ -30,27 +26,15 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DescriptionIcon from '@mui/icons-material/Description';
 import SearchIcon from '@mui/icons-material/Search';
-import FilterListIcon from '@mui/icons-material/FilterList';
+import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaColors.js';
 
 const STATUS_LABEL = {
   attiva: 'Attiva',
   chiusa: 'Chiusa',
 };
-
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'Tutte' },
-  { value: 'attiva', label: 'Attive' },
-  { value: 'chiusa', label: 'Chiuse' },
-];
-
-const PERIOD_OPTIONS = [
-  { value: 'all', label: 'Tutte le attività' },
-  { value: 'week', label: 'Ultima settimana' },
-  { value: 'month', label: 'Ultimo mese' },
-  { value: 'quarter', label: 'Ultimo trimestre' },
-  { value: 'year', label: 'Ultimo anno' },
-];
 
 function CommessaItem({ node, onClick, selected }) {
   const color = getCommessaColor(node.codice);
@@ -123,15 +107,8 @@ export default function FileExplorerView({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [expandedYears, setExpandedYears] = React.useState(() => new Set([new Date().getFullYear()]));
   const [expandedMonths, setExpandedMonths] = React.useState(() => new Set());
-  const [anchorEl, setAnchorEl] = React.useState(null);
   const normalizedStatus = status || 'all';
-  const normalizedPeriod = period || 'all';
   const hasCustomStatus = normalizedStatus !== 'all';
-  const hasCustomPeriod = normalizedPeriod !== 'all';
-  const activeStatus = STATUS_OPTIONS.find((option) => option.value === normalizedStatus);
-  const activePeriod = PERIOD_OPTIONS.find((option) => option.value === normalizedPeriod);
-  const hasActiveFilters = hasCustomStatus || hasCustomPeriod;
-  const activeFilterCount = [hasCustomStatus, hasCustomPeriod].filter(Boolean).length;
 
   const toggleYear = (year) => {
     setExpandedYears((prev) => {
@@ -157,19 +134,10 @@ export default function FileExplorerView({
     });
   };
 
-  const handleOpenFilters = (event) => {
-    if (filtersOpen) {
-      setAnchorEl(null);
-      return;
-    }
-    setAnchorEl(event.currentTarget);
+  const handleCollapseAll = () => {
+    setExpandedYears(new Set());
+    setExpandedMonths(new Set());
   };
-
-  const handleCloseFilters = () => {
-    setAnchorEl(null);
-  };
-
-  const filtersOpen = Boolean(anchorEl);
 
   return (
     <Paper
@@ -195,6 +163,7 @@ export default function FileExplorerView({
             </Typography>
           </Stack>
           <Stack spacing={1.5}>
+            {/* Search bar */}
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={1}
@@ -219,149 +188,93 @@ export default function FileExplorerView({
                   }
                 }}
               />
-              <Button
-                variant={filtersOpen || hasActiveFilters ? 'contained' : 'outlined'}
+              <Tooltip title="Chiudi tutte le cartelle">
+                <IconButton
+                  size="small"
+                  onClick={handleCollapseAll}
+                  disabled={expandedYears.size === 0 && expandedMonths.size === 0}
+                  sx={{
+                    borderRadius: 1.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: 'action.hover',
+                    },
+                    '&.Mui-disabled': {
+                      opacity: 0.4,
+                    }
+                  }}
+                >
+                  <UnfoldLessIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
+            {/* Status Filter - Inline Chips */}
+            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mr: 0.5 }}>
+                Stato:
+              </Typography>
+              <Chip
                 size="small"
-                onClick={handleOpenFilters}
-                startIcon={<FilterListIcon fontSize="small" />}
+                label="Tutte"
+                icon={normalizedStatus === 'all' ? <CheckCircleIcon /> : undefined}
+                onClick={() => onStatusChange?.('all')}
+                variant={normalizedStatus === 'all' ? 'filled' : 'outlined'}
+                color={normalizedStatus === 'all' ? 'primary' : 'default'}
                 sx={{
                   borderRadius: 1.5,
-                  whiteSpace: 'nowrap',
-                  alignSelf: { xs: 'flex-end', sm: 'auto' },
+                  fontWeight: normalizedStatus === 'all' ? 600 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: 1,
+                  }
                 }}
-              >
-                {activeFilterCount > 0 ? `Filtri (${activeFilterCount})` : 'Filtri'}
-              </Button>
+              />
+              <Chip
+                size="small"
+                label="Attive"
+                icon={normalizedStatus === 'attiva' ? <CheckCircleIcon /> : undefined}
+                onClick={() => onStatusChange?.('attiva')}
+                variant={normalizedStatus === 'attiva' ? 'filled' : 'outlined'}
+                color={normalizedStatus === 'attiva' ? 'success' : 'default'}
+                sx={{
+                  borderRadius: 1.5,
+                  fontWeight: normalizedStatus === 'attiva' ? 600 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: 1,
+                  }
+                }}
+              />
+              <Chip
+                size="small"
+                label="Chiuse"
+                icon={normalizedStatus === 'chiusa' ? <CancelIcon /> : undefined}
+                onClick={() => onStatusChange?.('chiusa')}
+                variant={normalizedStatus === 'chiusa' ? 'filled' : 'outlined'}
+                color={normalizedStatus === 'chiusa' ? 'default' : 'default'}
+                sx={{
+                  borderRadius: 1.5,
+                  fontWeight: normalizedStatus === 'chiusa' ? 600 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  bgcolor: normalizedStatus === 'chiusa' ? 'action.selected' : 'transparent',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: 1,
+                  }
+                }}
+              />
             </Stack>
-            {hasActiveFilters && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {hasCustomStatus && (
-                  <Chip
-                    size="small"
-                    label={activeStatus?.label || 'Stato personalizzato'}
-                    onDelete={() => onStatusChange?.('all')}
-                    sx={{ borderRadius: 1.5, fontWeight: 500 }}
-                  />
-                )}
-                {hasCustomPeriod && (
-                  <Chip
-                    size="small"
-                    label={activePeriod?.label || 'Periodo attivo'}
-                    onDelete={() => onPeriodChange?.('all')}
-                    sx={{ borderRadius: 1.5, fontWeight: 500 }}
-                  />
-                )}
-              </Stack>
-            )}
           </Stack>
           {loading && <LinearProgress />}
         </Stack>
-        <Popover
-          open={filtersOpen}
-          anchorEl={anchorEl}
-          onClose={handleCloseFilters}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          PaperProps={{
-            sx: {
-              borderRadius: 2,
-              p: 2,
-              width: isMobile ? '90vw' : 320,
-              maxWidth: 360,
-            },
-          }}
-        >
-          <Stack spacing={2}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              Filtri commesse
-            </Typography>
-            <Stack spacing={1}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>
-                Stato
-              </Typography>
-              <ToggleButtonGroup
-                value={status}
-                exclusive
-                size="small"
-                onChange={(_, value) => value && onStatusChange?.(value)}
-                sx={{
-                  '& .MuiToggleButton-root': {
-                    borderRadius: 1.5,
-                    px: 1.5,
-                    py: 0.75,
-                    fontWeight: 500,
-                    '&.Mui-selected': {
-                      bgcolor: 'rgba(25, 118, 210, 0.08)',
-                      color: 'primary.main',
-                      borderColor: 'primary.main',
-                      '&:hover': {
-                        bgcolor: 'rgba(25, 118, 210, 0.12)',
-                      }
-                    }
-                  }
-                }}
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <ToggleButton key={option.value} value={option.value}>
-                    {option.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-            </Stack>
-            <Stack spacing={1}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>
-                Periodo attività
-              </Typography>
-              <ToggleButtonGroup
-                value={period || 'all'}
-                exclusive
-                size="small"
-                onChange={(_, value) => (value ? onPeriodChange?.(value) : onPeriodChange?.('all'))}
-                sx={{
-                  '& .MuiToggleButton-root': {
-                    borderRadius: 1.5,
-                    px: 2,
-                    py: 0.75,
-                    fontWeight: 500,
-                    '&.Mui-selected': {
-                      bgcolor: 'rgba(25, 118, 210, 0.08)',
-                      color: 'primary.main',
-                      borderColor: 'primary.main',
-                      '&:hover': {
-                        bgcolor: 'rgba(25, 118, 210, 0.12)',
-                      }
-                    }
-                  }
-                }}
-              >
-                {PERIOD_OPTIONS.map((option) => (
-                  <ToggleButton key={option.value} value={option.value}>
-                    {option.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-            </Stack>
-            {hasActiveFilters && (
-              <Button
-                variant="text"
-                size="small"
-                onClick={() => {
-                  onStatusChange?.('all');
-                  onPeriodChange?.('all');
-                  handleCloseFilters();
-                }}
-                sx={{
-                  alignSelf: 'flex-start',
-                  borderRadius: 1.5,
-                  fontWeight: 500,
-                  textTransform: 'none',
-                }}
-              >
-                Reimposta filtri
-              </Button>
-            )}
-          </Stack>
-        </Popover>
         {recentNodes.length > 0 && (
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

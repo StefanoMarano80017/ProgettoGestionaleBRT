@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Stack, Typography, Box, Paper, Chip } from '@mui/material';
 import { AccessTime, TrendingUp, CalendarMonth } from '@mui/icons-material';
 
@@ -6,7 +7,7 @@ import { AccessTime, TrendingUp, CalendarMonth } from '@mui/icons-material';
  * TimesheetPageHeader
  * Header component for timesheet page with title and badge indicator
  */
-export function TimesheetPageHeader() {
+export function TimesheetPageHeader({ employeeName }) {
   const today = new Date();
   const dayName = today.toLocaleDateString('it-IT', { weekday: 'long' });
   const dateStr = today.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -65,7 +66,7 @@ export function TimesheetPageHeader() {
         </Box>
 
         {/* Title and Date Stack */}
-        <Stack spacing={0.25} sx={{ flexGrow: 1, zIndex: 1 }}>
+        <Stack spacing={0.5} sx={{ flexGrow: 1, zIndex: 1 }}>
           <Typography 
             variant="h5" 
             sx={{ 
@@ -93,28 +94,48 @@ export function TimesheetPageHeader() {
           </Stack>
         </Stack>
 
-        {/* Status Chip with Orange accent */}
-        <Chip
-          icon={<TrendingUp sx={{ fontSize: 16 }} />}
-          label="Attivo"
-          size="small"
-          sx={{
-            bgcolor: (theme) => theme.palette.secondary?.main || '#FF7700',
-            backdropFilter: 'blur(10px)',
-            color: 'common.white',
-            fontWeight: 600,
-            border: '1px solid rgba(255, 255, 255, 0.4)',
-            boxShadow: '0 2px 8px rgba(255, 119, 0, 0.3)',
-            '& .MuiChip-icon': {
-              color: 'common.white'
-            }
-          }}
-        />
+        {/* Status Chips */}
+        <Stack direction="row" spacing={1} alignItems="center">
+          {employeeName && (
+            <Chip
+              label={employeeName}
+              size="small"
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(10px)',
+                color: (theme) => theme.palette.customBlue3?.main || theme.palette.primary.main,
+                fontWeight: 600,
+                border: '1px solid rgba(255, 255, 255, 0.4)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              }}
+            />
+          )}
+          <Chip
+            icon={<TrendingUp sx={{ fontSize: 16 }} />}
+            label="Attivo"
+            size="small"
+            sx={{
+              bgcolor: (theme) => theme.palette.secondary?.main || '#FF7700',
+              backdropFilter: 'blur(10px)',
+              color: 'common.white',
+              fontWeight: 600,
+              border: '1px solid rgba(255, 255, 255, 0.4)',
+              boxShadow: '0 2px 8px rgba(255, 119, 0, 0.3)',
+              '& .MuiChip-icon': {
+                color: 'common.white'
+              }
+            }}
+          />
+        </Stack>
       </Paper>
 
     </Stack>
   );
 }
 TimesheetPageHeader.displayName = 'TimesheetPageHeader';
+
+TimesheetPageHeader.propTypes = {
+  employeeName: PropTypes.string,
+};
 
 export default TimesheetPageHeader;

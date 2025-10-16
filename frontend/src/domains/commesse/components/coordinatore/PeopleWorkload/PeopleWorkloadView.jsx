@@ -5,7 +5,6 @@ import {
   Paper,
   Stack,
   Typography,
-  TextField,
   Chip,
   CircularProgress,
   Alert,
@@ -14,64 +13,16 @@ import {
   Box,
   Card,
   CardContent,
-  Autocomplete,
   Tooltip,
   Avatar,
+  IconButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaColors.js';
+import { getAvatarPalette } from '@shared/utils/avatarColors.js';
+import LaunchIcon from '@mui/icons-material/Launch';
 
-function Filters({
-  search,
-  onSearchChange,
-  commessaOptions,
-  selectedCommessa,
-  onCommessaChange,
-  summary,
-}) {
-  return (
-    <Stack spacing={2.5}>
-      <Stack spacing={0.75}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: 'common.white' }}>
-          Personale e Assegnazioni
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-          Persone con attività recente: {summary.withTimesheet} su {summary.total}
-        </Typography>
-      </Stack>
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <TextField
-          size="small"
-          label="Cerca persona"
-          value={search}
-          onChange={(event) => onSearchChange?.(event.target.value)}
-          sx={{ flex: 1 }}
-        />
-        <Autocomplete
-          size="small"
-          options={commessaOptions}
-          value={selectedCommessa}
-          onChange={(_, value) => onCommessaChange?.(value)}
-          getOptionLabel={(option) => option?.label || ''}
-          isOptionEqualToValue={(option, value) => option?.id === value?.id}
-          renderInput={(params) => <TextField {...params} label="Filtra per commessa" placeholder="Seleziona commessa" />}
-          sx={{ flex: 1 }}
-        />
-      </Stack>
-    </Stack>
-  );
-}
-
-Filters.propTypes = {
-  search: PropTypes.string.isRequired,
-  onSearchChange: PropTypes.func,
-  commessaOptions: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, label: PropTypes.string })).isRequired,
-  selectedCommessa: PropTypes.shape({ id: PropTypes.string, label: PropTypes.string }),
-  onCommessaChange: PropTypes.func,
-  summary: PropTypes.shape({ total: PropTypes.number, withTimesheet: PropTypes.number }).isRequired,
-};
-
-function EmployeeList({ rows, onCommessaOpen }) {
+function EmployeeList({ rows, onCommessaOpen, onOpenTimesheet }) {
   const theme = useTheme();
   const containerSx = {
     flex: 1,
@@ -104,7 +55,7 @@ function EmployeeList({ rows, onCommessaOpen }) {
           }}
         >
           <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
-            Nessuna persona corrisponde ai filtri selezionati
+            Nessuna persona disponibile in questo periodo
           </Typography>
         </Box>
       </Box>
@@ -126,7 +77,17 @@ function EmployeeList({ rows, onCommessaOpen }) {
           ? nameParts[0].slice(0, 2).toUpperCase()
           : `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
     const seed = [first, last].filter(Boolean).join(' ') || row.name || row.employeeId || 'dipendente';
-    const avatarBackground = getCommessaColor(seed);
+    const { background: avatarBackground, border: avatarBorder } = getAvatarPalette({
+      seed,
+      fullName: row.name,
+      name: first,
+      surname: last,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      nome: row.nome,
+      cognome: row.cognome,
+      employeeId: row.employeeId,
+    });
     const avatarTextColor = theme.palette.getContrastText(avatarBackground);
     const assigned = Array.isArray(row.assigned) ? row.assigned : [];
 
@@ -163,7 +124,8 @@ function EmployeeList({ rows, onCommessaOpen }) {
                   height: 44,
                   fontSize: '1rem',
                   fontWeight: 600,
-                  border: '2px solid rgba(0,0,0,0.14)',
+                  border: '2px solid',
+                  borderColor: avatarBorder,
                   flexShrink: 0,
                 }}
               >
@@ -188,6 +150,25 @@ function EmployeeList({ rows, onCommessaOpen }) {
                 />
               </Stack>
               <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexShrink: 0, ml: 'auto' }}>
+                <Tooltip title="Apri timesheet dipendente">
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => onOpenTimesheet?.(row.employeeId)}
+                      disabled={!onOpenTimesheet}
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <LaunchIcon fontSize="inherit" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
                 {assigned.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                     Nessuna commessa
@@ -263,19 +244,15 @@ function EmployeeList({ rows, onCommessaOpen }) {
 EmployeeList.propTypes = {
   rows: PropTypes.arrayOf(PropTypes.object).isRequired,
   onCommessaOpen: PropTypes.func,
+  onOpenTimesheet: PropTypes.func,
 };
 
 function PanelContent({
   loading,
   error,
   rows,
-  summary,
-  search,
-  onSearchChange,
-  commessaOptions,
-  selectedCommessa,
-  onCommessaChange,
   onCommessaOpen,
+  onOpenTimesheet,
 }) {
   return (
     <Box
@@ -289,14 +266,6 @@ function PanelContent({
         minHeight: 0,
       }}
     >
-      <Filters
-        search={search}
-        onSearchChange={onSearchChange}
-        commessaOptions={commessaOptions}
-        selectedCommessa={selectedCommessa}
-        onCommessaChange={onCommessaChange}
-        summary={summary}
-      />
       {loading && (
         <Stack alignItems="center" justifyContent="center" sx={{ py: 4 }}>
           <CircularProgress size={28} />
@@ -307,7 +276,11 @@ function PanelContent({
       )}
       {!loading && !error && (
         <Box sx={{ flex: 1, minHeight: 0 }}>
-          <EmployeeList rows={rows} onCommessaOpen={onCommessaOpen} />
+          <EmployeeList
+            rows={rows}
+            onCommessaOpen={onCommessaOpen}
+            onOpenTimesheet={onOpenTimesheet}
+          />
         </Box>
       )}
     </Box>
@@ -318,30 +291,20 @@ PanelContent.propTypes = {
   loading: PropTypes.bool,
   error: PropTypes.object,
   rows: PropTypes.arrayOf(PropTypes.object).isRequired,
-  summary: PropTypes.shape({ total: PropTypes.number, withTimesheet: PropTypes.number }).isRequired,
-  search: PropTypes.string.isRequired,
-  onSearchChange: PropTypes.func,
-  commessaOptions: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, label: PropTypes.string })).isRequired,
-  selectedCommessa: PropTypes.shape({ id: PropTypes.string, label: PropTypes.string }),
-  onCommessaChange: PropTypes.func,
   onCommessaOpen: PropTypes.func,
+  onOpenTimesheet: PropTypes.func,
 };
 
 export default function PeopleWorkloadView({
   loading,
   error,
   rows,
-  summary,
-  search,
-  onSearchChange,
-  commessaOptions,
-  selectedCommessa,
-  onCommessaChange,
   isMobile,
   drawerOpen,
   onToggleDrawer,
   onCloseDrawer,
   onCommessaOpen,
+  onOpenTimesheet,
 }) {
   if (isMobile) {
     return (
@@ -354,13 +317,8 @@ export default function PeopleWorkloadView({
             loading={loading}
             error={error}
             rows={rows}
-            summary={summary}
-            search={search}
-            onSearchChange={onSearchChange}
-            commessaOptions={commessaOptions}
-            selectedCommessa={selectedCommessa}
-            onCommessaChange={onCommessaChange}
             onCommessaOpen={onCommessaOpen}
+            onOpenTimesheet={onOpenTimesheet}
           />
         </Drawer>
       </Box>
@@ -386,13 +344,8 @@ export default function PeopleWorkloadView({
         loading={loading}
         error={error}
         rows={rows}
-        summary={summary}
-        search={search}
-        onSearchChange={onSearchChange}
-        commessaOptions={commessaOptions}
-        selectedCommessa={selectedCommessa}
-        onCommessaChange={onCommessaChange}
         onCommessaOpen={onCommessaOpen}
+        onOpenTimesheet={onOpenTimesheet}
       />
     </Paper>
   );
@@ -402,15 +355,10 @@ PeopleWorkloadView.propTypes = {
   loading: PropTypes.bool,
   error: PropTypes.object,
   rows: PropTypes.arrayOf(PropTypes.object).isRequired,
-  summary: PropTypes.shape({ total: PropTypes.number, withTimesheet: PropTypes.number }).isRequired,
-  search: PropTypes.string.isRequired,
-  onSearchChange: PropTypes.func,
-  commessaOptions: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, label: PropTypes.string })).isRequired,
-  selectedCommessa: PropTypes.shape({ id: PropTypes.string, label: PropTypes.string }),
-  onCommessaChange: PropTypes.func,
   isMobile: PropTypes.bool,
   drawerOpen: PropTypes.bool,
   onToggleDrawer: PropTypes.func,
   onCloseDrawer: PropTypes.func,
   onCommessaOpen: PropTypes.func,
+  onOpenTimesheet: PropTypes.func,
 };
