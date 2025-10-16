@@ -34,7 +34,6 @@ describe('useFileExplorerData', () => {
   it('groups commesse by year and month', () => {
     const { result } = renderHook(() => useFileExplorerData({
       commesse: sampleCommesse,
-      onlyRecent: false,
       recentBoundary,
       periodStart,
       statusFilter: 'all',
@@ -47,24 +46,22 @@ describe('useFileExplorerData', () => {
     expect(latestYear.months[0].commesse[0].id).toBe('VS-25-01');
   });
 
-  it('filters when onlyRecent is true', () => {
+  it('collects recent nodes within boundary', () => {
     const { result } = renderHook(() => useFileExplorerData({
       commesse: sampleCommesse,
-      onlyRecent: true,
       recentBoundary,
       periodStart,
       statusFilter: 'all',
       searchText: '',
     }));
 
-    expect(result.current.yearGroups.length).toBe(1);
-    expect(result.current.yearGroups[0].months[0].commesse).toHaveLength(2);
+    expect(result.current.recentNodes.length).toBe(2);
+    expect(result.current.recentNodes.map((node) => node.id)).toEqual(['VS-25-01', 'VS-25-02']);
   });
 
   it('applies status and search filters', () => {
     const { result } = renderHook(() => useFileExplorerData({
       commesse: sampleCommesse,
-      onlyRecent: false,
       recentBoundary,
       periodStart,
       statusFilter: 'attiva',

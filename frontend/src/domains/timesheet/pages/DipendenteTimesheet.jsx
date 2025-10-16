@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Container } from '@mui/material';
+import { Box } from '@mui/material';
 import { 
   TimesheetProvider, 
   useTimesheetContext, 
@@ -15,6 +15,7 @@ import { TimesheetMainLayout } from '@domains/timesheet/components';
 import DayEntryDialog from '@domains/timesheet/components/calendar/DayEntryDialog';
 import { findUserById } from '@mocks/UsersMock';
 import useAuth from '@/domains/auth/hooks/useAuth';
+import { getRangeForPeriod, enumerateDateKeys } from '@domains/timesheet/components/admin-grid/utils/periodUtils';
 
 /**
  * InnerDipendente
@@ -31,7 +32,13 @@ function InnerDipendente({ employeeId }) {
   // State management
   const [selectedDay, setSelectedDay] = useState(null);
   const [period, setPeriod] = useState('month');
-  const [refDateLocal] = useState(new Date());
+  const todayRef = useMemo(() => new Date(), []);
+
+  const defaultRefDate = useMemo(() => {
+    const year = Number.isFinite(ctx?.year) ? ctx.year : todayRef.getFullYear();
+    const month = Number.isFinite(ctx?.month) ? ctx.month : todayRef.getMonth();
+    return new Date(year, month, 1);
+  }, [ctx?.year, ctx?.month, todayRef]);
 
   // Data computation
   const { mergedData } = useStableMergedDataMap({ 
@@ -62,8 +69,21 @@ function InnerDipendente({ employeeId }) {
   });
 
   // Computed values
-  const refDate = selectedDay ? new Date(selectedDay) : refDateLocal;
-  const missingPrevSet = new Set();
+  const refDate = useMemo(() => (selectedDay ? new Date(selectedDay) : defaultRefDate), [selectedDay, defaultRefDate]);
+
+  const periodRange = useMemo(() => {
+    if (period === 'none') return null;
+    return getRangeForPeriod(period, refDate);
+  }, [period, refDate]);
+
+  const highlightedDates = useMemo(() => {
+    if (!periodRange) return new Set();
+    const keys = enumerateDateKeys(periodRange);
+    const activeYear = Number.isFinite(ctx?.year) ? ctx.year : refDate.getFullYear();
+    const activeMonth = Number.isFinite(ctx?.month) ? ctx.month : refDate.getMonth();
+    const monthKey = `${activeYear}-${String(activeMonth + 1).padStart(2, '0')}`;
+    return new Set(keys.filter((key) => key.startsWith(monthKey)));
+  }, [periodRange, ctx?.year, ctx?.month, refDate]);
 
   // Handlers
   const handleDayDoubleClick = (day) => {
@@ -78,7 +98,7 @@ function InnerDipendente({ employeeId }) {
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', overflow: 'auto' }}>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Box sx={{ width: '100%', py: 4, px: { xs: 2, md: 4 } }}>
         <TimesheetMainLayout
           employeeId={employeeId}
           mergedData={mergedData}
@@ -88,7 +108,7 @@ function InnerDipendente({ employeeId }) {
           commesseList={commesseList}
           commesseLoading={commesseLoading}
           stagedMeta={stagedMeta}
-          missingPrevSet={missingPrevSet}
+          highlightedDays={highlightedDates}
           period={period}
           refDate={refDate}
           onPeriodChange={setPeriod}
@@ -104,7 +124,7 @@ function InnerDipendente({ employeeId }) {
           data={mergedData}
           commesse={commesseList}
         />
-      </Container>
+      </Box>
     </Box>
   );
 }

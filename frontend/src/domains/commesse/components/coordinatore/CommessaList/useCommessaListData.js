@@ -21,6 +21,31 @@ const parseDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const getCreationDate = (commessa) =>
+  parseDate(commessa?.createdAt)
+  || parseDate(commessa?.dataInizio)
+  || parseDate(commessa?.lastActivityAt)
+  || parseDate(commessa?.updatedAt)
+  || null;
+
+const getUpdatedDate = (commessa) =>
+  parseDate(commessa?.lastActivityAt)
+  || parseDate(commessa?.updatedAt)
+  || parseDate(commessa?.dataFine)
+  || parseDate(commessa?.createdAt)
+  || parseDate(commessa?.dataInizio)
+  || null;
+
+const normalizeTipo = (value) => {
+  if (!value) return [];
+  const list = Array.isArray(value) ? value : [value];
+  return list
+    .map((item) => String(item || '').toUpperCase())
+    .filter((item) => item.length > 0);
+};
+
+const hasEngineeringTipo = (value) => normalizeTipo(value).includes('ENGINEERING');
+
 export default function useCommessaListData({ commesse, filters, periodStart, recentBoundary }) {
   return React.useMemo(() => {
     const list = Array.isArray(commesse) ? commesse : [];
@@ -28,31 +53,44 @@ export default function useCommessaListData({ commesse, filters, periodStart, re
     const recent = recentBoundary instanceof Date ? recentBoundary : null;
 
     const filtered = list
+      .filter((item) => hasEngineeringTipo(item?.tipo))
       .filter((item) => matchesStatus(item, filters?.status))
       .filter((item) => matchesSearch(item, filters?.search))
       .map((item) => {
-        const lastDate = parseDate(item.lastActivityAt);
-        const withinPeriod = period ? (lastDate ? lastDate >= period : false) : false;
-        const isRecent = filters?.onlyRecent && recent ? (lastDate ? lastDate >= recent : false) : false;
+        const creationDate = getCreationDate(item);
+        const updatedDate = getUpdatedDate(item);
+        if (period && (!updatedDate || updatedDate < period)) {
+          return null;
+        }
+        const sortMode = filters?.sort === 'created' ? 'created' : 'updated';
+        const sortDate = sortMode === 'created' ? creationDate : updatedDate;
+        const sortTimestamp = sortDate ? sortDate.getTime() : 0;
+        const isRecent = filters?.onlyRecent && recent ? (updatedDate ? updatedDate >= recent : false) : false;
+        const creationLabel = creationDate ? dateFormatter.format(creationDate) : null;
+        const updatedLabel = updatedDate ? dateFormatter.format(updatedDate) : null;
         return {
           raw: item,
           id: item.id,
           codice: item.codice || item.id,
           stato: normalize(item.stato),
           lastActivityAt: item.lastActivityAt,
-          lastActivityDate: lastDate,
-          lastActivityLabel: lastDate ? dateFormatter.format(lastDate) : 'N/D',
+          lastActivityDate: updatedDate,
+          lastActivityLabel: updatedLabel || 'N/D',
+          creationDate,
+          creationLabel,
+          updatedDate,
+          updatedLabel,
+          sortMode,
+          sortTimestamp,
           tags: Array.isArray(item.tags) ? [...item.tags] : [],
-          withinPeriod,
           isRecent,
         };
       })
+      .filter(Boolean)
       .filter((entry) => (!filters?.onlyRecent || !recent) ? true : entry.isRecent);
 
-    const sorted = filtered.sort((a, b) => {
-      const timeA = a.lastActivityDate ? a.lastActivityDate.getTime() : 0;
-      const timeB = b.lastActivityDate ? b.lastActivityDate.getTime() : 0;
-      return timeB - timeA;
+    const sorted = [...filtered].sort((a, b) => {
+      return (b.sortTimestamp || 0) - (a.sortTimestamp || 0);
     });
 
     const indexById = new Map();

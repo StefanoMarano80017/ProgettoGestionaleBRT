@@ -8,7 +8,6 @@ export default function FileExplorerContainer({
   commesse,
   selectedCommessaId,
   onSelectCommessa,
-  onlyRecent,
   recentBoundary,
   periodStart,
   statusFilter,
@@ -18,7 +17,6 @@ export default function FileExplorerContainer({
   const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
   const data = useFileExplorerData({
     commesse,
-    onlyRecent,
     recentBoundary,
     periodStart,
     statusFilter,
@@ -40,7 +38,6 @@ FileExplorerContainer.propTypes = {
   commesse: PropTypes.array,
   selectedCommessaId: PropTypes.string,
   onSelectCommessa: PropTypes.func,
-  onlyRecent: PropTypes.bool,
   recentBoundary: PropTypes.instanceOf(Date),
   periodStart: PropTypes.instanceOf(Date),
   statusFilter: PropTypes.string,

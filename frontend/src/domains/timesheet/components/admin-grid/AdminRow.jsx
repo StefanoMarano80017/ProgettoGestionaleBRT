@@ -181,7 +181,7 @@ const AdminRow = memo(function AdminRow({
           >
             {employee.nome} {employee.cognome}
           </Typography>
-          <Stack direction="row" spacing={0.5} sx={{ mt: 0.75 }}>
+          <Stack direction="row" spacing={0.5} sx={{ mt: 1 }}>
             {employee.roles?.map((role) => (
               <Chip
                 key={role}

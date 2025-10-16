@@ -111,49 +111,73 @@ export const OPERAI = [
 ];
 
 // Solo queste commesse principali (per riferimento)
-const COMMESSE = ["VS-25-01", "VS-25-02", "VS-25-03"];
+const COMMESSE = [
+  "VS-25-01",
+  "VS-25-02",
+  "VS-25-03",
+  "EN-25-04",
+  "EN-25-05",
+  "NW-25-04",
+  "NW-25-05",
+];
 
 // Sottocommesse assegnate per dipendente (dipendenti lavorano su sottocommesse specifiche)
 // IMPORTANTE: Questi sono IDs di SOTTOCOMMESSE con tipo di lavoro (DL, INST, PROG, MANUT, RILIEVI)
 // EXPANDED TO ALL 17 EMPLOYEES with varied commessa assignments
 const EMPLOYEE_COMMESSE = {
   // DIPENDENTE employees (varied assignments across commesse)
-  "emp-001": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-03-PROG"], // DL+Collaudo, Installazione, Progettazione
-  "emp-002": ["VS-25-01-DL", "VS-25-03-PROG"], // DL+Collaudo, Progettazione
-  "emp-003": ["VS-25-02-MANUT"], // Manutenzione Generale
-  "emp-004": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
-  "emp-005": ["VS-25-03-PROG"], // Progettazione Completa
-  "emp-006": ["VS-25-02-MANUT", "VS-25-03-PROG"], // Manutenzione, Progettazione
-  "emp-007": ["VS-25-01-INST"], // Solo Installazione
-  "emp-008": ["VS-25-01-DL", "VS-25-02-MANUT"], // DL+Collaudo, Manutenzione
-  "emp-009": ["VS-25-03-PROG", "VS-25-01-INST"], // Progettazione, Installazione
-  "emp-010": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-02-MANUT"], // DL+Collaudo, Installazione, Manutenzione
+  "emp-001": ["VS-25-01-DL", "VS-25-03-PROG", "EN-25-04-STR"], // Collaudo viabilità, progettazione retail e fondazioni campus
+  "emp-002": ["VS-25-01-DL", "EN-25-04-MEP", "EN-25-05-PROG"], // Direzione lavori, impianti MEP e hub logistico
+  "emp-003": ["EN-25-05-FIRE", "VS-24-04-RILIEVI"], // Prevenzione incendi e rilievi topografici
+  "emp-004": ["VS-25-01-INST", "EN-25-04-STR"], // Installazioni viabilità e strutture campus
+  "emp-005": ["VS-25-03-PROG", "EN-25-04-MEP"], // Progettazione complessa e impianti MEP
+  "emp-006": ["EN-25-05-FIRE", "VS-25-03-PROG"], // Prevenzione incendi e progettazione commerciale
+  "emp-007": ["VS-25-01-INST", "EN-25-05-PROG"], // Installazioni e progettazione hub logistico
+  "emp-008": ["VS-25-01-DL", "EN-25-04-STR", "EN-25-05-FIRE"], // Direzione lavori, strutture e sicurezza impianti
+  "emp-009": ["VS-25-03-PROG", "EN-25-04-STR"], // Progettazione retail e strutture campus
+  "emp-010": ["VS-25-01-DL", "VS-25-01-INST", "EN-25-05-PROG"], // Direzione lavori, installazioni e progettazione hub
   
   // OPERAIO employees (typically installation and maintenance work)
-  "op-001": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
-  "op-002": ["VS-25-01-INST"], // Solo Installazione
-  "op-003": ["VS-25-02-MANUT"], // Solo Manutenzione
-  "op-004": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazione, Manutenzione
-  "op-005": ["VS-25-03-PROG"], // Progettazione (operaio specializzato)
-  "op-006": ["VS-25-01-INST", "VS-25-03-PROG"],
-  "op-007": ["VS-25-01-INST", "VS-25-02-MANUT"],
-  "op-008": ["VS-25-02-MANUT"],
-  "op-009": ["VS-25-01-INST"],
-  "op-010": ["VS-25-03-PROG", "VS-25-02-MANUT"],
-  "op-011": ["VS-25-01-INST", "VS-25-02-MANUT"],
-  "op-012": ["VS-25-02-MANUT"],
-  "op-013": ["VS-25-03-PROG"],
-  "op-014": ["VS-25-01-INST", "VS-25-03-PROG"],
-  "op-015": ["VS-25-02-MANUT", "VS-25-03-PROG"],
-  "op-016": ["VS-25-01-INST"],
+  "op-001": ["VS-25-01-INST", "NW-25-04-DEP"], // Installazioni viabilità e posa dorsali
+  "op-002": ["VS-25-01-INST"], // Solo installazione viabilità
+  "op-003": ["VS-25-02-MANUT"], // Manutenzione industriale
+  "op-004": ["VS-25-01-INST", "NW-25-04-POP"], // Installazioni e POP rete
+  "op-005": ["NW-25-05-UPG", "NW-25-04-DEP"], // Upgrade wireless e dorsali fibra
+  "op-006": ["VS-25-01-INST", "NW-25-05-UPG"], // Installazioni e upgrade wireless
+  "op-007": ["VS-25-01-INST", "VS-25-02-MANUT"], // Installazioni e manutenzione
+  "op-008": ["NW-25-04-DEP", "VS-25-02-MANUT"], // Posa fibra e manutenzione
+  "op-009": ["VS-25-01-INST"], // Installazioni viabilità
+  "op-010": ["NW-25-05-SURV", "VS-25-02-MANUT"], // Survey radio e manutenzione
+  "op-011": ["VS-25-01-INST", "NW-25-04-POP"], // Installazioni e POP rete
+  "op-012": ["VS-25-02-MANUT"], // Manutenzione industriale
+  "op-013": ["NW-25-05-SURV", "NW-25-04-DEP"], // Survey radio e dorsali fibra
+  "op-014": ["VS-25-01-INST", "NW-25-05-UPG"], // Installazioni e upgrade wireless
+  "op-015": ["VS-25-02-MANUT", "NW-25-05-SURV"], // Manutenzione e survey radio
+  "op-016": ["VS-25-01-INST", "NW-25-04-DEP"], // Installazioni e posa fibra
   
   // PM_CAMPO (field project manager - all types of work)
-  "pmc-001": ["VS-25-01-DL", "VS-25-01-INST", "VS-25-02-MANUT", "VS-25-03-PROG"], // All sottocommesse
+  "pmc-001": [
+    "VS-25-01-DL",
+    "VS-25-01-INST",
+    "VS-25-02-MANUT",
+    "NW-25-04-DEP",
+    "NW-25-04-POP",
+    "NW-25-05-SURV",
+    "NW-25-05-UPG",
+  ], // Network commesse only
   
   // COORDINATORE (coordinator - oversight and planning)
-  "coord-001": ["VS-25-01-DL", "VS-25-03-PROG"], // DL+Collaudo, Progettazione
+  "coord-001": [
+    "VS-25-03-PROG",
+    "EN-25-04-STR",
+    "EN-25-04-MEP",
+    "EN-25-05-PROG",
+    "EN-25-05-FIRE",
+    "VS-25-01-DL",
+    "VS-24-04-RILIEVI",
+  ], // Engineering commesse only
   
-  default: ["VS-25-01-DL", "VS-25-01-INST", "VS-25-03-PROG"], // Default: multiple sottocommesse
+  default: ["VS-25-01-DL", "VS-25-03-PROG", "EN-25-04-STR", "EN-25-05-PROG"], // Default: multiple sottocommesse engineering
 };
 export { EMPLOYEE_COMMESSE };
 

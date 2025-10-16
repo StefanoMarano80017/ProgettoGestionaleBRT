@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Stack, Typography, Paper, Chip, Divider, ButtonGroup, Button, IconButton, Tabs, Tab } from '@mui/material';
+import { Box, Stack, Typography, Paper, Chip, Divider, IconButton, Tabs, Tab, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ScheduleIcon from '@mui/icons-material/Schedule';
@@ -13,9 +13,24 @@ import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaC
 export default function CommesseDashboard({ assignedCommesse = [], data = {}, period = 'month', refDate = new Date(), onPeriodChange, onCommessaSelect }) {
 	const [selectedCommessa, setSelectedCommessa] = useState(null);
 	const [commesseFilter, setCommesseFilter] = useState('active'); // 'active' or 'closed'
+	const handlePeriodToggle = useCallback((event, nextValue) => {
+		if (!onPeriodChange) return;
+		if (nextValue === null) {
+			onPeriodChange('none');
+			return;
+		}
+		onPeriodChange(nextValue);
+	}, [onPeriodChange]);
 	const range = useMemo(() => {
 		if (period === 'week') return { start: startOfWeek(refDate), end: endOfWeek(refDate) };
 		if (period === 'year') return { start: startOfYear(refDate), end: endOfYear(refDate) };
+		if (period === 'none') {
+			const start = new Date(refDate);
+			start.setHours(0, 0, 0, 0);
+			const end = new Date(refDate);
+			end.setHours(23, 59, 59, 999);
+			return { start, end };
+		}
 		return { start: startOfMonth(refDate), end: endOfMonth(refDate) };
 	}, [period, refDate]);
 	const listStats = useMemo(() => {
@@ -101,8 +116,11 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 		if (period === 'year') {
 			return range.start.getFullYear().toString();
 		}
+		if (period === 'none') {
+			return refDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
+		}
 		return '';
-	}, [period, range]);
+	}, [period, range, refDate]);
 	const handleSelectCommessa = (comm) => {
 		const next = selectedCommessa === comm ? null : comm;
 		setSelectedCommessa(next);
@@ -177,59 +195,65 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 						borderColor: 'divider'
 					}}>
 						<Stack spacing={0}>
-							{/* Header with gradient - Compact */}
+							{/* Header - Compact */}
 							<Box sx={{ 
-								background: (theme) => `linear-gradient(135deg, ${theme.palette.customBlue3?.main || theme.palette.primary.main} 0%, ${theme.palette.customBlue2?.main || '#006494'} 50%, ${theme.palette.customBlue1?.main || '#00A6FB'} 100%)`,
+								bgcolor: 'background.paper',
 								px: 2,
 								py: 1.5,
-								position: 'relative',
-								'&::before': {
-									content: '""',
-									position: 'absolute',
-									top: 0,
-									right: 0,
-									width: '40%',
-									height: '100%',
-									background: 'radial-gradient(circle at top right, rgba(255,255,255,0.15) 0%, transparent 70%)',
-									pointerEvents: 'none'
-								}
+								borderBottom: '1px solid',
+								borderColor: 'divider'
 							}}>
 								<Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
 									<Box>
-										<Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 700, fontSize: '0.9rem' }}>
+										<Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700, fontSize: '0.9rem' }}>
 											Riepilogo
 										</Typography>
-										<Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.65rem' }}>
+										<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
 											{periodDisplay}
 										</Typography>
 									</Box>
-									<ButtonGroup size="small" variant="outlined" sx={{ 
-										'& .MuiButton-root': { 
-											fontSize: '0.65rem', 
-											padding: '2px 6px',
-											minWidth: 'auto',
-											fontWeight: 600,
-											borderRadius: 1,
-											color: 'white',
-											borderColor: 'rgba(255,255,255,0.3)',
-											'&:hover': {
-												borderColor: 'rgba(255,255,255,0.5)',
-												bgcolor: 'rgba(255,255,255,0.1)'
-											},
-											'&.MuiButton-contained': {
-												bgcolor: 'rgba(255,255,255,0.2)',
-												borderColor: 'rgba(255,255,255,0.4)'
+									<ToggleButtonGroup
+										value={period === 'none' ? null : period}
+										exclusive
+										size="small"
+										onChange={handlePeriodToggle}
+										sx={{
+											'& .MuiToggleButton-root': {
+												fontSize: '0.65rem',
+												px: 0.75,
+												py: 0.25,
+												minWidth: 'auto',
+												fontWeight: 600,
+												borderRadius: 1,
+												color: 'text.secondary',
+												borderColor: 'divider',
+												'&.Mui-selected': {
+													color: 'primary.main',
+													bgcolor: 'primary.lighter',
+													borderColor: 'primary.main',
+												'&:hover': {
+													bgcolor: 'primary.light'
+													}
+												},
+												'&:hover': {
+													borderColor: 'primary.main',
+													bgcolor: 'action.hover'
+												}
 											}
-										}
-									}}>
-										<Button onClick={() => onPeriodChange && onPeriodChange('week')} variant={period === 'week' ? 'contained' : 'outlined'}>Sett</Button>
-										<Button onClick={() => onPeriodChange && onPeriodChange('month')} variant={period === 'month' ? 'contained' : 'outlined'}>Mese</Button>
-										<Button onClick={() => onPeriodChange && onPeriodChange('year')} variant={period === 'year' ? 'contained' : 'outlined'}>Anno</Button>
-									</ButtonGroup>
+										}}
+									>
+										<ToggleButton value="week">
+											Sett
+										</ToggleButton>
+										<ToggleButton value="month">
+											Mese
+										</ToggleButton>
+										<ToggleButton value="year">
+											Anno
+										</ToggleButton>
+									</ToggleButtonGroup>
 								</Stack>
 							</Box>
-
-							<Divider />
 
 							{/* Absence Stats - Compact */}
 							<Box sx={{ px: 2, py: 1.5 }}>
@@ -391,215 +415,184 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 								</Stack>
 							</Box>
 
-							{chartData.pieData && chartData.pieData.length > 0 && (
-								<>
-									<Divider />
-									<Box sx={{ px: 2, py: 1.5 }}>
-										<Typography variant="caption" sx={{ 
-											color: 'text.secondary', 
-											fontWeight: 600, 
-											textTransform: 'uppercase',
-											fontSize: '0.65rem',
-											letterSpacing: 0.5,
-											mb: 1,
-											display: 'block'
-										}}>
-											Legenda Grafico
-										</Typography>
-										<Box sx={{
-											display: 'flex',
-											flexDirection: 'column',
-											gap: 0.5,
-											maxHeight: '120px',
-											overflowY: 'auto',
-											pr: 0.5,
-											'&::-webkit-scrollbar': {
-												width: '3px',
-											},
-											'&::-webkit-scrollbar-track': {
-												backgroundColor: 'rgba(0,0,0,0.05)',
-												borderRadius: '2px',
-											},
-											'&::-webkit-scrollbar-thumb': {
-												backgroundColor: 'rgba(0,0,0,0.2)',
-												borderRadius: '2px',
-												'&:hover': {
-													backgroundColor: 'rgba(0,0,0,0.3)',
-												}
-											}
-										}}>
-											{chartData.pieData.map((item) => (
-												<Box 
-													key={item.id}
-													sx={{ 
-														display: 'flex', 
-														alignItems: 'center', 
-														gap: 0.75,
-														p: 0.5,
-														borderRadius: 0.75,
-														border: '1px solid',
-														borderColor: 'divider',
-														bgcolor: 'background.default',
-														transition: 'all 0.2s',
-														'&:hover': {
-															borderColor: item.color,
-															bgcolor: `${item.color}10`,
-															transform: 'translateX(4px)'
-														}
-													}}
-												>
-													<Box sx={{ 
-														width: 8, 
-														height: 8, 
-														borderRadius: '50%', 
-														bgcolor: item.color,
-														flexShrink: 0,
-														boxShadow: `0 0 0 2px ${item.color}30`
-													}} />
-													<Typography 
-														variant="caption" 
-														sx={{ 
-															flex: 1,
-															fontSize: '0.7rem',
-															fontWeight: 500,
-															overflow: 'hidden',
-															textOverflow: 'ellipsis',
-															whiteSpace: 'nowrap'
-														}}
-														title={item.label}
-													>
-														{item.label}
-													</Typography>
-													<Typography 
-														variant="caption" 
-														sx={{ 
-															fontSize: '0.65rem',
-															fontWeight: 700,
-															color: item.color,
-															flexShrink: 0
-														}}
-													>
-														{item.value}h
-													</Typography>
-												</Box>
-											))}
-										</Box>
-									</Box>
-								</>
-							)}
 						</Stack>
 					</Box>
 				</Stack>
+				
 				<Divider />
-				<Box sx={{ mb: 2 }}>
-					<Typography variant="subtitle2" sx={{ mb: 1 }}>Lista Commesse</Typography>
-					<Tabs
-						value={commesseFilter}
-						onChange={(e, newValue) => setCommesseFilter(newValue)}
-						variant="fullWidth"
-						sx={{
-							minHeight: 40,
-							'& .MuiTabs-indicator': {
-								height: 3,
-								borderRadius: '3px 3px 0 0',
-							},
-							'& .MuiTab-root': {
-								fontSize: '0.875rem',
-								textTransform: 'none',
-								minHeight: 40,
-								fontWeight: 500,
-								color: 'text.secondary',
-								transition: 'all 0.3s ease-in-out',
-								'&:hover': {
-									color: 'primary.main',
-									backgroundColor: 'action.hover',
-								},
-								'&.Mui-selected': {
-									color: 'primary.main',
-									fontWeight: 600,
-								},
-							},
-						}}
-					>
-						<Tab label="Attive" value="active" />
-						<Tab label="Chiuse" value="closed" />
-					</Tabs>
-				</Box>
-				<Box sx={{ overflowY: 'auto' }}>
-					<Stack spacing={1}>
+				
+				{/* Commesse List Section - Bordered Container */}
+				<Box sx={{ 
+					bgcolor: 'background.paper',
+					borderRadius: 2,
+					overflow: 'hidden',
+					border: '1px solid',
+					borderColor: 'divider',
+					display: 'flex',
+					flexDirection: 'column',
+					flex: 1,
+					minHeight: 0
+				}}>
+					{/* Header */}
+					<Box sx={{ 
+						bgcolor: 'background.paper',
+						px: 2,
+						py: 1.5,
+						borderBottom: '1px solid',
+						borderColor: 'divider'
+					}}>
+						<Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+							<Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700, fontSize: '0.9rem' }}>
+								Commesse Assegnate
+							</Typography>
+							<Tabs
+								value={commesseFilter}
+								onChange={(e, newValue) => setCommesseFilter(newValue)}
+								sx={{
+									minHeight: 28,
+									'& .MuiTabs-indicator': {
+										height: 2,
+										borderRadius: '2px 2px 0 0'
+									},
+									'& .MuiTab-root': {
+										fontSize: '0.65rem',
+										textTransform: 'none',
+										minHeight: 28,
+										minWidth: 'auto',
+										fontWeight: 600,
+										px: 1.5,
+										py: 0.5,
+										color: 'text.secondary',
+										transition: 'all 0.2s',
+										'&:hover': {
+											color: 'primary.main',
+											bgcolor: 'action.hover',
+										},
+										'&.Mui-selected': {
+											color: 'primary.main',
+											fontWeight: 700,
+										},
+									},
+								}}
+							>
+								<Tab label="Attive" value="active" />
+								<Tab label="Chiuse" value="closed" />
+							</Tabs>
+						</Stack>
+					</Box>
+					
+					{/* Scrollable list */}
+					<Box sx={{ overflowY: 'auto', flex: 1, px: 2, py: 1.5, bgcolor: 'background.default' }}>
+						<Stack spacing={0.75}>
 						{(listStats || []).map((s) => {
 							const commessaColor = getCommessaColor(s.commessa);
 							const commessaBgColor = getCommessaColorLight(s.commessa, 0.08);
 							
 							return (
-							<React.Fragment key={s.commessa}>
-								<Paper 
-									elevation={0} 
-									onClick={() => handleSelectCommessa(s.commessa)} 
-									tabIndex={0} 
-									role="button" 
-									aria-pressed={selectedCommessa === s.commessa} 
-									sx={{ 
-										p: 1, 
-										display: 'flex', 
-										alignItems: 'center', 
-										justifyContent: 'space-between', 
-										cursor: 'pointer',
-										borderLeft: `4px solid ${commessaColor}`,
-										backgroundColor: selectedCommessa === s.commessa ? commessaBgColor : 'transparent',
-										transition: 'all 0.2s ease-in-out',
-										'&:hover': {
-											backgroundColor: commessaBgColor,
-											transform: 'translateX(4px)'
-										}
-									}}
-								>
-									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, flex: 1 }}>
-										{/* Color Dot */}
-										<Box 
-											sx={{ 
-												width: 12, 
-												height: 12, 
-												borderRadius: '50%', 
-												backgroundColor: commessaColor,
-												flexShrink: 0,
-												boxShadow: `0 0 0 2px ${commessaBgColor}`
-											}} 
-										/>
-										<Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-											<Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{s.commessa}</Typography>
-											<Typography variant="caption" sx={{ color: 'text.secondary' }}>{`${s.days} giorni — ultimo: ${s.lastDate ? new Date(s.lastDate).toLocaleDateString() : '—'}`}</Typography>
-										</Box>
+							<Box 
+								key={s.commessa}
+								onClick={() => handleSelectCommessa(s.commessa)} 
+								tabIndex={0} 
+								role="button" 
+								aria-pressed={selectedCommessa === s.commessa} 
+								sx={{ 
+									p: 0.75, 
+									display: 'flex', 
+									alignItems: 'center', 
+									justifyContent: 'space-between', 
+									cursor: 'pointer',
+									borderRadius: 1,
+									border: '1px solid',
+									borderColor: selectedCommessa === s.commessa ? commessaColor : 'rgba(0,0,0,0.08)',
+									borderLeft: `3px solid ${commessaColor}`,
+									bgcolor: selectedCommessa === s.commessa ? commessaBgColor : 'background.paper',
+									boxShadow: selectedCommessa === s.commessa ? `0 2px 8px ${commessaBgColor}` : 'none',
+									transition: 'all 0.2s',
+									'&:hover': {
+										bgcolor: commessaBgColor,
+										borderColor: commessaColor,
+										transform: 'translateX(4px)',
+										boxShadow: `0 2px 8px ${commessaBgColor}`
+									}
+								}}
+							>
+								<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flex: 1 }}>
+									{/* Color Dot */}
+									<Box 
+										sx={{ 
+											width: 8, 
+											height: 8, 
+											borderRadius: '50%', 
+											backgroundColor: commessaColor,
+											flexShrink: 0,
+											boxShadow: `0 0 0 2px ${commessaBgColor}`
+										}} 
+									/>
+									<Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+										<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem' }} noWrap>{s.commessa}</Typography>
+										<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+											{`${s.days}g • ${s.lastDate ? new Date(s.lastDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '—'}`}
+										</Typography>
 									</Box>
-									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
-										<Chip size="small" variant="outlined" label={`${s.total}h`} />
-										{s.total > 0 ? (<Chip size="small" label="Attiva" color="success" />) : (<Chip size="small" label="Chiusa" color="default" />)}
-										<IconButton 
-											size="small" 
-											onClick={(e) => {
-												e.stopPropagation();
-												// TODO: Navigate to commessa detail page
-												console.log('Navigate to commessa:', s.commessa);
-											}}
-											sx={{ ml: 1 }}
-											aria-label={`Apri pagina della commessa ${s.commessa}`}
-										>
-											<OpenInNewIcon fontSize="small" />
-										</IconButton>
-									</Box>
-								</Paper>
-								<Divider />
-							</React.Fragment>
+								</Box>
+								<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+									<Typography variant="caption" sx={{ 
+										fontWeight: 700, 
+										fontSize: '0.75rem',
+										color: commessaColor,
+										minWidth: 32,
+										textAlign: 'right'
+									}}>
+										{s.total}h
+									</Typography>
+									{s.total > 0 ? (
+										<Box sx={{ 
+											width: 6, 
+											height: 6, 
+											borderRadius: '50%', 
+											bgcolor: 'success.main',
+											flexShrink: 0
+										}} />
+									) : (
+										<Box sx={{ 
+											width: 6, 
+											height: 6, 
+											borderRadius: '50%', 
+											bgcolor: 'text.disabled',
+											flexShrink: 0
+										}} />
+									)}
+									<IconButton 
+										size="small" 
+										onClick={(e) => {
+											e.stopPropagation();
+											// TODO: Navigate to commessa detail page
+											console.log('Navigate to commessa:', s.commessa);
+										}}
+										sx={{ 
+											ml: 0.5,
+											padding: '2px',
+											'&:hover': {
+												color: commessaColor
+											}
+										}}
+										aria-label={`Apri pagina della commessa ${s.commessa}`}
+									>
+										<OpenInNewIcon sx={{ fontSize: 14 }} />
+									</IconButton>
+								</Box>
+							</Box>
 							);
 						})}
 						{(listStats || []).length === 0 && (
-							<Box sx={{ py: 3, textAlign: 'center' }}>
-								<Typography variant="body2">
+							<Box sx={{ py: 2, textAlign: 'center' }}>
+								<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
 									{commesseFilter === 'active' ? 'Nessuna commessa attiva nel periodo selezionato.' : 'Nessuna commessa chiusa.'}
 								</Typography>
 							</Box>
 						)}
 					</Stack>
+				</Box>
 				</Box>
 			</Stack>
 		</Paper>
@@ -609,7 +602,7 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 CommesseDashboard.propTypes = {
 	assignedCommesse: PropTypes.array,
 	data: PropTypes.object,
-	period: PropTypes.oneOf(['week', 'month', 'year']),
+	period: PropTypes.oneOf(['week', 'month', 'year', 'none']),
 	refDate: PropTypes.instanceOf(Date),
 	onPeriodChange: PropTypes.func,
 	onCommessaSelect: PropTypes.func,

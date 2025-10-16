@@ -82,27 +82,11 @@ export function CalendarHeader({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    mb: 2,
     px: 2,
     py: 1.5,
-    borderRadius: 2,
-    background: (theme) => `linear-gradient(135deg,
-      ${theme.palette.customBlue3?.main || theme.palette.primary.main} 0%,
-      ${theme.palette.customBlue2?.main || '#006494'} 50%,
-      ${theme.palette.customBlue1?.main || '#00A6FB'} 100%)`,
-    boxShadow: (theme) => `0 4px 12px ${theme.palette.customBlue2?.main || theme.palette.primary.main}25`,
-    position: 'relative',
-    overflow: 'hidden',
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      width: '40%',
-      height: '100%',
-      background: (theme) => `linear-gradient(90deg, transparent, ${theme.palette.secondary.main}15)`,
-      pointerEvents: 'none'
-    }
+    bgcolor: 'background.paper',
+    borderBottom: '1px solid',
+    borderColor: 'divider'
   };
 
   const combinedSx = Array.isArray(sxProp)
@@ -114,21 +98,20 @@ export function CalendarHeader({
   return (
     <Box sx={combinedSx}>
       {/* Navigation controls */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, zIndex: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <IconButton
           onClick={onPrevMonth}
           size="small"
           aria-label="Mese precedente"
           sx={{
-            color: 'white',
-            bgcolor: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            color: 'text.primary',
+            border: '1px solid',
+            borderColor: 'divider',
             transition: 'all 0.2s',
             '&:hover': {
-              bgcolor: 'rgba(255, 255, 255, 0.2)',
-              transform: 'translateX(-2px)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+              borderColor: 'primary.main',
+              bgcolor: 'action.hover',
+              transform: 'translateX(-2px)'
             }
           }}
         >
@@ -140,15 +123,14 @@ export function CalendarHeader({
           size="small"
           aria-label="Mese successivo"
           sx={{
-            color: 'white',
-            bgcolor: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            color: 'text.primary',
+            border: '1px solid',
+            borderColor: 'divider',
             transition: 'all 0.2s',
             '&:hover': {
-              bgcolor: 'rgba(255, 255, 255, 0.2)',
-              transform: 'translateX(2px)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+              borderColor: 'primary.main',
+              bgcolor: 'action.hover',
+              transform: 'translateX(2px)'
             }
           }}
         >
@@ -161,8 +143,7 @@ export function CalendarHeader({
         sx={{
           display: 'flex',
           alignItems: 'baseline',
-          gap: 1,
-          zIndex: 1
+          gap: 1
         }}
       >
         <Typography
@@ -170,8 +151,7 @@ export function CalendarHeader({
           component="h2"
           sx={{
             fontWeight: 700,
-            color: 'white',
-            textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            color: 'text.primary',
             fontSize: { xs: '1.25rem', md: '1.5rem' }
           }}
         >
@@ -181,7 +161,7 @@ export function CalendarHeader({
           variant="body2"
           sx={{
             fontWeight: 600,
-            color: 'rgba(255, 255, 255, 0.85)',
+            color: 'text.secondary',
             fontSize: '0.9rem'
           }}
         >
@@ -190,22 +170,17 @@ export function CalendarHeader({
       </Box>
 
       {/* Date picker button */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, zIndex: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         {onToday && (
           <Button
             variant="outlined"
             size="small"
             onClick={onToday}
             sx={{
-              color: 'white',
-              borderColor: 'rgba(255, 255, 255, 0.35)',
-              borderWidth: 1,
               textTransform: 'none',
               fontWeight: 600,
-              backdropFilter: 'blur(10px)',
               '&:hover': {
-                borderColor: 'rgba(255, 255, 255, 0.6)',
-                bgcolor: 'rgba(255, 255, 255, 0.15)'
+                bgcolor: 'action.hover'
               }
             }}
           >
@@ -217,15 +192,14 @@ export function CalendarHeader({
           size="small"
           aria-label="Scegli data"
           sx={{
-            color: 'white',
-            bgcolor: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            color: 'text.primary',
+            border: '1px solid',
+            borderColor: 'divider',
             transition: 'all 0.2s',
             '&:hover': {
-              bgcolor: 'rgba(255, 255, 255, 0.2)',
-              transform: 'scale(1.05)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+              borderColor: 'primary.main',
+              bgcolor: 'action.hover',
+              transform: 'scale(1.05)'
             }
           }}
         >

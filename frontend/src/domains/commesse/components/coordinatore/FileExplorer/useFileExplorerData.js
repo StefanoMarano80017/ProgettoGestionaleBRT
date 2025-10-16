@@ -3,6 +3,12 @@ import React from 'react';
 const monthFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long' });
 const dateFormatter = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+const parseDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 const normalize = (value) => String(value || '').toLowerCase();
 
 const matchesStatus = (commessa, statusFilter) => {
@@ -16,26 +22,48 @@ const matchesSearch = (commessa, searchText) => {
   return haystack.includes(searchText.toLowerCase());
 };
 
-const getLastActivityDate = (commessa) => {
-  if (!commessa?.lastActivityAt) return null;
-  const date = new Date(commessa.lastActivityAt);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
+const getCreationDate = (commessa) =>
+  parseDate(commessa?.createdAt)
+  || parseDate(commessa?.dataInizio)
+  || parseDate(commessa?.lastActivityAt)
+  || parseDate(commessa?.updatedAt)
+  || null;
 
-const buildNode = (commessa, date, withinPeriod) => ({
-  id: commessa.id,
-  codice: commessa.codice || commessa.id,
-  nome: commessa.nome || commessa.codice || commessa.id,
-  stato: normalize(commessa.stato),
-  lastActivityAt: commessa.lastActivityAt,
-  lastActivityLabel: date ? dateFormatter.format(date) : 'N/D',
-  tags: Array.isArray(commessa.tags) ? [...commessa.tags] : [],
-  withinPeriod,
-});
+const getActivityDate = (commessa) =>
+  parseDate(commessa?.lastActivityAt)
+  || parseDate(commessa?.updatedAt)
+  || parseDate(commessa?.dataFine)
+  || parseDate(commessa?.createdAt)
+  || parseDate(commessa?.dataInizio)
+  || null;
+
+const buildNode = (commessa, creationDate, activityDate, withinPeriod) => {
+  const creationLabel = creationDate ? dateFormatter.format(creationDate) : null;
+  const activityLabel = activityDate ? dateFormatter.format(activityDate) : null;
+  const labelParts = [];
+  labelParts.push(creationLabel ? `Creata il ${creationLabel}` : 'Creazione: N/D');
+  if (activityLabel) {
+    labelParts.push(`Ultima modifica ${activityLabel}`);
+  }
+
+  return {
+    id: commessa.id,
+    codice: commessa.codice || commessa.id,
+    nome: commessa.nome || commessa.codice || commessa.id,
+    stato: normalize(commessa.stato),
+    createdAt: commessa.createdAt,
+    updatedAt: commessa.updatedAt,
+    lastActivityAt: commessa.lastActivityAt,
+    creationLabel,
+    activityLabel,
+    displayLabel: labelParts.join(' · '),
+    tags: Array.isArray(commessa.tags) ? [...commessa.tags] : [],
+    withinPeriod,
+  };
+};
 
 export default function useFileExplorerData({
   commesse,
-  onlyRecent,
   recentBoundary,
   periodStart,
   statusFilter,
@@ -48,14 +76,16 @@ export default function useFileExplorerData({
 
     const enriched = list
       .map((commessa) => {
-        const date = getLastActivityDate(commessa);
-        const year = date ? date.getFullYear() : null;
-        const month = date ? date.getMonth() + 1 : null;
-        const monthLabel = date ? monthFormatter.format(date) : 'N/D';
-        const withinPeriod = period ? (date ? date >= period : false) : false;
+        const creationDate = getCreationDate(commessa);
+        const activityDate = getActivityDate(commessa);
+        const year = creationDate ? creationDate.getFullYear() : null;
+        const month = creationDate ? creationDate.getMonth() + 1 : null;
+        const monthLabel = creationDate ? monthFormatter.format(creationDate) : 'N/D';
+        const withinPeriod = period ? (activityDate ? activityDate >= period : false) : false;
         return {
           raw: commessa,
-          date,
+          creationDate,
+          activityDate,
           year,
           month,
           monthLabel,
@@ -65,23 +95,24 @@ export default function useFileExplorerData({
       .filter(({ raw }) => matchesStatus(raw, statusFilter))
       .filter(({ raw }) => matchesSearch(raw, searchText));
 
-    const visible = onlyRecent && boundary
-      ? enriched.filter(({ date }) => (date ? date >= boundary : false))
-      : enriched;
-
-    const sorted = visible.sort((a, b) => {
-      const timeA = a.date ? a.date.getTime() : 0;
-      const timeB = b.date ? b.date.getTime() : 0;
+    const sorted = enriched.sort((a, b) => {
+      const timeA = a.creationDate ? a.creationDate.getTime() : 0;
+      const timeB = b.creationDate ? b.creationDate.getTime() : 0;
       return timeB - timeA;
     });
 
-    const recentNodes = sorted
-      .filter(({ date }) => (boundary ? (date ? date >= boundary : false) : false))
+    const recentNodes = enriched
+      .filter(({ activityDate }) => (boundary ? (activityDate ? activityDate >= boundary : false) : false))
+      .sort((a, b) => {
+        const timeA = a.activityDate ? a.activityDate.getTime() : 0;
+        const timeB = b.activityDate ? b.activityDate.getTime() : 0;
+        return timeB - timeA;
+      })
       .slice(0, 20)
-      .map(({ raw, date, withinPeriod }) => buildNode(raw, date, withinPeriod));
+      .map(({ raw, creationDate, activityDate, withinPeriod }) => buildNode(raw, creationDate, activityDate, withinPeriod));
 
     const groupsMap = new Map();
-    sorted.forEach(({ raw, date, year, month, monthLabel, withinPeriod }) => {
+    sorted.forEach(({ raw, creationDate, activityDate, year, month, monthLabel, withinPeriod }) => {
       if (!year || !month) return;
       if (!groupsMap.has(year)) {
         groupsMap.set(year, new Map());
@@ -94,7 +125,7 @@ export default function useFileExplorerData({
       if (!target.label && monthLabel) {
         target.label = monthLabel;
       }
-      target.nodes.push(buildNode(raw, date, withinPeriod));
+      target.nodes.push(buildNode(raw, creationDate, activityDate, withinPeriod));
     });
 
     const yearGroups = Array.from(groupsMap.entries())
@@ -115,5 +146,5 @@ export default function useFileExplorerData({
       recentNodes,
       yearGroups,
     };
-  }, [commesse, onlyRecent, recentBoundary, periodStart, statusFilter, searchText]);
+  }, [commesse, recentBoundary, periodStart, statusFilter, searchText]);
 }

@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import WorkCalendar from '@domains/timesheet/components/calendar/WorkCalendar';
 import CommesseDashboard from '@shared/components/DipendenteHomePage/CommesseDashboard';
 import TimesheetPageHeader from './TimesheetPageHeader';
+import { BadgeCompact } from '@shared/components/BadgeCard';
 
 /**
  * TimesheetMainLayout
@@ -19,7 +20,7 @@ export function TimesheetMainLayout({
   commesseList,
   commesseLoading,
   stagedMeta,
-  missingPrevSet,
+  highlightedDays,
   period,
   refDate,
   onPeriodChange,
@@ -39,7 +40,7 @@ export function TimesheetMainLayout({
       }}
     >
       {/* Header with badge */}
-      <TimesheetPageHeader badgeData={badgeData} />
+  <TimesheetPageHeader />
 
       {/* Two-column bento layout */}
       <Box
@@ -51,7 +52,44 @@ export function TimesheetMainLayout({
           alignItems: 'stretch'
         }}
       >
-        {/* Left: Dashboard */}
+        {/* Left: Calendar */}
+        <Box
+          sx={{
+            flex: '0 0 auto',
+            width: { xs: '100%', md: 420 },
+            display: 'flex',
+            flexDirection: 'column',
+            height: { xs: 'auto', md: 850 },
+            bgcolor: 'background.default',
+            borderRadius: 2,
+            p: 2
+          }}
+        >
+          {badgeData?.hasBadge && (
+            <Box sx={{ mb: 2 }}>
+              <BadgeCompact
+                isBadgiato={badgeData.isBadgiato}
+                badgeNumber={badgeData.badgeNumber}
+                lastBadgeTime={badgeData.lastBadgeTime}
+                lastBadgeType={badgeData.lastBadgeType}
+                lastBadgeLabel={badgeData.lastBadgeLabel}
+                width="100%"
+              />
+            </Box>
+          )}
+
+          <WorkCalendar
+            data={mergedData}
+            selectedDay={selectedDay}
+            onDaySelect={onDaySelect}
+            onDayDoubleClick={onDayDoubleClick}
+            variant="wide"
+            highlightedDays={highlightedDays}
+            stagedMeta={stagedMeta}
+          />
+        </Box>
+
+        {/* Right: Dashboard */}
         <Box sx={{ 
           flex: '1 1 600px', 
           minWidth: 0, 
@@ -80,44 +118,6 @@ export function TimesheetMainLayout({
             />
           </Box>
         </Box>
-
-        {/* Right: Calendar */}
-        <Box
-          sx={{
-            flex: '0 0 auto',
-            width: { xs: '100%', md: 420 },
-            display: 'flex',
-            flexDirection: 'column',
-            height: { xs: 'auto', md: 850 },
-            bgcolor: 'background.default',
-            borderRadius: 2,
-            p: 2
-          }}
-        >
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'text.secondary',
-              fontStyle: 'italic',
-              textAlign: 'center',
-              mb: 2
-            }}
-          >
-            Fai doppio click su un giorno per modificare le ore lavorate.
-          </Typography>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }} />
-
-          <WorkCalendar
-            data={mergedData}
-            selectedDay={selectedDay}
-            onDaySelect={onDaySelect}
-            onDayDoubleClick={onDayDoubleClick}
-            variant="wide"
-            highlightedDays={missingPrevSet}
-            stagedMeta={stagedMeta}
-          />
-        </Box>
       </Box>
     </Box>
   );
@@ -132,8 +132,8 @@ TimesheetMainLayout.propTypes = {
   commesseList: PropTypes.array,
   commesseLoading: PropTypes.bool,
   stagedMeta: PropTypes.object,
-  missingPrevSet: PropTypes.instanceOf(Set),
-  period: PropTypes.oneOf(['week', 'month', 'year']).isRequired,
+  highlightedDays: PropTypes.instanceOf(Set),
+  period: PropTypes.oneOf(['week', 'month', 'year', 'none']).isRequired,
   refDate: PropTypes.instanceOf(Date).isRequired,
   onPeriodChange: PropTypes.func.isRequired,
   badgeData: PropTypes.object
