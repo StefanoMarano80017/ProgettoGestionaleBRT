@@ -5,13 +5,34 @@
     {
       "clientId": "traefik-client",
       "rootUrl": "http://frontend.localhost",
-      "publicClient": true,
+      "publicClient": false,
+      "secret": "supersegreto",
       "protocol": "openid-connect",
-      "serviceAccountsEnabled": false,
+      "serviceAccountsEnabled": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "redirectUris": ["*"],
-      "webOrigins": ["*"]
+      "webOrigins": ["*"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "openid"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access"
+      ],
+      "access": {
+        "view": true,
+        "configure": true,
+        "manage": true
+      }
     }
   ],
   "users": [
@@ -27,6 +48,51 @@
           "type": "password",
           "value": "admin",
           "temporary": false
+        }
+      ],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "employee",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Employee",
+      "lastName": "User",
+      "email": "employee@localhost",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "employee",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["employee"]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "roles",
+      "description": "OpenID Connect scope for roles",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "assigned-type": "default"
+      },
+      "protocolMappers": [
+        {
+          "name": "flat roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
         }
       ]
     }

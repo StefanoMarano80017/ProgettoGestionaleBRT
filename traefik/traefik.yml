@@ -3,9 +3,9 @@ log:
 
 experimental:
   plugins:
-    jwt-plugin:
+    jwt:
       moduleName: github.com/traefik-plugins/traefik-jwt-plugin
-      version: v0.7.1
+      version: v0.10.0
 
 entryPoints:
   web:
@@ -23,3 +23,14 @@ providers:
     exposedByDefault: false
   file:
     filename: "/etc/traefik/dynamic.yml"
+
+accessLog:
+  filePath: /var/log/access.log
+  bufferingSize: 0
+  fields:
+    defaultMode: keep
+    names:
+      ClientUsername: drop
+  filters:
+    statusCodes:
+      - "400-599"

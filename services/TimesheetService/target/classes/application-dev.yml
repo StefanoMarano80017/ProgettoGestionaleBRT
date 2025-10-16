@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/timesheet
+    username: timesheet_user
+    password: secret
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: create-drop   # ricrea lo schema ad ogni avvio in dev
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: public  # schema di default per Hibernate
+
+  sql:
+    init:
+      data-locations: classpath:data.sql
+
+logging:
+  level:
+    org.hibernate.SQL: INFO

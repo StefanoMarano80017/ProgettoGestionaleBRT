@@ -2,7 +2,7 @@ http:
   middlewares:
     secure-api:
       plugin:
-        jwt-plugin:
+        jwt:
           # Endpoint JWKS di Keycloak
           jwks_urls:
             - "http://keycloak:8080/realms/traefik-realm/protocol/openid-connect/certs"
@@ -16,9 +16,18 @@ http:
             aud: traefik-client
 
           # Headers da aggiungere
-          headers:
+          JwtHeaders:
             X-User-ID: sub
-            X-User-Roles: realm_access.roles
+            X-User-Roles: roles
+
+          jwtSources:
+            - type: cookie 
+              key: access_token
+            
 
           # Debug
           log_level: debug
+    prefix-strip:
+      stripPrefix:
+        prefixes:
+          - "/authBff"
