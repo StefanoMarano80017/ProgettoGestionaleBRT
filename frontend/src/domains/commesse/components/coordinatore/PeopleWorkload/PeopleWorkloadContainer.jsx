@@ -7,23 +7,7 @@ import { listCommesse } from '@mocks/CommesseMock.js';
 import usePeopleWorkloadData from './usePeopleWorkloadData.js';
 import PeopleWorkloadView from './PeopleWorkloadView.jsx';
 
-const PERIOD_PRESETS = {
-  week: 7,
-  month: 30,
-  quarter: 90,
-  year: 365,
-};
-
-const computeStartFor = (mode) => {
-  const days = PERIOD_PRESETS[mode] ?? PERIOD_PRESETS.month;
-  const end = new Date();
-  const start = new Date(end);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - days);
-  return start;
-};
-
-export default function PeopleWorkloadContainer({ period, periodStart }) {
+export default function PeopleWorkloadContainer({ onCommessaOpen }) {
   const [timesheets, setTimesheets] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -31,10 +15,6 @@ export default function PeopleWorkloadContainer({ period, periodStart }) {
   const [selectedCommessa, setSelectedCommessa] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [commessaMeta, setCommessaMeta] = React.useState(() => new Map());
-  const [periodMode, setPeriodMode] = React.useState(period || 'month');
-  const [localPeriodStart, setLocalPeriodStart] = React.useState(() => (
-    periodStart instanceof Date ? periodStart : computeStartFor(period || 'month')
-  ));
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -62,7 +42,7 @@ export default function PeopleWorkloadContainer({ period, periodStart }) {
     return () => {
       active = false;
     };
-  }, [period, periodStart]);
+  }, []);
 
   React.useEffect(() => {
     let active = true;
@@ -95,34 +75,9 @@ export default function PeopleWorkloadContainer({ period, periodStart }) {
     };
   }, []);
 
-  const periodEnd = React.useMemo(() => {
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    return end;
-  }, [periodMode, localPeriodStart]);
-
-  React.useEffect(() => {
-    if (!period) return;
-    setPeriodMode(period);
-  }, [period]);
-
-  React.useEffect(() => {
-    if (periodStart instanceof Date) {
-      setLocalPeriodStart(periodStart);
-    }
-  }, [periodStart]);
-
-  const handlePeriodModeChange = React.useCallback((value) => {
-    if (!value) return;
-    setPeriodMode(value);
-    setLocalPeriodStart(computeStartFor(value));
-  }, []);
-
   const workloadData = usePeopleWorkloadData({
     timesheetMap: timesheets,
     employees,
-    periodStart: localPeriodStart,
-    periodEnd,
     commessaMeta,
   });
 
@@ -173,7 +128,12 @@ export default function PeopleWorkloadContainer({ period, periodStart }) {
   }), [filteredRows]);
 
   const handleSearchChange = React.useCallback((value) => setSearch(value), []);
-  const handleCommessaChange = React.useCallback((value) => setSelectedCommessa(value), []);
+  const handleCommessaChange = React.useCallback((value) => {
+    setSelectedCommessa(value);
+    if (value?.id) {
+      onCommessaOpen?.(value.id);
+    }
+  }, [onCommessaOpen]);
   const handleToggleDrawer = React.useCallback(() => setDrawerOpen((prev) => !prev), []);
   const handleCloseDrawer = React.useCallback(() => setDrawerOpen(false), []);
 
@@ -192,13 +152,11 @@ export default function PeopleWorkloadContainer({ period, periodStart }) {
       drawerOpen={drawerOpen}
       onToggleDrawer={handleToggleDrawer}
       onCloseDrawer={handleCloseDrawer}
-      periodMode={periodMode}
-      onPeriodModeChange={handlePeriodModeChange}
+      onCommessaOpen={onCommessaOpen}
     />
   );
 }
 
 PeopleWorkloadContainer.propTypes = {
-  period: PropTypes.string,
-  periodStart: PropTypes.instanceOf(Date),
+  onCommessaOpen: PropTypes.func,
 };

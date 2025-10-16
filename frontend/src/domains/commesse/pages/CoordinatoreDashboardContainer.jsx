@@ -15,6 +15,9 @@ const PERIOD_TO_DAYS = {
 const RECENT_WINDOW_DAYS = 14;
 
 const computePeriodStart = (period) => {
+  if (period === 'all') {
+    return null;
+  }
   const days = PERIOD_TO_DAYS[period] ?? PERIOD_TO_DAYS.month;
   const now = new Date();
   const from = new Date(now);
@@ -29,22 +32,26 @@ const computeRecentBoundary = () => {
   return recent;
 };
 
+const INFO_TAB_ID = 'commessa-info';
+
 export default function CoordinatoreDashboardContainer() {
   const [filters, setFilters] = React.useState({
     search: '',
     status: 'all',
-    period: 'month',
-    onlyRecent: false,
-    sort: 'created',
+    period: 'all',
   });
   const [commesse, setCommesse] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
-  const [selectedCommessaId, setSelectedCommessaId] = React.useState(null);
   const [error, setError] = React.useState(null);
   const [refreshToken, setRefreshToken] = React.useState(0);
+  const [tabs, setTabs] = React.useState(() => ([
+    { id: INFO_TAB_ID, kind: 'info' },
+  ]));
+  const [activeTabId, setActiveTabId] = React.useState(INFO_TAB_ID);
+  const [selectedCommessaId, setSelectedCommessaId] = React.useState(null);
 
   const periodStart = React.useMemo(() => computePeriodStart(filters.period), [filters.period]);
-  const recentBoundary = React.useMemo(() => computeRecentBoundary(), [filters.onlyRecent, refreshToken]);
+  const recentBoundary = React.useMemo(() => computeRecentBoundary(), [refreshToken]);
 
   const refresh = React.useCallback(() => {
     setRefreshToken((token) => token + 1);
@@ -58,16 +65,6 @@ export default function CoordinatoreDashboardContainer() {
       .then((data) => {
         if (!active) return;
         setCommesse(data);
-        if (data.length === 0) {
-          setSelectedCommessaId(null);
-          return;
-        }
-        setSelectedCommessaId((prev) => {
-          if (prev && data.some((item) => item.id === prev)) {
-            return prev;
-          }
-          return data[0].id;
-        });
       })
       .catch((err) => {
         if (!active) return;
@@ -94,60 +91,94 @@ export default function CoordinatoreDashboardContainer() {
     setFilters((prev) => ({ ...prev, period: value }));
   }, []);
 
-  const handleToggleRecent = React.useCallback((next) => {
-    setFilters((prev) => ({ ...prev, onlyRecent: Boolean(next) }));
-  }, []);
-
-  const handleSortChange = React.useCallback((value) => {
-    setFilters((prev) => ({ ...prev, sort: value }));
-  }, []);
-
   const handleSelectCommessa = React.useCallback((commessaId) => {
-    setSelectedCommessaId(commessaId);
+    if (!commessaId) return;
+    const tabId = `commessa-${commessaId}`;
+    setTabs((prev) => {
+      const exists = prev.some((tab) => tab.kind === 'commessa' && tab.commessaId === commessaId);
+      if (exists) {
+        return prev;
+      }
+      return [...prev, { id: tabId, kind: 'commessa', commessaId }];
+    });
+    setActiveTabId(tabId);
   }, []);
+
+  React.useEffect(() => {
+    setSelectedCommessaId((prev) => {
+      const activeTab = tabs.find((tab) => tab.id === activeTabId);
+      const nextId = activeTab?.kind === 'commessa' ? activeTab.commessaId : null;
+      if (prev === nextId) {
+        return prev;
+      }
+      return nextId;
+    });
+  }, [tabs, activeTabId]);
+
+  const handleChangeTab = React.useCallback((tabId) => {
+    setActiveTabId(tabId);
+  }, []);
+
+  const handleCloseTab = React.useCallback((tabId) => {
+    if (tabId === INFO_TAB_ID) return;
+    setTabs((prev) => {
+      const next = prev.filter((tab) => tab.id !== tabId);
+      const finalTabs = next.length ? next : [{ id: INFO_TAB_ID, kind: 'info' }];
+      setActiveTabId((current) => {
+        if (current !== tabId) return current;
+        const fallback = finalTabs.find((tab) => tab.kind === 'commessa')?.id || INFO_TAB_ID;
+        return fallback;
+      });
+      return finalTabs;
+    });
+  }, []);
+
+  const commessaMap = React.useMemo(() => {
+    const map = new Map();
+    commesse.forEach((item) => {
+      map.set(item.id, item);
+    });
+    return map;
+  }, [commesse]);
 
   const explorerSlot = (
     <FileExplorerContainer
       commesse={commesse}
       selectedCommessaId={selectedCommessaId}
       onSelectCommessa={handleSelectCommessa}
-      onlyRecent={filters.onlyRecent}
       recentBoundary={recentBoundary}
       periodStart={periodStart}
       statusFilter={filters.status}
       searchText={filters.search}
+      period={filters.period}
+      onSearchChange={handleSearchChange}
+      onStatusChange={handleStatusChange}
+      onPeriodChange={handlePeriodChange}
+      loading={loading}
     />
   );
 
   const commessaListSlot = (
     <CommessaListContainer
-      commesse={commesse}
-      filters={filters}
-      selectedCommessaId={selectedCommessaId}
-      onSelectCommessa={handleSelectCommessa}
+      commesse={commessaMap}
+      tabs={tabs}
+      activeTabId={activeTabId}
+      onChangeTab={handleChangeTab}
+      onCloseTab={handleCloseTab}
+      onOpenCommessa={handleSelectCommessa}
       onRefresh={refresh}
-      periodStart={periodStart}
       error={error}
-      recentBoundary={recentBoundary}
-      onSortChange={handleSortChange}
     />
   );
 
   const workloadSlot = (
     <PeopleWorkloadContainer
-      period={filters.period}
-      periodStart={periodStart}
+      onCommessaOpen={handleSelectCommessa}
     />
   );
 
   return (
     <CoordinatoreDashboardView
-      filters={filters}
-      isLoading={loading}
-      onSearchChange={handleSearchChange}
-      onStatusChange={handleStatusChange}
-      onPeriodChange={handlePeriodChange}
-      onToggleRecent={handleToggleRecent}
       explorerSlot={explorerSlot}
       commessaListSlot={commessaListSlot}
       workloadSlot={workloadSlot}

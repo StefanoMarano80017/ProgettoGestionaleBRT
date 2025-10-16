@@ -564,6 +564,7 @@ const buildCommessaSummary = (commessa) => {
   return {
     id: commessa.id,
     codice: commessa.codice || commessa.id,
+    nome: commessa.nome || commessa.codice || commessa.id,
     stato: normalizeState(commessa.stato),
     tipo: [...commessa.tipo],
     createdAt: commessa.createdAt || commessa.dataInizio,
@@ -571,6 +572,12 @@ const buildCommessaSummary = (commessa) => {
     lastActivityAt: commessa.lastActivityAt || commessa.updatedAt || commessa.dataFine || commessa.dataInizio,
     tags: Array.isArray(commessa.tags) ? [...commessa.tags] : [],
     parentId: commessa.parentId || null,
+    cliente: commessa.cliente || null,
+    descrizione: commessa.descrizione || '',
+    dataInizio: commessa.dataInizio || null,
+    dataFine: commessa.dataFine || null,
+    dataChiusura: commessa.dataChiusura || null,
+    displayLabel: commessa.nome || commessa.codice || commessa.id,
     year,
     month,
   };

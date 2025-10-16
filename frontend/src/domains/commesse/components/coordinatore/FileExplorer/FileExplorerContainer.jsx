@@ -12,6 +12,11 @@ export default function FileExplorerContainer({
   periodStart,
   statusFilter,
   searchText,
+  period,
+  onSearchChange,
+  onStatusChange,
+  onPeriodChange,
+  loading,
 }) {
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
@@ -30,6 +35,13 @@ export default function FileExplorerContainer({
       selectedCommessaId={selectedCommessaId}
       onSelectCommessa={onSelectCommessa}
       isCompact={isCompact}
+      search={searchText}
+      status={statusFilter}
+      period={period}
+      onSearchChange={onSearchChange}
+      onStatusChange={onStatusChange}
+      onPeriodChange={onPeriodChange}
+      loading={loading}
     />
   );
 }
@@ -39,7 +51,12 @@ FileExplorerContainer.propTypes = {
   selectedCommessaId: PropTypes.string,
   onSelectCommessa: PropTypes.func,
   recentBoundary: PropTypes.instanceOf(Date),
-  periodStart: PropTypes.instanceOf(Date),
+  periodStart: PropTypes.oneOfType([PropTypes.instanceOf(Date), PropTypes.oneOf([null])]),
   statusFilter: PropTypes.string,
   searchText: PropTypes.string,
+  period: PropTypes.string,
+  onSearchChange: PropTypes.func,
+  onStatusChange: PropTypes.func,
+  onPeriodChange: PropTypes.func,
+  loading: PropTypes.bool,
 };

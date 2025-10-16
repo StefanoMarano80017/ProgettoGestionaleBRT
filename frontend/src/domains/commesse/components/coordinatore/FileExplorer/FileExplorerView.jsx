@@ -13,6 +13,15 @@ import {
   Box,
   Collapse,
   IconButton,
+  TextField,
+  ToggleButtonGroup,
+  ToggleButton,
+  Button,
+  InputAdornment,
+  LinearProgress,
+  Popover,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import FolderIcon from '@mui/icons-material/Folder';
@@ -20,12 +29,28 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DescriptionIcon from '@mui/icons-material/Description';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaColors.js';
 
 const STATUS_LABEL = {
   attiva: 'Attiva',
   chiusa: 'Chiusa',
 };
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Tutte' },
+  { value: 'attiva', label: 'Attive' },
+  { value: 'chiusa', label: 'Chiuse' },
+];
+
+const PERIOD_OPTIONS = [
+  { value: 'all', label: 'Tutte le attività' },
+  { value: 'week', label: 'Ultima settimana' },
+  { value: 'month', label: 'Ultimo mese' },
+  { value: 'quarter', label: 'Ultimo trimestre' },
+  { value: 'year', label: 'Ultimo anno' },
+];
 
 function CommessaItem({ node, onClick, selected }) {
   const color = getCommessaColor(node.codice);
@@ -80,9 +105,33 @@ CommessaItem.propTypes = {
   selected: PropTypes.bool,
 };
 
-export default function FileExplorerView({ recentNodes, yearGroups, selectedCommessaId, onSelectCommessa, isCompact }) {
+export default function FileExplorerView({
+  recentNodes,
+  yearGroups,
+  selectedCommessaId,
+  onSelectCommessa,
+  isCompact,
+  search,
+  status,
+  period,
+  onSearchChange,
+  onStatusChange,
+  onPeriodChange,
+  loading,
+}) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [expandedYears, setExpandedYears] = React.useState(() => new Set([new Date().getFullYear()]));
   const [expandedMonths, setExpandedMonths] = React.useState(() => new Set());
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const normalizedStatus = status || 'all';
+  const normalizedPeriod = period || 'all';
+  const hasCustomStatus = normalizedStatus !== 'all';
+  const hasCustomPeriod = normalizedPeriod !== 'all';
+  const activeStatus = STATUS_OPTIONS.find((option) => option.value === normalizedStatus);
+  const activePeriod = PERIOD_OPTIONS.find((option) => option.value === normalizedPeriod);
+  const hasActiveFilters = hasCustomStatus || hasCustomPeriod;
+  const activeFilterCount = [hasCustomStatus, hasCustomPeriod].filter(Boolean).length;
 
   const toggleYear = (year) => {
     setExpandedYears((prev) => {
@@ -108,6 +157,20 @@ export default function FileExplorerView({ recentNodes, yearGroups, selectedComm
     });
   };
 
+  const handleOpenFilters = (event) => {
+    if (filtersOpen) {
+      setAnchorEl(null);
+      return;
+    }
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseFilters = () => {
+    setAnchorEl(null);
+  };
+
+  const filtersOpen = Boolean(anchorEl);
+
   return (
     <Paper
       elevation={2}
@@ -124,10 +187,181 @@ export default function FileExplorerView({ recentNodes, yearGroups, selectedComm
       }}
     >
       <Stack spacing={2} sx={{ width: '100%', flex: 1, minHeight: 0 }}>
-        <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FolderIcon fontSize="small" />
-          Esplora commesse
-        </Typography>
+        <Stack spacing={1.5}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <FolderIcon fontSize="small" />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              Esplora commesse
+            </Typography>
+          </Stack>
+          <Stack spacing={1.5}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <TextField
+                value={search}
+                onChange={(event) => onSearchChange?.(event.target.value)}
+                size="small"
+                placeholder="Cerca per codice o nome"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  flex: 1,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                  }
+                }}
+              />
+              <Button
+                variant={filtersOpen || hasActiveFilters ? 'contained' : 'outlined'}
+                size="small"
+                onClick={handleOpenFilters}
+                startIcon={<FilterListIcon fontSize="small" />}
+                sx={{
+                  borderRadius: 1.5,
+                  whiteSpace: 'nowrap',
+                  alignSelf: { xs: 'flex-end', sm: 'auto' },
+                }}
+              >
+                {activeFilterCount > 0 ? `Filtri (${activeFilterCount})` : 'Filtri'}
+              </Button>
+            </Stack>
+            {hasActiveFilters && (
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {hasCustomStatus && (
+                  <Chip
+                    size="small"
+                    label={activeStatus?.label || 'Stato personalizzato'}
+                    onDelete={() => onStatusChange?.('all')}
+                    sx={{ borderRadius: 1.5, fontWeight: 500 }}
+                  />
+                )}
+                {hasCustomPeriod && (
+                  <Chip
+                    size="small"
+                    label={activePeriod?.label || 'Periodo attivo'}
+                    onDelete={() => onPeriodChange?.('all')}
+                    sx={{ borderRadius: 1.5, fontWeight: 500 }}
+                  />
+                )}
+              </Stack>
+            )}
+          </Stack>
+          {loading && <LinearProgress />}
+        </Stack>
+        <Popover
+          open={filtersOpen}
+          anchorEl={anchorEl}
+          onClose={handleCloseFilters}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              p: 2,
+              width: isMobile ? '90vw' : 320,
+              maxWidth: 360,
+            },
+          }}
+        >
+          <Stack spacing={2}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              Filtri commesse
+            </Typography>
+            <Stack spacing={1}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>
+                Stato
+              </Typography>
+              <ToggleButtonGroup
+                value={status}
+                exclusive
+                size="small"
+                onChange={(_, value) => value && onStatusChange?.(value)}
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    borderRadius: 1.5,
+                    px: 1.5,
+                    py: 0.75,
+                    fontWeight: 500,
+                    '&.Mui-selected': {
+                      bgcolor: 'rgba(25, 118, 210, 0.08)',
+                      color: 'primary.main',
+                      borderColor: 'primary.main',
+                      '&:hover': {
+                        bgcolor: 'rgba(25, 118, 210, 0.12)',
+                      }
+                    }
+                  }
+                }}
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <ToggleButton key={option.value} value={option.value}>
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Stack>
+            <Stack spacing={1}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>
+                Periodo attività
+              </Typography>
+              <ToggleButtonGroup
+                value={period || 'all'}
+                exclusive
+                size="small"
+                onChange={(_, value) => (value ? onPeriodChange?.(value) : onPeriodChange?.('all'))}
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    borderRadius: 1.5,
+                    px: 2,
+                    py: 0.75,
+                    fontWeight: 500,
+                    '&.Mui-selected': {
+                      bgcolor: 'rgba(25, 118, 210, 0.08)',
+                      color: 'primary.main',
+                      borderColor: 'primary.main',
+                      '&:hover': {
+                        bgcolor: 'rgba(25, 118, 210, 0.12)',
+                      }
+                    }
+                  }
+                }}
+              >
+                {PERIOD_OPTIONS.map((option) => (
+                  <ToggleButton key={option.value} value={option.value}>
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Stack>
+            {hasActiveFilters && (
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => {
+                  onStatusChange?.('all');
+                  onPeriodChange?.('all');
+                  handleCloseFilters();
+                }}
+                sx={{
+                  alignSelf: 'flex-start',
+                  borderRadius: 1.5,
+                  fontWeight: 500,
+                  textTransform: 'none',
+                }}
+              >
+                Reimposta filtri
+              </Button>
+            )}
+          </Stack>
+        </Popover>
         {recentNodes.length > 0 && (
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -228,4 +462,11 @@ FileExplorerView.propTypes = {
   selectedCommessaId: PropTypes.string,
   onSelectCommessa: PropTypes.func,
   isCompact: PropTypes.bool,
+  search: PropTypes.string,
+  status: PropTypes.string,
+  period: PropTypes.string,
+  onSearchChange: PropTypes.func,
+  onStatusChange: PropTypes.func,
+  onPeriodChange: PropTypes.func,
+  loading: PropTypes.bool,
 };

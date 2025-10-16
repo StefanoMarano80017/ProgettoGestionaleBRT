@@ -14,21 +14,12 @@ import {
   Box,
   Card,
   CardContent,
-  ToggleButton,
-  ToggleButtonGroup,
   Autocomplete,
   Tooltip,
   Avatar,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaColors.js';
-
-const PERIOD_OPTIONS = [
-  { value: 'week', label: 'Settimana' },
-  { value: 'month', label: 'Mese' },
-  { value: 'quarter', label: 'Trimestre' },
-  { value: 'year', label: 'Anno' },
-];
 
 function Filters({
   search,
@@ -37,11 +28,7 @@ function Filters({
   selectedCommessa,
   onCommessaChange,
   summary,
-  periodMode,
-  onPeriodModeChange,
 }) {
-  const activePeriod = PERIOD_OPTIONS.find((option) => option.value === periodMode)?.label ?? null;
-  const activePeriodLabel = activePeriod ? activePeriod.toLowerCase() : 'periodo selezionato';
   return (
     <Stack spacing={2.5}>
       <Stack spacing={0.75}>
@@ -49,7 +36,7 @@ function Filters({
           Personale e Assegnazioni
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-          Nel periodo ({activePeriodLabel}): {summary.withTimesheet} persone attive su {summary.total} in elenco
+          Persone con attività recente: {summary.withTimesheet} su {summary.total}
         </Typography>
       </Stack>
       <Stack direction="row" spacing={1.5} alignItems="center">
@@ -71,35 +58,6 @@ function Filters({
           sx={{ flex: 1 }}
         />
       </Stack>
-      <ToggleButtonGroup
-        value={periodMode}
-        exclusive
-        size="small"
-        onChange={(_, value) => onPeriodModeChange?.(value || periodMode)}
-        sx={{
-          alignSelf: { xs: 'stretch', sm: 'flex-start' },
-          '& .MuiToggleButton-root': {
-            borderRadius: 1.5,
-            px: 2,
-            py: 0.75,
-            fontWeight: 500,
-            '&.Mui-selected': {
-              bgcolor: 'rgba(25, 118, 210, 0.08)',
-              color: 'primary.main',
-              borderColor: 'primary.main',
-              '&:hover': {
-                bgcolor: 'rgba(25, 118, 210, 0.12)',
-              },
-            },
-          },
-        }}
-      >
-        {PERIOD_OPTIONS.map((option) => (
-          <ToggleButton key={option.value} value={option.value}>
-            {option.label}
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
     </Stack>
   );
 }
@@ -111,11 +69,9 @@ Filters.propTypes = {
   selectedCommessa: PropTypes.shape({ id: PropTypes.string, label: PropTypes.string }),
   onCommessaChange: PropTypes.func,
   summary: PropTypes.shape({ total: PropTypes.number, withTimesheet: PropTypes.number }).isRequired,
-  periodMode: PropTypes.oneOf(['week', 'month', 'quarter', 'year']).isRequired,
-  onPeriodModeChange: PropTypes.func,
 };
 
-function EmployeeList({ rows }) {
+function EmployeeList({ rows, onCommessaOpen }) {
   const theme = useTheme();
   const containerSx = {
     flex: 1,
@@ -257,7 +213,10 @@ function EmployeeList({ rows }) {
                               bgcolor: background,
                               color,
                               borderRadius: 1.5,
+                              cursor: 'pointer',
                             }}
+                            clickable
+                            onClick={() => onCommessaOpen?.(commessa.id)}
                           />
                         </Tooltip>
                       );
@@ -303,6 +262,7 @@ function EmployeeList({ rows }) {
 
 EmployeeList.propTypes = {
   rows: PropTypes.arrayOf(PropTypes.object).isRequired,
+  onCommessaOpen: PropTypes.func,
 };
 
 function PanelContent({
@@ -315,8 +275,7 @@ function PanelContent({
   commessaOptions,
   selectedCommessa,
   onCommessaChange,
-  periodMode,
-  onPeriodModeChange,
+  onCommessaOpen,
 }) {
   return (
     <Box
@@ -337,8 +296,6 @@ function PanelContent({
         selectedCommessa={selectedCommessa}
         onCommessaChange={onCommessaChange}
         summary={summary}
-        periodMode={periodMode}
-        onPeriodModeChange={onPeriodModeChange}
       />
       {loading && (
         <Stack alignItems="center" justifyContent="center" sx={{ py: 4 }}>
@@ -350,7 +307,7 @@ function PanelContent({
       )}
       {!loading && !error && (
         <Box sx={{ flex: 1, minHeight: 0 }}>
-          <EmployeeList rows={rows} />
+          <EmployeeList rows={rows} onCommessaOpen={onCommessaOpen} />
         </Box>
       )}
     </Box>
@@ -367,8 +324,7 @@ PanelContent.propTypes = {
   commessaOptions: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, label: PropTypes.string })).isRequired,
   selectedCommessa: PropTypes.shape({ id: PropTypes.string, label: PropTypes.string }),
   onCommessaChange: PropTypes.func,
-  periodMode: PropTypes.oneOf(['week', 'month', 'quarter', 'year']).isRequired,
-  onPeriodModeChange: PropTypes.func,
+  onCommessaOpen: PropTypes.func,
 };
 
 export default function PeopleWorkloadView({
@@ -385,8 +341,7 @@ export default function PeopleWorkloadView({
   drawerOpen,
   onToggleDrawer,
   onCloseDrawer,
-  periodMode,
-  onPeriodModeChange,
+  onCommessaOpen,
 }) {
   if (isMobile) {
     return (
@@ -405,8 +360,7 @@ export default function PeopleWorkloadView({
             commessaOptions={commessaOptions}
             selectedCommessa={selectedCommessa}
             onCommessaChange={onCommessaChange}
-            periodMode={periodMode}
-            onPeriodModeChange={onPeriodModeChange}
+            onCommessaOpen={onCommessaOpen}
           />
         </Drawer>
       </Box>
@@ -438,8 +392,7 @@ export default function PeopleWorkloadView({
         commessaOptions={commessaOptions}
         selectedCommessa={selectedCommessa}
         onCommessaChange={onCommessaChange}
-        periodMode={periodMode}
-        onPeriodModeChange={onPeriodModeChange}
+        onCommessaOpen={onCommessaOpen}
       />
     </Paper>
   );
@@ -459,6 +412,5 @@ PeopleWorkloadView.propTypes = {
   drawerOpen: PropTypes.bool,
   onToggleDrawer: PropTypes.func,
   onCloseDrawer: PropTypes.func,
-  periodMode: PropTypes.oneOf(['week', 'month', 'quarter', 'year']).isRequired,
-  onPeriodModeChange: PropTypes.func,
+  onCommessaOpen: PropTypes.func,
 };

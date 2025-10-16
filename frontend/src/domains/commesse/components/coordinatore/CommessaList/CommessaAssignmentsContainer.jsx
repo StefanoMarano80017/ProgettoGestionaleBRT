@@ -46,6 +46,7 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
   const [search, setSearch] = React.useState('');
   const [disciplineFilter, setDisciplineFilter] = React.useState('');
   const [snack, setSnack] = React.useState({ open: false, message: '', severity: 'success' });
+  const [assignmentNotes, setAssignmentNotes] = React.useState({});
 
   const fetchDetails = React.useCallback(() => {
     if (!commessaId) return;
@@ -87,9 +88,25 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
         id: employeeId,
         assignments,
         disciplineLabel: resolveDisciplineLabel(meta.discipline),
+        assignmentLabel: assignmentNotes[employeeId]?.label || null,
       };
     })
-  ), [assignedIds, employees]);
+  ), [assignedIds, employees, assignmentNotes]);
+
+  React.useEffect(() => {
+    setAssignmentNotes((prev) => {
+      const next = {};
+      assignedIds.forEach((id) => {
+        if (prev[id]) {
+          next[id] = prev[id];
+        }
+      });
+      if (Object.keys(next).length === Object.keys(prev).length) {
+        return prev;
+      }
+      return next;
+    });
+  }, [assignedIds]);
 
   const availableEmployees = React.useMemo(() => {
     const searchValue = search.toLowerCase();
@@ -129,13 +146,22 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
     setSnack({ open: true, message, severity });
   }, []);
 
-  const handleAssign = React.useCallback(async () => {
+  const handleAssign = React.useCallback(async (assignmentLabel) => {
     if (!selection.length) return;
     try {
       setMutating(true);
       await Promise.all(selection.map((employeeId) => addEmployeeCommessa(employeeId, commessaId)));
       setSelection([]);
       showSnack('Assegnazione completata');
+      if (assignmentLabel) {
+        setAssignmentNotes((prev) => {
+          const next = { ...prev };
+          selection.forEach((employeeId) => {
+            next[employeeId] = { label: assignmentLabel };
+          });
+          return next;
+        });
+      }
       fetchDetails();
       onAssignmentsChange?.();
     } catch (err) {
@@ -150,6 +176,12 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
       setMutating(true);
       await removeEmployeeCommessa(employeeId, commessaId);
       showSnack('Risorsa rimossa');
+      setAssignmentNotes((prev) => {
+        if (!prev[employeeId]) return prev;
+        const next = { ...prev };
+        delete next[employeeId];
+        return next;
+      });
       fetchDetails();
       onAssignmentsChange?.();
     } catch (err) {
