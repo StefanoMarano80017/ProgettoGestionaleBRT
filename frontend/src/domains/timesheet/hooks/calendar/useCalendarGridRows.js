@@ -11,6 +11,10 @@ export default function useCalendarGridRows({ data = {}, year, month, today = ne
     const out = [];
     for (let d = 1; d <= lastDay; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const currentDate = new Date(year, month, d);
+      const dayOfWeek = currentDate.getDay(); // 0=Sunday, 6=Saturday
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      
       const dayData = data[dateStr] || [];
       const segnalazione = data[`${dateStr}_segnalazione`];
       const totalHours = dayData.reduce((s, r) => s + Number(r.ore || 0), 0);
@@ -22,6 +26,8 @@ export default function useCalendarGridRows({ data = {}, year, month, today = ne
       out.push({
         day: d,
         dateStr,
+        dayOfWeek,
+        isWeekend,
         totalHours,
         ferie,
         malattia,

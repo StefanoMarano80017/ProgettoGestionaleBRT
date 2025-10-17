@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Stack, Typography, Paper, IconButton, Tabs, Tab, ToggleButtonGroup, ToggleButton, LinearProgress, Chip, Divider, Avatar } from '@mui/material';
+import { Box, Stack, Typography, Paper, IconButton, Tabs, Tab, ToggleButtonGroup, ToggleButton, LinearProgress, Chip, Divider, Avatar, Skeleton, alpha } from '@mui/material';
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ScheduleIcon from '@mui/icons-material/Schedule';
@@ -11,15 +11,137 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import FolderIcon from '@mui/icons-material/Folder';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { parseKeyToDate, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, inRange } from '@/shared/utils/dateRangeUtils';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaColors';
+import { getBalances } from '@domains/timesheet/services/projectService';
+import { getVacationBalances } from '@mocks/TimesheetAbsencesMock';
 
 const NON_WORK_COMMESSE = new Set(['FERIE', 'MALATTIA', 'PERMESSO', 'ROL', 'ROL_P', 'ROL_C', 'ROL_F']);
 
-export default function CommesseDashboard({ assignedCommesse = [], data = {}, period = 'month', refDate = new Date(), selectedDay, onPeriodChange, onCommessaSelect }) {
+function formatDateKey(date) {
+	if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+function computeDailySummary(dataMap, start, end) {
+	if (!start || !end) {
+		return { totalHours: 0, daysWorked: 0, avgPerDay: 0, dailyValues: [] };
+	}
+	const totals = new Map();
+	Object.entries(dataMap || {}).forEach(([key, records]) => {
+		if (key.endsWith('_segnalazione')) return;
+		const currentDate = parseKeyToDate(key);
+		if (!inRange(currentDate, start, end)) return;
+		const dayKey = formatDateKey(currentDate);
+		(records || []).forEach((rec) => {
+			if (!rec || !rec.commessa) return;
+			const normalized = String(rec.commessa).trim().toUpperCase();
+			if (NON_WORK_COMMESSE.has(normalized)) return;
+			const hours = Number(rec.ore || 0);
+			if (!Number.isFinite(hours) || hours <= 0) return;
+			let day = totals.get(dayKey);
+			if (!day) {
+				day = { date: new Date(currentDate), hours: 0 };
+				totals.set(dayKey, day);
+			}
+			day.hours += hours;
+		});
+	});
+	const list = Array.from(totals.values()).sort((a, b) => a.date - b.date);
+	const totalHours = list.reduce((sum, day) => sum + day.hours, 0);
+	const daysWorked = list.filter((day) => day.hours > 0).length;
+	const avgPerDay = daysWorked > 0 ? totalHours / daysWorked : 0;
+	return { totalHours, daysWorked, avgPerDay, dailyValues: list };
+}
+
+function resolvePreviousRange(period, currentRange, refDate) {
+	if (!currentRange || !currentRange.start || !currentRange.end) return null;
+	if (period === 'week') {
+		const start = new Date(currentRange.start);
+		start.setDate(start.getDate() - 7);
+		const end = new Date(currentRange.end);
+		end.setDate(end.getDate() - 7);
+		return { start, end, label: 'Settimana precedente' };
+	}
+	if (period === 'month') {
+		const anchor = new Date(currentRange.start);
+		anchor.setMonth(anchor.getMonth() - 1);
+		const start = startOfMonth(anchor);
+		const end = endOfMonth(anchor);
+		return { start, end, label: 'Mese precedente' };
+	}
+	if (period === 'year') {
+		const anchor = new Date(currentRange.start);
+		anchor.setFullYear(anchor.getFullYear() - 1);
+		const start = startOfYear(anchor);
+		const end = endOfYear(anchor);
+		return { start, end, label: 'Anno precedente' };
+	}
+	if (period === 'none') {
+		const anchor = refDate ? new Date(refDate) : new Date();
+		const start = new Date(anchor);
+		start.setDate(start.getDate() - 1);
+		start.setHours(0, 0, 0, 0);
+		const end = new Date(anchor);
+		end.setDate(end.getDate() - 1);
+		end.setHours(23, 59, 59, 999);
+		return { start, end, label: 'Giorno precedente' };
+	}
+	return null;
+}
+
+function isWorkingDay(date) {
+	const day = date.getDay();
+	return day !== 0 && day !== 6;
+}
+
+function computePreviousMonthCompleteness(dataMap, refDate) {
+	const anchor = refDate ? new Date(refDate) : new Date();
+	const prevMonth = new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1);
+	const start = startOfMonth(prevMonth);
+	const end = endOfMonth(prevMonth);
+	let workingDays = 0;
+	let completeDays = 0;
+	let partialDays = 0;
+	let missingDays = 0;
+	for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+		if (!isWorkingDay(cursor)) continue;
+		workingDays += 1;
+		const key = formatDateKey(cursor);
+		const records = dataMap?.[key] || [];
+		if (!Array.isArray(records) || records.length === 0) {
+			missingDays += 1;
+			continue;
+		}
+		let hours = 0;
+		records.forEach((rec) => {
+			if (!rec) return;
+			const value = Number(rec.ore || 0);
+			if (!Number.isFinite(value) || value <= 0) return;
+			hours += value;
+		});
+		if (hours >= 8) completeDays += 1;
+		else if (hours > 0) partialDays += 1;
+		else missingDays += 1;
+	}
+	const coverage = workingDays > 0 ? (completeDays / workingDays) * 100 : 0;
+	return { workingDays, completeDays, partialDays, missingDays, coverage };
+}
+
+export default function CommesseDashboard({ assignedCommesse = [], data = {}, period = 'month', refDate = new Date(), selectedDay, employeeId, onPeriodChange, onCommessaSelect }) {
 	const [selectedCommessa, setSelectedCommessa] = useState(null);
+	const [breakdownPage, setBreakdownPage] = useState(0);
+	const [balanceState, setBalanceState] = useState({ loading: false, error: '', permesso: null, rol: null, ferie: null });
+	
 	const handlePeriodToggle = useCallback((event, nextValue) => {
 		if (!onPeriodChange) return;
 		if (nextValue === null) {
@@ -28,23 +150,36 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 		}
 		onPeriodChange(nextValue);
 	}, [onPeriodChange]);
+	
+	const pivotYear = useMemo(() => {
+		const base = period === 'none' && selectedDay ? parseKeyToDate(selectedDay) : refDate;
+		if (!(base instanceof Date) || Number.isNaN(base.getTime())) return new Date().getFullYear();
+		return base.getFullYear();
+	}, [period, selectedDay, refDate]);
+	
+	const previousMonthSummary = useMemo(() => computePreviousMonthCompleteness(data, refDate), [data, refDate]);
+	
 	const range = useMemo(() => {
-		if (period === 'week') return { start: startOfWeek(refDate), end: endOfWeek(refDate) };
-		if (period === 'year') return { start: startOfYear(refDate), end: endOfYear(refDate) };
-		if (period === 'none') {
-			const dateToUse = selectedDay ? parseKeyToDate(selectedDay) : refDate;
-			const start = new Date(dateToUse);
-			start.setHours(0, 0, 0, 0);
-			const end = new Date(dateToUse);
-			end.setHours(23, 59, 59, 999);
-			return { start, end };
+		if (period === 'week') {
+			return { start: startOfWeek(refDate), end: endOfWeek(refDate) };
 		}
-		return { start: startOfMonth(refDate), end: endOfMonth(refDate) };
-	}, [period, refDate, selectedDay]);
+		if (period === 'month') {
+			return { start: startOfMonth(refDate), end: endOfMonth(refDate) };
+		}
+		if (period === 'year') {
+			return { start: startOfYear(refDate), end: endOfYear(refDate) };
+		}
+		const start = new Date(refDate);
+		start.setHours(0, 0, 0, 0);
+		const end = new Date(refDate);
+		end.setHours(23, 59, 59, 999);
+		return { start, end };
+	}, [period, refDate]);
+	
 	const chartData = useMemo(() => {
 		if (period === 'none') {
 			const dateToUse = selectedDay ? parseKeyToDate(selectedDay) : refDate;
-			const dayKey = dateToUse.toISOString().slice(0, 10);
+			const dayKey = selectedDay || formatDateKey(dateToUse);
 			const dayRecords = data[dayKey] || [];
 			
 			// Build a map of commessa -> activities with hours
@@ -88,12 +223,26 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 				color: getCommessaColor(commessa),
 			}));
 
-			// Create detailed daily data with activities
-			const dailyData = entries.map(([commessa, data]) => ({
-				commessa,
-				hours: data.total,
-				activities: Array.from(data.activities.entries()).map(([name, hours]) => ({ name, hours })),
-			}));
+			// Create a lookup map from assignedCommesse
+			const commessaInfoMap = new Map();
+			if (assignedCommesse && Array.isArray(assignedCommesse)) {
+				assignedCommesse.forEach((item) => {
+					const name = item.nome || item;
+					commessaInfoMap.set(name, item);
+				});
+			}
+
+			// Create detailed daily data with activities and commessa info
+			const dailyData = entries.map(([commessa, data]) => {
+				const commessaInfo = commessaInfoMap.get(commessa);
+				return {
+					commessa,
+					hours: data.total,
+					activities: Array.from(data.activities.entries()).map(([name, hours]) => ({ name, hours })),
+					descrizione: commessaInfo?.descrizione,
+					cliente: commessaInfo?.cliente,
+				};
+			});
 
 			const totalHours = dailyData.reduce((sum, item) => sum + item.hours, 0);
 			const totalActivities = dailyData.reduce((sum, item) => sum + item.activities.length, 0);
@@ -119,24 +268,27 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 		const bucketMap = new Map(); // bucketKey -> { date: Date, values: Map(commessa -> hours) }
 		const commessaSet = new Set();
 		const commessaActivitiesMap = new Map(); // commessa -> Map(activity -> hours)
+		const commessaDayOccurrences = new Map(); // commessa -> Set(dayKey)
+		const dailyTotals = new Map(); // dayKey -> { date, hours }
 
 		Object.entries(data || {}).forEach(([key, records]) => {
 			if (key.endsWith('_segnalazione')) return;
 			const currentDate = parseKeyToDate(key);
 			if (!inRange(currentDate, range.start, range.end)) return;
+			const dayKey = formatDateKey(currentDate);
 
 			let bucketKey;
 			let bucketDate;
 			if (period === 'week') {
-				bucketKey = currentDate.toISOString().slice(0, 10);
+				bucketKey = dayKey;
 				bucketDate = currentDate;
 			} else if (period === 'month') {
 				const weekStart = startOfWeek(currentDate);
-				bucketKey = weekStart.toISOString().slice(0, 10);
+				bucketKey = formatDateKey(weekStart);
 				bucketDate = weekStart;
 			} else {
 				const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-				bucketKey = monthStart.toISOString().slice(0, 10);
+				bucketKey = formatDateKey(monthStart);
 				bucketDate = monthStart;
 			}
 
@@ -157,6 +309,18 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 				
 				commessaSet.add(commessa);
 				bucket.values.set(commessa, (bucket.values.get(commessa) || 0) + hours);
+				let daySummary = dailyTotals.get(dayKey);
+				if (!daySummary) {
+					daySummary = { date: new Date(currentDate), hours: 0 };
+					dailyTotals.set(dayKey, daySummary);
+				}
+				daySummary.hours += hours;
+				let commessaDays = commessaDayOccurrences.get(commessa);
+				if (!commessaDays) {
+					commessaDays = new Set();
+					commessaDayOccurrences.set(commessa, commessaDays);
+				}
+				commessaDays.add(dayKey);
 				
 				// Track activities per commessa
 				if (!commessaActivitiesMap.has(commessa)) {
@@ -166,6 +330,11 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 				activities.set(activity, (activities.get(activity) || 0) + hours);
 			});
 		});
+
+		const dailyList = Array.from(dailyTotals.values()).sort((a, b) => a.date - b.date);
+		const totalHours = dailyList.reduce((sum, day) => sum + day.hours, 0);
+		const daysWorked = dailyList.filter((day) => day.hours > 0).length;
+		const avgHoursPerDay = daysWorked > 0 ? totalHours / daysWorked : 0;
 
 		if (!bucketMap.size) {
 			return { series: [], xAxis: [], isEmpty: true, isStacked: true, xLabel: 'Periodo', width: 400 };
@@ -191,13 +360,6 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 			stack: 'total',
 		}));
 
-		// Calculate aggregate statistics for the period
-		const totalHours = series.reduce((sum, s) => sum + s.data.reduce((a, b) => a + b, 0), 0);
-		const daysWorked = buckets.filter(bucket => {
-			const dayTotal = Array.from(bucket.values.values()).reduce((a, b) => a + b, 0);
-			return dayTotal > 0;
-		}).length;
-		const avgHoursPerDay = daysWorked > 0 ? totalHours / daysWorked : 0;
 		const topCommessa = commessaList.length > 0 
 			? commessaList.reduce((top, comm, idx) => {
 				const hours = series[idx].data.reduce((a, b) => a + b, 0);
@@ -209,7 +371,7 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 		const commessaBreakdown = commessaList.map((commessa, idx) => {
 			const values = series[idx].data;
 			const hours = values.reduce((a, b) => a + b, 0);
-			const daysActive = values.filter(h => h > 0).length;
+			const daysActive = commessaDayOccurrences.get(commessa)?.size || 0;
 			const percentage = totalHours > 0 ? (hours / totalHours) * 100 : 0;
 			const avgPerActiveDay = daysActive > 0 ? hours / daysActive : 0;
 			let firstAvg = values.length ? values[0] : 0;
@@ -249,22 +411,33 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 			};
 		}).sort((a, b) => b.hours - a.hours);
 
-		// Calculate daily distribution stats
-		const dailyHours = buckets.map(bucket => 
-			Array.from(bucket.values.values()).reduce((a, b) => a + b, 0)
-		);
-		const maxDailyHours = Math.max(...dailyHours, 0);
-		const minDailyHours = Math.min(...dailyHours.filter(h => h > 0), 0);
-		const avgDailyHours = dailyHours.reduce((a, b) => a + b, 0) / Math.max(buckets.length, 1);
+		const dailyHours = dailyList.map((day) => day.hours);
+		const maxDailyHours = dailyHours.length ? Math.max(...dailyHours) : 0;
+		const nonZeroDailyHours = dailyHours.filter((h) => h > 0);
+		const minDailyHours = nonZeroDailyHours.length ? Math.min(...nonZeroDailyHours) : 0;
+		const avgDailyHours = dailyHours.length ? dailyHours.reduce((a, b) => a + b, 0) / dailyHours.length : 0;
 
-		// Trend analysis: compare first half vs second half
-		const midPoint = Math.floor(buckets.length / 2);
-		const firstHalfHours = dailyHours.slice(0, midPoint).reduce((a, b) => a + b, 0);
-		const secondHalfHours = dailyHours.slice(midPoint).reduce((a, b) => a + b, 0);
-		const firstHalfAvg = midPoint > 0 ? firstHalfHours / midPoint : 0;
-		const secondHalfAvg = (buckets.length - midPoint) > 0 ? secondHalfHours / (buckets.length - midPoint) : 0;
-		const trend = secondHalfAvg - firstHalfAvg;
-		const trendPercentage = firstHalfAvg > 0 ? (trend / firstHalfAvg) * 100 : 0;
+		const previousRange = resolvePreviousRange(period, range, refDate);
+		let trend = null;
+		if (previousRange) {
+			const previousSummary = computeDailySummary(data, previousRange.start, previousRange.end);
+			if (previousSummary.daysWorked > 0 || daysWorked > 0) {
+				const deltaAvg = avgHoursPerDay - previousSummary.avgPerDay;
+				const percentage = previousSummary.avgPerDay > 0
+					? (deltaAvg / previousSummary.avgPerDay) * 100
+					: (avgHoursPerDay > 0 ? 100 : 0);
+				trend = {
+					value: deltaAvg,
+					percentage,
+					isIncreasing: deltaAvg >= 0,
+					previousAvg: previousSummary.avgPerDay,
+					currentAvg: avgHoursPerDay,
+					label: previousRange.label,
+					previousDays: previousSummary.daysWorked,
+					currentDays: daysWorked,
+				};
+			}
+		}
 
 		return {
 			series,
@@ -286,16 +459,73 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 					min: minDailyHours,
 					avg: avgDailyHours,
 				},
-				trend: {
-					value: trend,
-					percentage: trendPercentage,
-					isIncreasing: trend > 0,
-					firstHalfAvg,
-					secondHalfAvg,
-				}
+				trend,
 			}
 		};
-	}, [data, period, range, refDate, selectedDay]);
+		}, [data, period, range, refDate, selectedDay]);
+		const breakdownItems = chartData.stats?.commessaBreakdown || [];
+		const BREAKDOWN_PAGE_SIZE = 4;
+		const totalBreakdownPages = Math.max(1, Math.ceil(breakdownItems.length / BREAKDOWN_PAGE_SIZE));
+		const pagedBreakdown = useMemo(() => {
+			const start = breakdownPage * BREAKDOWN_PAGE_SIZE;
+			return breakdownItems.slice(start, start + BREAKDOWN_PAGE_SIZE);
+		}, [breakdownItems, breakdownPage]);
+
+		// Extract all unique commesse from the data for the empty day view
+		const allCommesseList = useMemo(() => {
+			if (!data || Object.keys(data).length === 0) return [];
+			const commesseSet = new Set();
+			Object.values(data).forEach((dayRecords) => {
+				if (Array.isArray(dayRecords)) {
+					dayRecords.forEach((rec) => {
+						if (rec && rec.commessa) {
+							commesseSet.add(String(rec.commessa).trim());
+						}
+					});
+				}
+			});
+			return Array.from(commesseSet).sort();
+		}, [data]);
+
+		useEffect(() => {
+			if (breakdownPage >= totalBreakdownPages) {
+				setBreakdownPage(Math.max(0, totalBreakdownPages - 1));
+			}
+		}, [breakdownPage, totalBreakdownPages]);
+		useEffect(() => { setBreakdownPage(0); }, [period, selectedDay, refDate]);
+		useEffect(() => {
+			if (!employeeId) {
+				setBalanceState({ loading: false, error: '', permesso: null, rol: null, ferie: null });
+				return;
+			}
+			let active = true;
+			setBalanceState((prev) => ({ ...prev, loading: true, error: '' }));
+			(async () => {
+				try {
+					const [permRol, ferieRows] = await Promise.all([
+						getBalances(employeeId),
+						getVacationBalances({ year: pivotYear, employeeIds: [employeeId] }),
+					]);
+					if (!active) return;
+					const permVal = Number(permRol?.permesso ?? 0);
+					const rolVal = Number(permRol?.rol ?? 0);
+					const ferieRow = Array.isArray(ferieRows) ? ferieRows.find((row) => row?.employeeId === employeeId) : null;
+					const ferieValRaw = ferieRow ? (ferieRow.residualHours ?? ferieRow.residual ?? null) : null;
+					const ferieVal = Number(ferieValRaw);
+					setBalanceState({
+						loading: false,
+						error: '',
+						permesso: Number.isFinite(permVal) ? permVal : 0,
+						rol: Number.isFinite(rolVal) ? rolVal : 0,
+						ferie: Number.isFinite(ferieVal) ? ferieVal : null,
+					});
+				} catch (err) {
+					if (!active) return;
+					setBalanceState({ loading: false, error: err?.message || 'Impossibile recuperare i saldi', permesso: null, rol: null, ferie: null });
+				}
+			})();
+			return () => { active = false; };
+		}, [employeeId, pivotYear]);
 	const riepilogo = useMemo(() => {
 		if (data && data.__monthlySummary) return {
 			ferie: data.__monthlySummary.ferie || { days: 0, hours: 0 },
@@ -413,10 +643,368 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 		}
 		return '';
 	}, [period, range, refDate, selectedDay]);
+	const formatBalanceHours = (value) => (Number.isFinite(value) ? `${value.toFixed(1)}h` : '—');
+	const renderBalanceSummary = () => {
+		if (balanceState.loading) {
+			return (
+				<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
+					<Skeleton variant="rectangular" height={70} sx={{ borderRadius: 2 }} />
+					<Skeleton variant="rectangular" height={70} sx={{ borderRadius: 2 }} />
+					<Skeleton variant="rectangular" height={70} sx={{ borderRadius: 2 }} />
+				</Box>
+			);
+		}
+		if (balanceState.error) {
+			return (
+				<Paper
+					elevation={0}
+					sx={{
+						p: 2,
+						borderRadius: 2,
+						border: '1px solid',
+						borderColor: 'error.main',
+						bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.08)' : 'rgba(211, 47, 47, 0.04)',
+					}}
+				>
+					<Typography variant="caption" color="error" sx={{ textAlign: 'center', display: 'block' }}>
+						{balanceState.error}
+					</Typography>
+				</Paper>
+			);
+		}
+		if (balanceState.permesso === null && balanceState.rol === null && balanceState.ferie === null) return null;
+		
+		const ferieValue = balanceState.ferie;
+		const ferieDays = Number.isFinite(ferieValue) ? (ferieValue / 8).toFixed(1) : '—';
+		const ferieHours = Number.isFinite(ferieValue) ? ferieValue.toFixed(1) : '—';
+		
+		const balanceItems = [
+			{
+				label: 'Permesso',
+				value: balanceState.permesso,
+				hours: formatBalanceHours(balanceState.permesso),
+				icon: ScheduleIcon,
+				color: '#0288D1',
+				bgColor: 'rgba(2, 136, 209, 0.08)',
+			},
+			{
+				label: 'ROL',
+				value: balanceState.rol,
+				hours: formatBalanceHours(balanceState.rol),
+				icon: EventBusyIcon,
+				color: '#FF9F0A',
+				bgColor: 'rgba(255, 159, 10, 0.08)',
+			},
+			{
+				label: 'Ferie',
+				value: ferieValue,
+				hours: ferieHours,
+				days: ferieDays,
+				icon: BeachAccessIcon,
+				color: '#D8315B',
+				bgColor: 'rgba(216, 49, 91, 0.08)',
+			},
+		];
+		
+		return (
+			<Box
+				sx={{
+					display: 'grid',
+					gridTemplateColumns: 'repeat(3, 1fr)',
+					gap: 1,
+				}}
+			>
+				{balanceItems.map((item) => {
+					const Icon = item.icon;
+					const isAvailable = Number.isFinite(item.value) && item.value !== null;
+					
+					return (
+						<Paper
+							key={item.label}
+							elevation={0}
+							sx={{
+								p: 1.25,
+								borderRadius: 1.5,
+								border: '1px solid',
+								borderColor: isAvailable ? item.color : 'divider',
+								bgcolor: isAvailable ? item.bgColor : (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+								transition: 'all 0.2s',
+								'&:hover': {
+									borderColor: item.color,
+									bgcolor: item.bgColor,
+									transform: 'translateY(-2px)',
+									boxShadow: `0 4px 12px ${item.color}20`,
+								},
+							}}
+						>
+							<Stack spacing={0.75}>
+								<Stack direction="row" alignItems="center" spacing={0.75}>
+									<Avatar
+										sx={{
+											width: 24,
+											height: 24,
+											bgcolor: item.color,
+											fontSize: 12,
+										}}
+									>
+										<Icon sx={{ fontSize: 14 }} />
+									</Avatar>
+									<Typography
+										variant="caption"
+										sx={{
+											fontWeight: 700,
+											fontSize: '0.65rem',
+											textTransform: 'uppercase',
+											letterSpacing: 0.5,
+											color: 'text.secondary',
+										}}
+									>
+										{item.label}
+									</Typography>
+								</Stack>
+								
+								<Box>
+									<Typography
+										variant="h6"
+										sx={{
+											fontWeight: 700,
+											color: isAvailable ? item.color : 'text.disabled',
+											lineHeight: 1,
+											fontSize: '0.95rem',
+										}}
+									>
+										{item.hours}
+									</Typography>
+									{item.days && (
+										<Typography
+											variant="caption"
+											sx={{
+												color: 'text.secondary',
+												fontSize: '0.6rem',
+												fontWeight: 500,
+											}}
+										>
+											({item.days} gg)
+										</Typography>
+									)}
+								</Box>
+							</Stack>
+						</Paper>
+					);
+				})}
+			</Box>
+		);
+	};
+	const renderCompletenessCard = () => {
+		if (!previousMonthSummary || previousMonthSummary.workingDays === 0) return null;
+		const coverageValue = Math.max(0, Math.min(100, previousMonthSummary.coverage));
+		const isComplete = coverageValue >= 100;
+		
+		return (
+			<Paper
+				variant="outlined"
+				sx={(theme) => ({
+					p: 1.25,
+					borderRadius: 1.5,
+					bgcolor: isComplete
+						? alpha(theme.palette.success.main, 0.05)
+						: coverageValue >= 80 
+							? alpha(theme.palette.warning.main, 0.05)
+							: alpha(theme.palette.error.main, 0.05),
+					borderColor: isComplete
+						? alpha(theme.palette.success.main, 0.3)
+						: coverageValue >= 80
+							? alpha(theme.palette.warning.main, 0.3)
+							: alpha(theme.palette.error.main, 0.3),
+				})}
+			>
+				<Stack spacing={1}>
+					<Stack direction="row" spacing={1} alignItems="center">
+						{isComplete ? (
+							<CheckCircleOutlineIcon 
+								color="success" 
+								sx={{ fontSize: 24 }} 
+							/>
+						) : (
+							<WarningAmberIcon 
+								color={coverageValue >= 80 ? 'warning' : 'error'}
+								sx={{ fontSize: 24 }} 
+							/>
+						)}
+						<Box sx={{ flex: 1 }}>
+							<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
+								Mese precedente
+							</Typography>
+							<Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+								Completezza timesheet
+							</Typography>
+						</Box>
+						<Typography 
+							variant="h6" 
+							sx={{ 
+								fontWeight: 700,
+								fontSize: '1.1rem',
+								color: isComplete 
+									? 'success.main' 
+									: coverageValue >= 80 
+										? 'warning.main' 
+										: 'error.main'
+							}}
+						>
+							{coverageValue.toFixed(0)}%
+						</Typography>
+					</Stack>
+					
+					<Box
+						sx={(theme) => ({
+							height: 5,
+							bgcolor: alpha(theme.palette.divider, 0.1),
+							borderRadius: 2.5,
+							overflow: 'hidden',
+						})}
+					>
+						<Box
+							sx={(theme) => ({
+								width: `${coverageValue}%`,
+								height: '100%',
+								bgcolor: isComplete
+									? theme.palette.success.main
+									: coverageValue >= 80
+										? theme.palette.warning.main
+										: theme.palette.error.main,
+								transition: 'width 0.3s ease',
+							})}
+						/>
+					</Box>
+					
+					<Stack direction="row" spacing={1.5} sx={{ pt: 0.25 }}>
+						<Box>
+							<Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+								Completi
+							</Typography>
+							<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
+								{previousMonthSummary.completeDays}/{previousMonthSummary.workingDays}
+							</Typography>
+						</Box>
+						{previousMonthSummary.partialDays > 0 && (
+							<Box>
+								<Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+									Parziali
+								</Typography>
+								<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'warning.main' }}>
+									{previousMonthSummary.partialDays}
+								</Typography>
+							</Box>
+						)}
+						{previousMonthSummary.missingDays > 0 && (
+							<Box>
+								<Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+									Mancanti
+								</Typography>
+								<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'error.main' }}>
+									{previousMonthSummary.missingDays}
+								</Typography>
+							</Box>
+						)}
+					</Stack>
+				</Stack>
+			</Paper>
+		);
+	};
+
+	const renderCompletenessCardCompact = () => {
+		if (!previousMonthSummary || previousMonthSummary.workingDays === 0) return null;
+		const coverageValue = Math.max(0, Math.min(100, previousMonthSummary.coverage));
+		const isComplete = coverageValue >= 100;
+		const isWarning = coverageValue >= 80;
+		
+		return (
+			<Paper 
+				elevation={0}
+				sx={(theme) => ({ 
+					p: 1.25, 
+					borderRadius: 2,
+					border: '1px solid',
+					bgcolor: isComplete
+						? alpha(theme.palette.success.main, 0.08)
+						: isWarning 
+							? alpha(theme.palette.warning.main, 0.08)
+							: alpha(theme.palette.error.main, 0.08),
+					borderColor: isComplete
+						? alpha(theme.palette.success.main, 0.4)
+						: isWarning
+							? alpha(theme.palette.warning.main, 0.4)
+							: alpha(theme.palette.error.main, 0.4),
+				})}
+			>
+				<Stack direction="row" alignItems="center" spacing={1.25}>
+					{isComplete ? (
+						<CheckCircleOutlineIcon 
+							color="success" 
+							sx={{ fontSize: 22 }} 
+						/>
+					) : (
+						<WarningAmberIcon 
+							color={isWarning ? 'warning' : 'error'}
+							sx={{ fontSize: 22 }} 
+						/>
+					)}
+					<Box sx={{ flex: 1, minWidth: 0 }}>
+						<Typography variant="caption" sx={{ 
+							color: 'text.secondary', 
+							fontSize: '0.65rem', 
+							fontWeight: 600, 
+							textTransform: 'uppercase', 
+							letterSpacing: 0.5,
+							display: 'block',
+							lineHeight: 1.3
+						}}>
+							Completezza Mese Prec.
+						</Typography>
+						<Typography variant="body2" sx={{ 
+							fontWeight: 700, 
+							fontSize: '0.8rem',
+							lineHeight: 1.3,
+							color: isComplete 
+								? 'success.main' 
+								: isWarning 
+									? 'warning.main' 
+									: 'error.main'
+						}}>
+							{coverageValue.toFixed(0)}% • {previousMonthSummary.completeDays}/{previousMonthSummary.workingDays} giorni
+						</Typography>
+					</Box>
+					{previousMonthSummary.missingDays > 0 && (
+						<Chip 
+							label={`-${previousMonthSummary.missingDays}`}
+							size="small"
+							color="error"
+							sx={{ 
+								height: 22, 
+								fontSize: '0.65rem',
+								fontWeight: 600,
+								'& .MuiChip-label': { px: 1 }
+							}}
+						/>
+					)}
+				</Stack>
+			</Paper>
+		);
+	};
+
+	const balanceSummaryElement = renderBalanceSummary();
+	const completenessCardElement = renderCompletenessCard();
+	const completenessCardCompactElement = renderCompletenessCardCompact();
 	const handleSelectCommessa = (comm) => {
 		const next = selectedCommessa === comm ? null : comm;
 		setSelectedCommessa(next);
 		if (typeof onCommessaSelect === 'function') onCommessaSelect(next);
+	};
+	const handlePrevBreakdownPage = () => {
+		setBreakdownPage((prev) => Math.max(0, prev - 1));
+	};
+	const handleNextBreakdownPage = () => {
+		setBreakdownPage((prev) => Math.min(totalBreakdownPages - 1, prev + 1));
 	};
 	return (
 		<Paper 
@@ -565,11 +1153,17 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 										</Box>
 									)}
 
+									{completenessCardCompactElement && (
+										<Box sx={{ px: 0.5 }}>
+											{completenessCardCompactElement}
+										</Box>
+									)}
+
 									{/* Commesse cards with activities */}
 									<Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
 										<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
 											{chartData.dailyData.map((item) => {
-												const { commessa, hours, activities } = item;
+												const { commessa, hours, activities, descrizione, cliente } = item;
 												const commessaColor = getCommessaColor(commessa);
 												const commessaBgColor = getCommessaColorLight(commessa, 0.08);
 												const isSelected = selectedCommessa === commessa;
@@ -622,6 +1216,11 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 																		<Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
 																			{commessa}
 																		</Typography>
+																		{descrizione && (
+																			<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', display: 'block', mb: 0.25 }}>
+																				{descrizione}
+																			</Typography>
+																		)}
 																		<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
 																			{activities.length} {activities.length === 1 ? 'attività' : 'attività'}
 																		</Typography>
@@ -783,65 +1382,106 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 											</Stack>
 										</Paper>
 
+										{completenessCardCompactElement && completenessCardCompactElement}
+
 										{/* Assigned Commesse */}
 										{assignedCommesse && assignedCommesse.length > 0 ? (
 											<Stack spacing={1.5}>
 												<Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.85rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
 													Commesse Assegnate ({assignedCommesse.length})
 												</Typography>
-												<Stack spacing={1}>
-													{assignedCommesse.map((commessa, idx) => (
-														<Paper
-															key={idx}
-															elevation={0}
-															sx={{
-																p: 2,
-																borderRadius: 2,
-																border: '1px solid',
-																borderColor: 'divider',
-																bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
-																transition: 'all 0.2s',
-																'&:hover': {
-																	borderColor: 'primary.main',
-																	bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0, 166, 251, 0.08)' : 'rgba(0, 166, 251, 0.04)',
-																}
-															}}
-														>
-															<Stack direction="row" alignItems="center" spacing={2}>
-																<Avatar
+												<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5 }}>
+													{assignedCommesse.map((commessa, idx) => {
+														const commessaName = commessa.nome || commessa;
+														const commessaColor = getCommessaColor(commessaName);
+														const commessaBgColor = getCommessaColorLight(commessaName, 0.08);
+														
+														return (
+															<Paper
+																key={idx}
+																elevation={0}
+																sx={{
+																	borderRadius: 2,
+																	border: '1px solid',
+																	borderColor: 'divider',
+																	bgcolor: 'background.paper',
+																	overflow: 'hidden',
+																	transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+																	'&:hover': {
+																		borderColor: commessaColor,
+																		bgcolor: commessaBgColor,
+																		transform: 'translateY(-1px)',
+																	},
+																}}
+															>
+																{/* Commessa header */}
+																<Box
 																	sx={{
-																		width: 36,
-																		height: 36,
-																		bgcolor: getCommessaColor(commessa.nome || commessa),
-																		fontSize: '0.9rem',
-																		fontWeight: 700
+																		p: 2,
+																		bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.015)',
+																		borderBottom: '1px solid',
+																		borderColor: 'divider',
 																	}}
 																>
-																	{(commessa.nome || commessa).substring(0, 2).toUpperCase()}
-																</Avatar>
-																<Stack spacing={0.5} sx={{ flex: 1 }}>
-																	<Typography variant="body1" sx={{ fontWeight: 700, fontSize: '0.95rem' }}>
-																		{commessa.nome || commessa}
-																	</Typography>
-																	{commessa.descrizione && (
-																		<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-																			{commessa.descrizione}
-																		</Typography>
-																	)}
-																	{commessa.cliente && (
-																		<Stack direction="row" alignItems="center" spacing={0.5}>
-																			<FolderIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-																			<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-																				Cliente: {commessa.cliente}
+																	<Stack direction="row" alignItems="center" spacing={1.5}>
+																		<Avatar 
+																			sx={{ 
+																				bgcolor: commessaColor, 
+																				width: 36, 
+																				height: 36,
+																				fontSize: '0.9rem',
+																				fontWeight: 700,
+																			}}
+																		>
+																			<FolderIcon fontSize="small" />
+																		</Avatar>
+																		<Box sx={{ flex: 1, minWidth: 0 }}>
+																			<Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: '0.95rem' }}>
+																				{commessaName}
 																			</Typography>
-																		</Stack>
-																	)}
-																</Stack>
-																<CheckCircleIcon sx={{ fontSize: 24, color: 'success.main', opacity: 0.5 }} />
-															</Stack>
-														</Paper>
-													))}
-												</Stack>
+																			{commessa.descrizione && (
+																				<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+																					{commessa.descrizione}
+																				</Typography>
+																			)}
+																		</Box>
+																	</Stack>
+																</Box>
+
+																{/* Details section */}
+																{(commessa.cliente || commessa.descrizione) && (
+																	<Box sx={{ p: 1.5 }}>
+																		{commessa.cliente && (
+																			<Box
+																				sx={{
+																					p: 1.5,
+																					borderRadius: 1.5,
+																					bgcolor: 'background.paper',
+																					border: '1px solid',
+																					borderColor: 'divider',
+																				}}
+																			>
+																				<Stack direction="row" alignItems="center" spacing={1}>
+																					<FolderIcon sx={{ fontSize: 16, color: commessaColor }} />
+																					<Typography 
+																						variant="body2" 
+																						sx={{ 
+																							fontWeight: 600, 
+																							fontSize: '0.8rem',
+																							color: 'text.secondary',
+																						}}
+																					>
+																						{commessa.cliente}
+																					</Typography>
+																				</Stack>
+																			</Box>
+																		)}
+																	</Box>
+																)}
+															</Paper>
+														);
+													})}
+												</Box>
 											</Stack>
 										) : (
 											<Paper
@@ -993,39 +1633,8 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 															</Stack>
 														</Paper>
 
-														{/* Top Commessa */}
-														{chartData.stats.topCommessa && chartData.stats.topCommessa.hours > 0 && (
-															<Paper 
-																elevation={0}
-																sx={{ 
-																	p: 1.5, 
-																	borderRadius: 2,
-																	border: '1px solid',
-																	borderColor: 'divider',
-																	bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
-																}}
-															>
-																<Stack spacing={0.5}>
-																	<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-																		Top Commessa
-																	</Typography>
-																	<Chip
-																		label={chartData.stats.topCommessa.name}
-																		size="small"
-																		sx={{
-																			height: 22,
-																			fontSize: '0.7rem',
-																			fontWeight: 700,
-																			bgcolor: getCommessaColor(chartData.stats.topCommessa.name),
-																			color: '#fff',
-																			'& .MuiChip-label': {
-																				px: 1,
-																			},
-																		}}
-																	/>
-																</Stack>
-															</Paper>
-														)}
+														{/* Completeness Card - Compact Horizontal */}
+														{completenessCardCompactElement}
 													</Box>
 												)}
 
@@ -1059,10 +1668,10 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 																</Avatar>
 																<Box>
 																	<Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.75rem', lineHeight: 1.2 }}>
-																		Trend Periodo
+																		Trend media giornaliera
 																	</Typography>
 																	<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
-																		{chartData.stats.trend.firstHalfAvg.toFixed(1)}h → {chartData.stats.trend.secondHalfAvg.toFixed(1)}h
+																		vs {chartData.stats.trend.label || 'periodo precedente'} · {chartData.stats.trend.previousAvg.toFixed(1)}h → {chartData.stats.trend.currentAvg.toFixed(1)}h
 																	</Typography>
 																</Box>
 															</Stack>
@@ -1105,24 +1714,49 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 													}}
 												>
 													<Stack spacing={1}>
-														<Typography variant="caption" sx={{ 
-															fontWeight: 700, 
-															fontSize: '0.7rem', 
-															textTransform: 'uppercase', 
-															letterSpacing: 0.8,
-															color: 'text.secondary' 
-														}}>
-															Distribuzione per Commessa ({chartData.stats.totalCommesse})
-														</Typography>
-														
-														<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, maxHeight: '400px', overflowY: 'auto', '&::-webkit-scrollbar': { width: '6px' }, '&::-webkit-scrollbar-track': { background: 'transparent' }, '&::-webkit-scrollbar-thumb': { background: 'rgba(0, 0, 0, 0.2)', borderRadius: '3px', '&:hover': { background: 'rgba(0, 0, 0, 0.3)' } } }}>
-															{chartData.stats.commessaBreakdown.map((item, idx) => {
+														<Stack direction="row" alignItems="center" justifyContent="space-between">
+															<Typography variant="caption" sx={{ 
+																fontWeight: 700, 
+																fontSize: '0.7rem', 
+																textTransform: 'uppercase', 
+																letterSpacing: 0.8,
+																color: 'text.secondary' 
+															}}>
+																Distribuzione per Commessa ({chartData.stats.totalCommesse})
+															</Typography>
+															{totalBreakdownPages > 1 && (
+																<Stack direction="row" alignItems="center" spacing={0.5}>
+																	<IconButton 
+																		size="small"
+																		sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+																		onClick={handlePrevBreakdownPage}
+																		disabled={breakdownPage === 0}
+																	>
+																		<ChevronLeftIcon fontSize="small" />
+																	</IconButton>
+																	<Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+																		{breakdownPage + 1}/{totalBreakdownPages}
+																	</Typography>
+																	<IconButton 
+																		size="small"
+																		sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+																		onClick={handleNextBreakdownPage}
+																		disabled={breakdownPage >= totalBreakdownPages - 1}
+																	>
+																		<ChevronRightIcon fontSize="small" />
+																	</IconButton>
+																</Stack>
+															)}
+														</Stack>
+						
+														<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.2, minHeight: 260 }}>
+															{pagedBreakdown.map((item, idx) => {
+																const absoluteIndex = breakdownPage * BREAKDOWN_PAGE_SIZE + idx;
 																const commessaColor = getCommessaColor(item.name);
 																const commessaBgColor = getCommessaColorLight(item.name, 0.08);
-																
 																return (
 																	<Box
-																		key={item.name}
+																		key={`${item.name}-${absoluteIndex}`}
 																		sx={{
 																			p: 1.5,
 																			borderRadius: 1.5,
@@ -1144,7 +1778,7 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 																			<Stack direction="row" alignItems="center" justifyContent="space-between">
 																				<Stack direction="row" alignItems="center" spacing={1}>
 																					<Chip
-																						label={`#${idx + 1}`}
+																						label={`#${absoluteIndex + 1}`}
 																						size="small"
 																						sx={{
 																							height: 18,

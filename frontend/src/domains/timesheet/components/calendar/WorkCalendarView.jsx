@@ -269,11 +269,20 @@ export function WorkCalendarView({
             mb: 1,
           }}
         >
-          {WEEK_DAYS.map((wd) => (
-            <Box key={wd} sx={{ textAlign: "center" }}>
-              <Typography variant="caption">{wd}</Typography>
-            </Box>
-          ))}
+          {WEEK_DAYS.map((wd, index) => {
+            // index: 0=Lu, 5=Sa, 6=Do
+            const isWeekendHeader = index === 5 || index === 6;
+            return (
+              <Box key={wd} sx={{ 
+                textAlign: "center",
+                bgcolor: isWeekendHeader ? 'rgba(0,0,0,0.1)' : 'transparent',
+                py: 0.5,
+                borderRadius: 0.5,
+              }}>
+                <Typography variant="caption">{wd}</Typography>
+              </Box>
+            );
+          })}
         </Box>
 
         {/* Calendar grid (6 weeks / 42 cells) */}
@@ -297,6 +306,7 @@ export function WorkCalendarView({
           {days.map((item, index) => {
             if (!item) return <Box key={`empty-${index}`} sx={{ borderRadius: 1 }} />;
             const { day, dateStr, dayData, dayOfWeek, segnalazione, isHoliday } = item;
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // 0=Sunday, 6=Saturday
             const isSelected = selectedDateKey === dateStr;
             const totalHours = dayData?.reduce((s, r) => s + (Number(r?.ore) || 0), 0) || 0;
             const { status, showHours } = computeDayStatus({
@@ -307,6 +317,12 @@ export function WorkCalendarView({
               isHoliday,
               today,
             });
+            
+            // Debug: log Monday and weekend days
+            if (dayOfWeek === 1 || isWeekend) {
+              console.log(`${dateStr} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dayOfWeek]}): totalHours=${totalHours}, showHours=${showHours}, status=${status}, isWeekend=${isWeekend}, hasData=${!!dayData}, dataLength=${dayData?.length || 0}`);
+            }
+            
             const stagedStatus = stagedStatusMap[dateStr];
             let stagedOp = null;
             if (stagedStatus === 'staged-insert') stagedOp = 'create';
@@ -323,6 +339,7 @@ export function WorkCalendarView({
                 dateStr={dateStr}
                 day={day}
                 isSelected={isSelected}
+                isWeekend={isWeekend}
                 status={effectiveStatus}
                 showHours={showHours}
                 totalHours={totalHours}

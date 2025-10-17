@@ -1,7 +1,7 @@
 // Moved implementation from components/calendar/DayEntryPanel.jsx to components/panels/DayEntryPanel.jsx
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { DEBUG_TS } from '@config/debug';
-import { Box, Stack, Typography, Button, Tooltip, Alert, Divider, Chip } from "@mui/material";
+import { Box, Stack, Typography, Button, Tooltip, Alert, Divider, Chip, Skeleton } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import EntryListItem from "@shared/components/Entries/EntryListItem"; // TODO: consider domain move
@@ -16,6 +16,8 @@ import { semanticHash } from '@domains/timesheet/hooks/utils/semanticTimesheet.j
 import { useTimesheetStaging } from '@domains/timesheet/hooks/staging';
 import { validateDayRecords, validateEmployeeId, validateDateKey } from '@domains/timesheet/hooks/utils/timesheetValidation.js';
 import { EMPLOYEE_COMMESSE, NON_WORK } from '@mocks/ProjectMock';
+import { getBalances } from '@domains/timesheet/services/projectService';
+import { getVacationBalances } from '@mocks/TimesheetAbsencesMock';
 
 export function DayEntryPanel({
 	selectedDay,
@@ -43,6 +45,11 @@ export function DayEntryPanel({
 	const { records: baseRecords, segnalazione, totalHours } = useDayEntryDerived(selectedDay, data, maxHoursPerDay);
 	const staging = useTimesheetStaging();
 	const effectiveDate = dateKey || selectedDay;
+	const pivotYear = useMemo(() => {
+		const pivot = effectiveDate ? new Date(effectiveDate) : new Date();
+		const year = pivot.getFullYear();
+		return Number.isFinite(year) ? year : new Date().getFullYear();
+	}, [effectiveDate]);
 
 	const stagedEntry = useMemo(() => {
 		if (!employeeId || !effectiveDate) return undefined;
@@ -62,6 +69,7 @@ export function DayEntryPanel({
 	}, [staging, employeeId, effectiveDate, baseRecords]);
 
 	const [records, setRecords] = useState(mergedRecords);
+	const [balanceState, setBalanceState] = useState({ loading: false, error: '', permesso: null, rol: null, ferie: null });
 	const lastMergedHashRef = useRef(semanticHash(mergedRecords));
 	const lastDraftHashRef = useRef(semanticHash(mergedRecords));
 	const debounceRef = useRef();
@@ -126,6 +134,40 @@ export function DayEntryPanel({
 		}, [records, autoStage, employeeId, effectiveDate, staging, mergedRecords, baseCommitted, maxHoursPerDay]);
 
 	useEffect(() => { if (typeof onDraftChange === 'function') onDraftChange(records); }, [records, onDraftChange]);
+
+	useEffect(() => {
+		if (!employeeId) {
+			setBalanceState({ loading: false, error: '', permesso: null, rol: null, ferie: null });
+			return;
+		}
+		let active = true;
+		setBalanceState((prev) => ({ ...prev, loading: true, error: '' }));
+		(async () => {
+			try {
+				const [permRol, ferieResult] = await Promise.all([
+					getBalances(employeeId),
+					getVacationBalances({ year: pivotYear, employeeIds: [employeeId] }),
+				]);
+				if (!active) return;
+				const permVal = Number(permRol?.permesso ?? 0);
+				const rolVal = Number(permRol?.rol ?? 0);
+				const ferieVal = Number(ferieResult?.[0]?.residualHours ?? ferieResult?.[0]?.residual ?? 0);
+				setBalanceState({
+					loading: false,
+					error: '',
+					permesso: Number.isFinite(permVal) ? permVal : 0,
+					rol: Number.isFinite(rolVal) ? rolVal : 0,
+					ferie: Number.isFinite(ferieVal) ? ferieVal : null,
+				});
+			} catch (err) {
+				if (!active) return;
+				setBalanceState((prev) => ({ ...prev, loading: false, error: err?.message || 'Impossibile recuperare i saldi' }));
+			}
+		})();
+		return () => {
+			active = false;
+		};
+	}, [employeeId, pivotYear]);
 
 	const [dialog, setDialog] = useState({ open: false, mode: 'add', index: null, current: null });
 	const [absenceEditorOpen, setAbsenceEditorOpen] = useState(false);
@@ -211,6 +253,11 @@ export function DayEntryPanel({
 		removeCurrent,
 	}), [canAddMore, startAdd, startEdit, dialog, closeDialog, commit, removeCurrent]);
 
+	const formatHours = useCallback((value) => {
+		if (!Number.isFinite(value)) return '—';
+		return `${value.toFixed(1)}h`;
+	}, []);
+
 	return (
 		<Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
 			<Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -229,6 +276,33 @@ export function DayEntryPanel({
 					</Stack>
 				)}
 			</Stack>
+			<Box sx={{ mt: 1, mb: 1 }}>
+				<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 600 }}>
+					Saldi residui{Number.isFinite(pivotYear) ? ` (${pivotYear})` : ''}
+				</Typography>
+				{balanceState.loading ? (
+					<Skeleton variant="rectangular" height={24} sx={{ borderRadius: 1, mt: 0.5 }} />
+				) : balanceState.error ? (
+					<Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+						{balanceState.error}
+					</Typography>
+				) : (
+					<Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mt: 0.5 }}>
+						<Chip size="small" label={`Permesso: ${formatHours(balanceState.permesso)}`} sx={{ borderRadius: 1 }} />
+						<Chip size="small" label={`ROL: ${formatHours(balanceState.rol)}`} sx={{ borderRadius: 1 }} />
+						<Chip
+							size="small"
+							label={(() => {
+								const ferieValue = balanceState.ferie;
+								if (!Number.isFinite(ferieValue)) return 'Ferie: —';
+								const days = ferieValue / 8;
+								return `Ferie: ${ferieValue.toFixed(1)}h (${days.toFixed(1)} gg)`;
+							})()}
+							sx={{ borderRadius: 1 }}
+						/>
+					</Stack>
+				)}
+			</Box>
 			<Divider />
 			<Box sx={{ height: LIST_HEIGHT, overflowY: 'auto', scrollbarGutter: 'stable', bgcolor: 'background.default', p: 1, borderRadius: 1 }}>
 				{records.length === 0 ? (
