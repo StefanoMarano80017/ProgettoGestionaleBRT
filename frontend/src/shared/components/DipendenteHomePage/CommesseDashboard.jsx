@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Stack, Typography, Paper, IconButton, Tabs, Tab, ToggleButtonGroup, ToggleButton, LinearProgress, Chip, Divider, Avatar } from '@mui/material';
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
@@ -18,7 +18,7 @@ import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaC
 
 const NON_WORK_COMMESSE = new Set(['FERIE', 'MALATTIA', 'PERMESSO', 'ROL', 'ROL_P', 'ROL_C', 'ROL_F']);
 
-export default function CommesseDashboard({ assignedCommesse = [], data = {}, period = 'month', refDate = new Date(), onPeriodChange, onCommessaSelect }) {
+export default function CommesseDashboard({ assignedCommesse = [], data = {}, period = 'month', refDate = new Date(), selectedDay, onPeriodChange, onCommessaSelect }) {
 	const [selectedCommessa, setSelectedCommessa] = useState(null);
 	const handlePeriodToggle = useCallback((event, nextValue) => {
 		if (!onPeriodChange) return;
@@ -32,17 +32,19 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 		if (period === 'week') return { start: startOfWeek(refDate), end: endOfWeek(refDate) };
 		if (period === 'year') return { start: startOfYear(refDate), end: endOfYear(refDate) };
 		if (period === 'none') {
-			const start = new Date(refDate);
+			const dateToUse = selectedDay ? parseKeyToDate(selectedDay) : refDate;
+			const start = new Date(dateToUse);
 			start.setHours(0, 0, 0, 0);
-			const end = new Date(refDate);
+			const end = new Date(dateToUse);
 			end.setHours(23, 59, 59, 999);
 			return { start, end };
 		}
 		return { start: startOfMonth(refDate), end: endOfMonth(refDate) };
-	}, [period, refDate]);
+	}, [period, refDate, selectedDay]);
 	const chartData = useMemo(() => {
 		if (period === 'none') {
-			const dayKey = refDate.toISOString().slice(0, 10);
+			const dateToUse = selectedDay ? parseKeyToDate(selectedDay) : refDate;
+			const dayKey = dateToUse.toISOString().slice(0, 10);
 			const dayRecords = data[dayKey] || [];
 			
 			// Build a map of commessa -> activities with hours
@@ -93,6 +95,9 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 				activities: Array.from(data.activities.entries()).map(([name, hours]) => ({ name, hours })),
 			}));
 
+			const totalHours = dailyData.reduce((sum, item) => sum + item.hours, 0);
+			const totalActivities = dailyData.reduce((sum, item) => sum + item.activities.length, 0);
+
 			return {
 				series,
 				xAxis: commessaList,
@@ -101,12 +106,19 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 				xLabel: 'Commesse',
 				width: Math.max(360, commessaList.length * 70),
 				isDailyView: true,
-				dailyData, // Store detailed activity data
+				dailyData,
+				stats: {
+					totalHours,
+					totalCommesse: dailyData.length,
+					totalActivities,
+					avgHoursPerCommessa: dailyData.length > 0 ? totalHours / dailyData.length : 0,
+				}
 			};
 		}
 
 		const bucketMap = new Map(); // bucketKey -> { date: Date, values: Map(commessa -> hours) }
 		const commessaSet = new Set();
+		const commessaActivitiesMap = new Map(); // commessa -> Map(activity -> hours)
 
 		Object.entries(data || {}).forEach(([key, records]) => {
 			if (key.endsWith('_segnalazione')) return;
@@ -141,8 +153,17 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 				if (NON_WORK_COMMESSE.has(normalized)) return;
 				const hours = Number(rec.ore || 0);
 				if (hours <= 0) return;
+				const activity = rec.attivita || rec.sottocommessa || 'Attività generale';
+				
 				commessaSet.add(commessa);
 				bucket.values.set(commessa, (bucket.values.get(commessa) || 0) + hours);
+				
+				// Track activities per commessa
+				if (!commessaActivitiesMap.has(commessa)) {
+					commessaActivitiesMap.set(commessa, new Map());
+				}
+				const activities = commessaActivitiesMap.get(commessa);
+				activities.set(activity, (activities.get(activity) || 0) + hours);
 			});
 		});
 
@@ -170,6 +191,81 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 			stack: 'total',
 		}));
 
+		// Calculate aggregate statistics for the period
+		const totalHours = series.reduce((sum, s) => sum + s.data.reduce((a, b) => a + b, 0), 0);
+		const daysWorked = buckets.filter(bucket => {
+			const dayTotal = Array.from(bucket.values.values()).reduce((a, b) => a + b, 0);
+			return dayTotal > 0;
+		}).length;
+		const avgHoursPerDay = daysWorked > 0 ? totalHours / daysWorked : 0;
+		const topCommessa = commessaList.length > 0 
+			? commessaList.reduce((top, comm, idx) => {
+				const hours = series[idx].data.reduce((a, b) => a + b, 0);
+				return hours > top.hours ? { name: comm, hours } : top;
+			}, { name: '', hours: 0 })
+			: null;
+
+		// Calculate per-commessa breakdown
+		const commessaBreakdown = commessaList.map((commessa, idx) => {
+			const values = series[idx].data;
+			const hours = values.reduce((a, b) => a + b, 0);
+			const daysActive = values.filter(h => h > 0).length;
+			const percentage = totalHours > 0 ? (hours / totalHours) * 100 : 0;
+			const avgPerActiveDay = daysActive > 0 ? hours / daysActive : 0;
+			let firstAvg = values.length ? values[0] : 0;
+			let secondAvg = firstAvg;
+			if (values.length > 1) {
+				const splitIndex = Math.max(1, Math.floor(values.length / 2));
+				const firstSlice = values.slice(0, splitIndex);
+				const secondSlice = values.slice(splitIndex);
+				const firstTotal = firstSlice.reduce((a, b) => a + b, 0);
+				const secondTotal = secondSlice.reduce((a, b) => a + b, 0);
+				firstAvg = firstSlice.length > 0 ? firstTotal / firstSlice.length : 0;
+				secondAvg = secondSlice.length > 0 ? secondTotal / secondSlice.length : 0;
+			}
+			const trendValue = secondAvg - firstAvg;
+			const trendPercentage = firstAvg !== 0 ? (trendValue / firstAvg) * 100 : (secondAvg > 0 ? 100 : 0);
+			
+			// Get activities for this commessa
+			const activitiesMap = commessaActivitiesMap.get(commessa) || new Map();
+			const activities = Array.from(activitiesMap.entries())
+				.map(([name, hours]) => ({ name, hours }))
+				.sort((a, b) => b.hours - a.hours);
+			
+			return {
+				name: commessa,
+				hours,
+				daysActive,
+				percentage,
+				avgPerActiveDay,
+				activities,
+				trend: {
+					value: trendValue,
+					percentage: trendPercentage,
+					isIncreasing: trendValue >= 0,
+					firstAvg,
+					secondAvg,
+				},
+			};
+		}).sort((a, b) => b.hours - a.hours);
+
+		// Calculate daily distribution stats
+		const dailyHours = buckets.map(bucket => 
+			Array.from(bucket.values.values()).reduce((a, b) => a + b, 0)
+		);
+		const maxDailyHours = Math.max(...dailyHours, 0);
+		const minDailyHours = Math.min(...dailyHours.filter(h => h > 0), 0);
+		const avgDailyHours = dailyHours.reduce((a, b) => a + b, 0) / Math.max(buckets.length, 1);
+
+		// Trend analysis: compare first half vs second half
+		const midPoint = Math.floor(buckets.length / 2);
+		const firstHalfHours = dailyHours.slice(0, midPoint).reduce((a, b) => a + b, 0);
+		const secondHalfHours = dailyHours.slice(midPoint).reduce((a, b) => a + b, 0);
+		const firstHalfAvg = midPoint > 0 ? firstHalfHours / midPoint : 0;
+		const secondHalfAvg = (buckets.length - midPoint) > 0 ? secondHalfHours / (buckets.length - midPoint) : 0;
+		const trend = secondHalfAvg - firstHalfAvg;
+		const trendPercentage = firstHalfAvg > 0 ? (trend / firstHalfAvg) * 100 : 0;
+
 		return {
 			series,
 			xAxis,
@@ -178,8 +274,28 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 			xLabel: period === 'week' ? 'Giorni' : period === 'month' ? 'Settimane' : 'Mesi',
 			width: Math.max(400, buckets.length * 60),
 			isDailyView: false,
+			stats: {
+				totalHours,
+				daysWorked,
+				avgHoursPerDay,
+				topCommessa,
+				totalCommesse: commessaList.length,
+				commessaBreakdown,
+				distribution: {
+					max: maxDailyHours,
+					min: minDailyHours,
+					avg: avgDailyHours,
+				},
+				trend: {
+					value: trend,
+					percentage: trendPercentage,
+					isIncreasing: trend > 0,
+					firstHalfAvg,
+					secondHalfAvg,
+				}
+			}
 		};
-	}, [data, period, range, refDate]);
+	}, [data, period, range, refDate, selectedDay]);
 	const riepilogo = useMemo(() => {
 		if (data && data.__monthlySummary) return {
 			ferie: data.__monthlySummary.ferie || { days: 0, hours: 0 },
@@ -199,11 +315,86 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 				if (c === 'FERIE') { acc.ferie.hours += ore; if (!seen.ferie) { acc.ferie.days += 1; seen.ferie = true; } }
 				else if (c === 'MALATTIA') { acc.malattia.hours += ore; if (!seen.malattia) { acc.malattia.days += 1; seen.malattia = true; } }
 				else if (c === 'PERMESSO') { acc.permesso.hours += ore; if (!seen.permesso) { acc.permesso.days += 1; seen.permesso = true; } }
-				else if (c === 'ROL') { acc.rol.hours += ore; if (!seen.rol) { acc.rol.days += 1; seen.rol = true; } }
+				else if (c === 'ROL' || c.startsWith('ROL_')) { acc.rol.hours += ore; if (!seen.rol) { acc.rol.days += 1; seen.rol = true; } }
 			});
 		});
 		return acc;
 	}, [data, range]);
+	const hasAbsenceData = React.useMemo(() => {
+		return Object.values(riepilogo || {}).some((entry) => (entry?.days || 0) > 0 || (entry?.hours || 0) > 0);
+	}, [riepilogo]);
+	const absenceCards = useMemo(() => {
+		if (!hasAbsenceData) return null;
+		
+		const buildCard = (IconComponent, label, color, entry) => (
+			<Paper
+				key={label}
+				elevation={0}
+				sx={{
+					p: 1.2,
+					borderRadius: 2,
+					border: '1px solid',
+					borderColor: 'divider',
+					bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+				}}
+			>
+				<Stack spacing={0.5}>
+					<Stack direction="row" alignItems="center" spacing={0.5}>
+						<Avatar
+							variant="circular"
+							sx={{ width: 24, height: 24, bgcolor: color, fontSize: 12 }}
+						>
+							<IconComponent sx={{ fontSize: 14, color: '#fff' }} />
+						</Avatar>
+						<Typography
+							variant="caption"
+							sx={{
+								fontWeight: 700,
+								fontSize: '0.65rem',
+								textTransform: 'uppercase',
+								letterSpacing: 0.5,
+								color: 'text.secondary',
+							}}
+						>
+							{label}
+						</Typography>
+					</Stack>
+					<Stack direction="row" alignItems="baseline" spacing={0.75} sx={{ flexWrap: 'wrap' }}>
+						<Stack direction="row" alignItems="baseline" spacing={0.5}>
+							<Typography variant="h6" sx={{ px: 0.5, fontWeight: 700, color, lineHeight: 1, fontSize: '0.9rem' }}>
+								{entry.days || 0}
+							</Typography>
+							<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
+								giorni
+							</Typography>
+						</Stack>
+						<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem', fontWeight: 600 }}>
+							{entry.hours || 0} h registrate
+						</Typography>
+					</Stack>
+				</Stack>
+			</Paper>
+		);
+
+		return (
+			<Box
+				sx={{
+					display: 'grid',
+					gap: 1.5,
+					gridTemplateColumns: {
+						xs: 'repeat(2, minmax(0, 1fr))',
+						md: 'repeat(4, minmax(0, 1fr))',
+					},
+				}}
+			>
+				{buildCard(BeachAccessIcon, 'Ferie', '#D8315B', riepilogo.ferie)}
+				{buildCard(LocalHospitalIcon, 'Malattia', '#34C759', riepilogo.malattia)}
+				{buildCard(ScheduleIcon, 'Permesso', '#0288D1', riepilogo.permesso)}
+				{buildCard(EventBusyIcon, 'ROL', '#FF9F0A', riepilogo.rol)}
+			</Box>
+		);
+	}, [hasAbsenceData, riepilogo]);
+
 	const periodDisplay = useMemo(() => {
 		if (period === 'week') {
 			const start = range.start.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
@@ -217,63 +408,166 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 			return range.start.getFullYear().toString();
 		}
 		if (period === 'none') {
-			return refDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
+			const dateToUse = selectedDay ? parseKeyToDate(selectedDay) : refDate;
+			return dateToUse.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
 		}
 		return '';
-	}, [period, range, refDate]);
+	}, [period, range, refDate, selectedDay]);
 	const handleSelectCommessa = (comm) => {
 		const next = selectedCommessa === comm ? null : comm;
 		setSelectedCommessa(next);
 		if (typeof onCommessaSelect === 'function') onCommessaSelect(next);
 	};
 	return (
-		<Paper sx={{ p: 2, borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-			<Stack spacing={1} sx={{ height: '100%' }}>
-				<Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-					<Box sx={{ flex: '1 1 280px', minWidth: 0, minHeight: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+		<Paper 
+			elevation={0}
+			sx={(theme) => ({ 
+				p: 2, 
+				borderRadius: 3, 
+				height: '100%', 
+				display: 'flex', 
+				flexDirection: 'column',
+				border: '1px solid',
+				borderColor: theme.palette.mode === 'dark'
+					? 'rgba(255, 255, 255, 0.08)'
+					: theme.palette.divider,
+				bgcolor: theme.palette.mode === 'dark'
+					? theme.palette.background.paper
+					: theme.palette.background.paper,
+			})}
+		>
+			<Stack spacing={2} sx={{ height: '100%' }}>
+				{/* Header with period info */}
+				<Box sx={{ 
+					pb: 1.5, 
+					borderBottom: '1px solid', 
+					borderColor: 'divider',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between'
+				}}>
+					<Stack direction="row" alignItems="center" spacing={1}>
+						<TrendingUpIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+						<Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem' }}>
+							Dashboard Attività
+						</Typography>
+					</Stack>
+					<Chip 
+						label={periodDisplay}
+						size="small"
+						sx={{
+							fontWeight: 600,
+							fontSize: '0.75rem',
+							height: 24,
+							bgcolor: (theme) => theme.palette.mode === 'dark' 
+								? 'rgba(0, 166, 251, 0.12)' 
+								: 'rgba(0, 166, 251, 0.08)',
+							color: 'primary.main',
+							borderRadius: 1.5,
+						}}
+					/>
+				</Box>
+
+				<Box sx={{ flex: 1, minHeight: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 						{chartData.isDailyView ? (
 							// Daily View: Commesse and Activities breakdown
 							!chartData.isEmpty && chartData.dailyData?.length > 0 ? (
 								<Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 1 }}>
-									{/* Summary header */}
-									<Paper 
-										elevation={0}
-										sx={{ 
-											p: 2, 
-											borderRadius: 2,
-											border: '1px solid',
-											borderColor: 'divider',
-											background: 'linear-gradient(135deg, rgba(0, 166, 251, 0.08) 0%, rgba(0, 100, 148, 0.08) 100%)',
-										}}
-									>
-										<Stack direction="row" alignItems="center" justifyContent="space-between">
+									{/* Summary header - Enhanced with more stats */}
+									<Stack direction="row" spacing={1.5}>
+										{/* Total Hours Card */}
+										<Paper 
+											elevation={0}
+											sx={{ 
+												flex: 1.5,
+												p: 2, 
+												borderRadius: 2,
+												border: '1px solid',
+												borderColor: 'divider',
+												bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+											}}
+										>
 											<Stack direction="row" alignItems="center" spacing={1.5}>
 												<Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
 													<WorkIcon />
 												</Avatar>
-												<Box>
-													<Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-														{chartData.dailyData.length} {chartData.dailyData.length === 1 ? 'Commessa' : 'Commesse'}
+												<Stack spacing={0}>
+													<Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main', lineHeight: 1 }}>
+														{chartData.stats.totalHours.toFixed(1)}h
 													</Typography>
-													<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-														Attive oggi
+													<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+														Ore Totali Lavorate
 													</Typography>
-												</Box>
+												</Stack>
 											</Stack>
-											<Box sx={{ textAlign: 'right' }}>
-												<Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main', lineHeight: 1 }}>
-													{chartData.dailyData.reduce((sum, item) => sum + item.hours, 0)}h
+										</Paper>
+
+										{/* Commesse Count */}
+										<Paper 
+											elevation={0}
+											sx={{ 
+												flex: 1,
+												p: 2, 
+												borderRadius: 2,
+												border: '1px solid',
+												borderColor: 'divider',
+												bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+											}}
+										>
+											<Stack spacing={0.5}>
+												<Stack direction="row" alignItems="center" spacing={0.5}>
+													<FolderIcon sx={{ fontSize: 20, color: '#34C759' }} />
+													<Typography variant="h5" sx={{ fontWeight: 700, color: '#34C759', lineHeight: 1 }}>
+														{chartData.stats.totalCommesse}
+													</Typography>
+												</Stack>
+												<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+													{chartData.stats.totalCommesse === 1 ? 'Commessa' : 'Commesse'}
 												</Typography>
-												<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-													Totale
+												<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600 }}>
+													{chartData.stats.avgHoursPerCommessa.toFixed(1)}h media
 												</Typography>
-											</Box>
-										</Stack>
-									</Paper>
+											</Stack>
+										</Paper>
+
+										{/* Activities Count */}
+										<Paper 
+											elevation={0}
+											sx={{ 
+												flex: 1,
+												p: 2, 
+												borderRadius: 2,
+												border: '1px solid',
+												borderColor: 'divider',
+												bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+											}}
+										>
+											<Stack spacing={0.5}>
+												<Stack direction="row" alignItems="center" spacing={0.5}>
+													<AssignmentIcon sx={{ fontSize: 20, color: '#FF9F0A' }} />
+													<Typography variant="h5" sx={{ fontWeight: 700, color: '#FF9F0A', lineHeight: 1 }}>
+														{chartData.stats.totalActivities}
+													</Typography>
+												</Stack>
+												<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+													{chartData.stats.totalActivities === 1 ? 'Attività' : 'Attività'}
+												</Typography>
+												<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600 }}>
+													Totali registrate
+												</Typography>
+											</Stack>
+										</Paper>
+									</Stack>
+
+									{absenceCards && (
+										<Box sx={{ px: 0.5 }}>
+											{absenceCards}
+										</Box>
+									)}
 
 									{/* Commesse cards with activities */}
-									<Box sx={{ flex: 1, overflowY: 'auto', pr: 0.5 }}>
-										<Stack spacing={2}>
+									<Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
+										<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
 											{chartData.dailyData.map((item) => {
 												const { commessa, hours, activities } = item;
 												const commessaColor = getCommessaColor(commessa);
@@ -298,8 +592,7 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 															'&:hover': {
 																borderColor: commessaColor,
 																bgcolor: commessaBgColor,
-																transform: 'translateY(-2px)',
-																boxShadow: `0 4px 12px ${commessaBgColor}`,
+																transform: 'translateY(-1px)',
 															},
 														}}
 													>
@@ -307,7 +600,7 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 														<Box
 															sx={{
 																p: 2,
-																background: `linear-gradient(135deg, ${commessaBgColor} 0%, ${getCommessaColorLight(commessa, 0.03)} 100%)`,
+																bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.015)',
 																borderBottom: '1px solid',
 																borderColor: 'divider',
 															}}
@@ -443,56 +736,605 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 													</Paper>
 												);
 											})}
-										</Stack>
+										</Box>
 									</Box>
 								</Box>
 							) : (
-								<Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-									<Typography variant="body2" sx={{ color: 'text.secondary' }}>
-										Nessuna attività registrata oggi.
-									</Typography>
+								<Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 2 }}>
+									{/* Empty Day - Show Assigned Commesse and Reminder */}
+									<Stack spacing={2}>
+										{/* Header with icon */}
+										<Stack direction="row" alignItems="center" spacing={1.5} sx={{ pb: 1 }}>
+											<Avatar sx={{ bgcolor: 'warning.main', width: 48, height: 48 }}>
+												<AssignmentIcon />
+											</Avatar>
+											<Stack spacing={0.5}>
+												<Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+													Nessuna attività registrata
+												</Typography>
+												<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+													Ecco le tue commesse assegnate per iniziare
+												</Typography>
+											</Stack>
+										</Stack>
+
+										{/* Quick Action Reminder */}
+										<Paper
+											elevation={0}
+											sx={{
+												p: 2,
+												borderRadius: 2,
+												border: '1px solid',
+												borderColor: 'info.main',
+												bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(33, 150, 243, 0.08)' : 'rgba(33, 150, 243, 0.04)',
+											}}
+										>
+											<Stack direction="row" spacing={1.5}>
+												<TrendingUpIcon sx={{ fontSize: 24, color: 'info.main' }} />
+												<Stack spacing={0.5}>
+													<Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
+														Promemoria
+													</Typography>
+													<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.5 }}>
+														Ricordati di registrare le ore lavorate per ogni commessa e attività svolta. 
+														Clicca su una cella del calendario per iniziare.
+													</Typography>
+												</Stack>
+											</Stack>
+										</Paper>
+
+										{/* Assigned Commesse */}
+										{assignedCommesse && assignedCommesse.length > 0 ? (
+											<Stack spacing={1.5}>
+												<Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.85rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+													Commesse Assegnate ({assignedCommesse.length})
+												</Typography>
+												<Stack spacing={1}>
+													{assignedCommesse.map((commessa, idx) => (
+														<Paper
+															key={idx}
+															elevation={0}
+															sx={{
+																p: 2,
+																borderRadius: 2,
+																border: '1px solid',
+																borderColor: 'divider',
+																bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+																transition: 'all 0.2s',
+																'&:hover': {
+																	borderColor: 'primary.main',
+																	bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0, 166, 251, 0.08)' : 'rgba(0, 166, 251, 0.04)',
+																}
+															}}
+														>
+															<Stack direction="row" alignItems="center" spacing={2}>
+																<Avatar
+																	sx={{
+																		width: 36,
+																		height: 36,
+																		bgcolor: getCommessaColor(commessa.nome || commessa),
+																		fontSize: '0.9rem',
+																		fontWeight: 700
+																	}}
+																>
+																	{(commessa.nome || commessa).substring(0, 2).toUpperCase()}
+																</Avatar>
+																<Stack spacing={0.5} sx={{ flex: 1 }}>
+																	<Typography variant="body1" sx={{ fontWeight: 700, fontSize: '0.95rem' }}>
+																		{commessa.nome || commessa}
+																	</Typography>
+																	{commessa.descrizione && (
+																		<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+																			{commessa.descrizione}
+																		</Typography>
+																	)}
+																	{commessa.cliente && (
+																		<Stack direction="row" alignItems="center" spacing={0.5}>
+																			<FolderIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+																			<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+																				Cliente: {commessa.cliente}
+																			</Typography>
+																		</Stack>
+																	)}
+																</Stack>
+																<CheckCircleIcon sx={{ fontSize: 24, color: 'success.main', opacity: 0.5 }} />
+															</Stack>
+														</Paper>
+													))}
+												</Stack>
+											</Stack>
+										) : (
+											<Paper
+												elevation={0}
+												sx={{
+													p: 3,
+													borderRadius: 2,
+													border: '1px dashed',
+													borderColor: 'divider',
+													bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+													textAlign: 'center'
+												}}
+											>
+												<Stack spacing={1} alignItems="center">
+													<AccessTimeIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+													<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+														Nessuna commessa assegnata al momento.
+													</Typography>
+													<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+														Contatta il tuo responsabile per le assegnazioni.
+													</Typography>
+												</Stack>
+											</Paper>
+										)}
+									</Stack>
 								</Box>
 							)
 						) : (
-							// Period View: Bar chart
+							// Period View: Bar chart with statistics
 							!chartData.isEmpty && chartData.series.length > 0 ? (
-								<BarChart
-									series={chartData.series}
-									xAxis={[{
-										scaleType: 'band',
-										data: chartData.xAxis,
-										categoryGapRatio: 0.3,
-										barGapRatio: chartData.isStacked ? 0.15 : 0.4,
-										label: chartData.xLabel,
-									}]}
-									yAxis={[{
-										label: 'Ore',
-									}]}
-									width={chartData.width}
-									height={280}
-									margin={{ top: 20, right: 24, bottom: 70, left: 60 }}
-									slotProps={{
-										legend: {
-											hidden: !chartData.isStacked,
-										},
-									}}
-									sx={{
-										'& .MuiBarElement-root': {
-											transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-											'&:hover': {
-												filter: 'brightness(1.15)',
-												cursor: 'pointer',
-											},
-										},
-										'& .MuiChartsAxis-tickLabel': {
-											fontSize: '0.7rem',
-										},
-										'& .MuiChartsAxis-label': {
-											fontSize: '0.75rem',
-											fontWeight: 600,
-										},
-									}}
-								/>
+								<Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+									{/* Two-column layout: Chart + Stats */}
+									<Box sx={{ display: 'flex', gap: 2, px: 1, minHeight: 0, flex: 1 }}>
+										{/* Left: Bar Chart */}
+										<Box
+											sx={{
+												flex: '1 1 60%',
+												minHeight: 320,
+												display: 'flex',
+												alignItems: 'center',
+												justifyContent: 'center',
+											}}
+										>
+											<BarChart
+												series={chartData.series}
+												xAxis={[{
+													scaleType: 'band',
+													data: chartData.xAxis,
+													categoryGapRatio: 0.3,
+													barGapRatio: chartData.isStacked ? 0.15 : 0.4,
+													label: chartData.xLabel,
+												}]}
+												yAxis={[{
+													label: 'Ore',
+												}]}
+												width={chartData.width}
+												height={320}
+												margin={{ top: 24, right: 28, bottom: 80, left: 60 }}
+												slotProps={{
+													legend: {
+														hidden: !chartData.isStacked,
+													},
+												}}
+												sx={{
+													'& .MuiBarElement-root': {
+														transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+														'&:hover': {
+															filter: 'brightness(1.15)',
+															cursor: 'pointer',
+														},
+													},
+													'& .MuiChartsAxis-tickLabel': {
+														fontSize: '0.7rem',
+													},
+													'& .MuiChartsAxis-label': {
+														fontSize: '0.75rem',
+														fontWeight: 600,
+													},
+												}}
+											/>
+										</Box>
+
+										{/* Right: Compact Stats Summary */}
+										<Box sx={{ flex: '1 1 40%', minHeight: 0 }}>
+											<Stack spacing={1.5} sx={{ height: '100%' }}>
+												{/* Compact Stats Grid */}
+												{chartData.stats && (
+													<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+														{/* Total Hours */}
+														<Paper 
+															elevation={0}
+															sx={{ 
+																p: 1.5, 
+																borderRadius: 2,
+																border: '1px solid',
+																borderColor: 'divider',
+																bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+															}}
+														>
+															<Stack spacing={0.5}>
+																<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+																	Ore Totali
+																</Typography>
+																<Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main', lineHeight: 1, fontSize: '1.1rem' }}>
+																	{chartData.stats.totalHours.toFixed(1)}h
+																</Typography>
+															</Stack>
+														</Paper>
+
+														{/* Days Worked */}
+														<Paper 
+															elevation={0}
+															sx={{ 
+																p: 1.5, 
+																borderRadius: 2,
+																border: '1px solid',
+																borderColor: 'divider',
+																bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+															}}
+														>
+															<Stack spacing={0.5}>
+																<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+																	Giorni Lavorati
+																</Typography>
+																<Typography variant="h6" sx={{ fontWeight: 700, color: '#34C759', lineHeight: 1, fontSize: '1.1rem' }}>
+																	{chartData.stats.daysWorked}
+																</Typography>
+															</Stack>
+														</Paper>
+
+														{/* Average Hours */}
+														<Paper 
+															elevation={0}
+															sx={{ 
+																p: 1.5, 
+																borderRadius: 2,
+																border: '1px solid',
+																borderColor: 'divider',
+																bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+															}}
+														>
+															<Stack spacing={0.5}>
+																<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+																	Media/Giorno
+																</Typography>
+																<Typography variant="h6" sx={{ fontWeight: 700, color: '#FF9F0A', lineHeight: 1, fontSize: '1.1rem' }}>
+																	{chartData.stats.avgHoursPerDay.toFixed(1)}h
+																</Typography>
+															</Stack>
+														</Paper>
+
+														{/* Top Commessa */}
+														{chartData.stats.topCommessa && chartData.stats.topCommessa.hours > 0 && (
+															<Paper 
+																elevation={0}
+																sx={{ 
+																	p: 1.5, 
+																	borderRadius: 2,
+																	border: '1px solid',
+																	borderColor: 'divider',
+																	bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+																}}
+															>
+																<Stack spacing={0.5}>
+																	<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+																		Top Commessa
+																	</Typography>
+																	<Chip
+																		label={chartData.stats.topCommessa.name}
+																		size="small"
+																		sx={{
+																			height: 22,
+																			fontSize: '0.7rem',
+																			fontWeight: 700,
+																			bgcolor: getCommessaColor(chartData.stats.topCommessa.name),
+																			color: '#fff',
+																			'& .MuiChip-label': {
+																				px: 1,
+																			},
+																		}}
+																	/>
+																</Stack>
+															</Paper>
+														)}
+													</Box>
+												)}
+
+												{/* Trend Indicator - Compact */}
+												{chartData.stats?.trend && (
+													<Paper
+														elevation={0}
+														sx={{
+															p: 1.5,
+															borderRadius: 2,
+															border: '1px solid',
+															borderColor: 'divider',
+															bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+														}}
+													>
+														<Stack direction="row" alignItems="center" justifyContent="space-between">
+															<Stack direction="row" alignItems="center" spacing={1}>
+																<Avatar 
+																	sx={{ 
+																		width: 28, 
+																		height: 28,
+																		bgcolor: chartData.stats.trend.isIncreasing ? '#34C759' : '#FF453A',
+																	}}
+																>
+																	<TrendingUpIcon 
+																		sx={{ 
+																			fontSize: 16,
+																			transform: chartData.stats.trend.isIncreasing ? 'none' : 'rotate(180deg)',
+																		}} 
+																	/>
+																</Avatar>
+																<Box>
+																	<Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.75rem', lineHeight: 1.2 }}>
+																		Trend Periodo
+																	</Typography>
+																	<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
+																		{chartData.stats.trend.firstHalfAvg.toFixed(1)}h → {chartData.stats.trend.secondHalfAvg.toFixed(1)}h
+																	</Typography>
+																</Box>
+															</Stack>
+															<Typography 
+																variant="h6" 
+																sx={{ 
+																	fontWeight: 700, 
+																	color: chartData.stats.trend.isIncreasing ? '#34C759' : '#FF453A',
+																	lineHeight: 1,
+																	fontSize: '1rem'
+																}}
+															>
+																{chartData.stats.trend.isIncreasing ? '+' : ''}{chartData.stats.trend.percentage.toFixed(1)}%
+															</Typography>
+														</Stack>
+													</Paper>
+												)}
+
+												{absenceCards && (
+													<Box>
+														{absenceCards}
+													</Box>
+												)}
+											</Stack>
+										</Box>
+									</Box>
+
+									{/* Detailed Breakdown Section - Now at bottom */}
+									{chartData.stats.commessaBreakdown && chartData.stats.commessaBreakdown.length > 0 && (
+										<Box sx={{ px: 1, pt: 2 }}>
+											<Stack spacing={1.5}>
+												{/* Commesse Breakdown List */}
+												<Paper
+													elevation={0}
+													sx={{
+														p: 1.5,
+														borderRadius: 2,
+														border: '1px solid',
+														borderColor: 'divider',
+													}}
+												>
+													<Stack spacing={1}>
+														<Typography variant="caption" sx={{ 
+															fontWeight: 700, 
+															fontSize: '0.7rem', 
+															textTransform: 'uppercase', 
+															letterSpacing: 0.8,
+															color: 'text.secondary' 
+														}}>
+															Distribuzione per Commessa ({chartData.stats.totalCommesse})
+														</Typography>
+														
+														<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, maxHeight: '400px', overflowY: 'auto', '&::-webkit-scrollbar': { width: '6px' }, '&::-webkit-scrollbar-track': { background: 'transparent' }, '&::-webkit-scrollbar-thumb': { background: 'rgba(0, 0, 0, 0.2)', borderRadius: '3px', '&:hover': { background: 'rgba(0, 0, 0, 0.3)' } } }}>
+															{chartData.stats.commessaBreakdown.map((item, idx) => {
+																const commessaColor = getCommessaColor(item.name);
+																const commessaBgColor = getCommessaColorLight(item.name, 0.08);
+																
+																return (
+																	<Box
+																		key={item.name}
+																		sx={{
+																			p: 1.5,
+																			borderRadius: 1.5,
+																			bgcolor: (theme) => theme.palette.mode === 'dark' 
+																				? 'rgba(255, 255, 255, 0.02)' 
+																				: 'rgba(0, 0, 0, 0.02)',
+																			border: '1px solid',
+																			borderColor: 'divider',
+																			transition: 'all 0.2s',
+																			'&:hover': {
+																				borderColor: commessaColor,
+																				bgcolor: commessaBgColor,
+																				transform: 'translateX(4px)',
+																			},
+																		}}
+																	>
+																		<Stack spacing={1}>
+																			{/* Header */}
+																			<Stack direction="row" alignItems="center" justifyContent="space-between">
+																				<Stack direction="row" alignItems="center" spacing={1}>
+																					<Chip
+																						label={`#${idx + 1}`}
+																						size="small"
+																						sx={{
+																							height: 18,
+																							fontSize: '0.65rem',
+																							fontWeight: 700,
+																							minWidth: 30,
+																							bgcolor: commessaColor,
+																							color: '#fff',
+																						}}
+																					/>
+																					<Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
+																						{item.name}
+																					</Typography>
+																				</Stack>
+																				<Stack direction="row" alignItems="center" spacing={1}>
+																					<Chip
+																						label={`${item.percentage.toFixed(1)}%`}
+																						size="small"
+																						sx={{
+																							height: 18,
+																							fontSize: '0.65rem',
+																							fontWeight: 600,
+																							bgcolor: (theme) => theme.palette.mode === 'dark'
+																								? 'rgba(0, 166, 251, 0.15)'
+																								: 'rgba(0, 166, 251, 0.1)',
+																							color: 'primary.main',
+																						}}
+																					/>
+																					<Typography variant="h6" sx={{ fontWeight: 700, color: commessaColor, fontSize: '0.95rem' }}>
+																						{item.hours.toFixed(1)}h
+																					</Typography>
+																				</Stack>
+																			</Stack>
+
+																			{/* Trend for commessa */}
+																			<Stack direction="row" alignItems="center" spacing={1}>
+																				<Avatar
+																					sx={{
+																						width: 28,
+																					height: 28,
+																					bgcolor: item.trend.isIncreasing ? '#34C759' : '#FF453A',
+																				}}
+																				>
+																					<TrendingUpIcon
+																						sx={{
+																						fontSize: 16,
+																						transform: item.trend.isIncreasing ? 'none' : 'rotate(180deg)',
+																					}}
+																					/>
+																				</Avatar>
+																				<Stack spacing={0.25}>
+																					<Typography
+																						variant="caption"
+																						sx={{ fontWeight: 600, fontSize: '0.65rem', color: item.trend.isIncreasing ? '#34C759' : '#FF453A' }}
+																				>
+																						{item.trend.isIncreasing ? 'In crescita' : 'In calo'} {item.trend.value >= 0 ? '+' : ''}{item.trend.value.toFixed(1)}h
+																					</Typography>
+																					<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+																						{item.trend.firstAvg.toFixed(1)}h → {item.trend.secondAvg.toFixed(1)}h media
+																					</Typography>
+																				</Stack>
+																				<Chip
+																					size="small"
+																					label={`${item.trend.percentage >= 0 ? '+' : ''}${item.trend.percentage.toFixed(1)}%`}
+																					sx={{
+																						height: 18,
+																						fontSize: '0.65rem',
+																						fontWeight: 600,
+																						bgcolor: (theme) => item.trend.isIncreasing
+																							? 'rgba(52, 199, 89, 0.15)'
+																							: 'rgba(255, 69, 58, 0.15)',
+																						color: item.trend.isIncreasing ? '#1C8F3E' : '#FF453A',
+																					}}
+																				/>
+																			</Stack>
+
+																			{/* Progress Bar */}
+																			<LinearProgress
+																				variant="determinate"
+																				value={item.percentage}
+																				sx={{
+																					height: 6,
+																					borderRadius: 3,
+																					bgcolor: (theme) => theme.palette.mode === 'dark'
+																						? 'rgba(255, 255, 255, 0.05)'
+																						: 'rgba(0, 0, 0, 0.05)',
+																					'& .MuiLinearProgress-bar': {
+																						bgcolor: commessaColor,
+																						borderRadius: 3,
+																					},
+																				}}
+																			/>
+
+																			{/* Stats Row */}
+																			<Stack direction="row" spacing={2}>
+																				<Stack direction="row" alignItems="center" spacing={0.5}>
+																					<CheckCircleIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+																					<Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+																						<strong>{item.daysActive}</strong> {item.daysActive === 1 ? 'giorno' : 'giorni'} attivi
+																					</Typography>
+																				</Stack>
+																				<Stack direction="row" alignItems="center" spacing={0.5}>
+																					<AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+																					<Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+																						<strong>{item.avgPerActiveDay.toFixed(1)}h</strong> media/giorno
+																					</Typography>
+																				</Stack>
+																			</Stack>
+
+																			{/* Activities List */}
+																			{item.activities && item.activities.length > 0 && (
+																				<Box>
+																					<Divider sx={{ my: 1 }} />
+																					<Stack spacing={0.75}>
+																						<Typography variant="caption" sx={{ 
+																							fontWeight: 700, 
+																							fontSize: '0.65rem', 
+																							textTransform: 'uppercase', 
+																							letterSpacing: 0.5,
+																							color: 'text.secondary' 
+																						}}>
+																							Attività ({item.activities.length})
+																						</Typography>
+																						{item.activities.map((activity, actIdx) => {
+																							const activityPercentage = item.hours > 0 ? (activity.hours / item.hours) * 100 : 0;
+																							return (
+																								<Stack 
+																									key={actIdx} 
+																									direction="row" 
+																									alignItems="center" 
+																									spacing={1}
+																									sx={{
+																										p: 0.75,
+																										borderRadius: 1,
+																										bgcolor: 'background.paper',
+																										border: '1px solid',
+																										borderColor: 'divider',
+																									}}
+																								>
+																									<AssignmentIcon sx={{ fontSize: 14, color: commessaColor }} />
+																									<Typography 
+																										variant="caption" 
+																										sx={{ 
+																											flex: 1,
+																											fontSize: '0.7rem',
+																											fontWeight: 500,
+																										}}
+																									>
+																										{activity.name}
+																									</Typography>
+																									<Stack direction="row" alignItems="center" spacing={0.5}>
+																										<Typography 
+																											variant="caption" 
+																											sx={{ 
+																												fontSize: '0.65rem',
+																												fontWeight: 700,
+																												color: commessaColor,
+																											}}
+																										>
+																											{activity.hours.toFixed(1)}h
+																										</Typography>
+																										<Chip
+																											size="small"
+																											label={`${activityPercentage.toFixed(0)}%`}
+																											sx={{
+																												height: 16,
+																												fontSize: '0.6rem',
+																												fontWeight: 600,
+																												bgcolor: commessaBgColor,
+																												color: commessaColor,
+																											}}
+																										/>
+																									</Stack>
+																								</Stack>
+																							);
+																						})}
+																					</Stack>
+																				</Box>
+																			)}
+																		</Stack>
+																	</Box>
+																);
+															})}
+														</Box>
+													</Stack>
+												</Paper>
+											</Stack>
+										</Box>
+									)}
+								</Box>
 							) : (
 								<Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 									<Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -501,240 +1343,7 @@ export default function CommesseDashboard({ assignedCommesse = [], data = {}, pe
 								</Box>
 							)
 						)}
-					</Box>
-					<Box sx={{ 
-						width: { xs: '100%', sm: 320 }, 
-						bgcolor: 'background.paper', 
-						borderRadius: 2,
-						overflow: 'hidden',
-						border: '1px solid',
-						borderColor: 'divider'
-					}}>
-						<Stack spacing={0}>
-							{/* Header - Compact */}
-							<Box sx={{ 
-								bgcolor: 'background.paper',
-								px: 2,
-								py: 1.5,
-								borderBottom: '1px solid',
-								borderColor: 'divider'
-							}}>
-								<Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-									<Box>
-										<Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700, fontSize: '0.9rem' }}>
-											Riepilogo
-										</Typography>
-										<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-											{periodDisplay}
-										</Typography>
-									</Box>
-									<ToggleButtonGroup
-										value={period === 'none' ? null : period}
-										exclusive
-										size="small"
-										onChange={handlePeriodToggle}
-										sx={{
-											'& .MuiToggleButton-root': {
-												fontSize: '0.65rem',
-												px: 0.75,
-												py: 0.25,
-												minWidth: 'auto',
-												fontWeight: 600,
-												borderRadius: 1,
-												color: 'text.secondary',
-												borderColor: 'divider',
-												'&.Mui-selected': {
-													color: 'primary.main',
-													bgcolor: 'primary.lighter',
-													borderColor: 'primary.main',
-												'&:hover': {
-													bgcolor: 'primary.light'
-													}
-												},
-												'&:hover': {
-													borderColor: 'primary.main',
-													bgcolor: 'action.hover'
-												}
-											}
-										}}
-									>
-										<ToggleButton value="week">
-											Sett
-										</ToggleButton>
-										<ToggleButton value="month">
-											Mese
-										</ToggleButton>
-										<ToggleButton value="year">
-											Anno
-										</ToggleButton>
-									</ToggleButtonGroup>
-								</Stack>
-							</Box>
-
-							{/* Absence Stats - Compact */}
-							<Box sx={{ px: 2, py: 1.5 }}>
-								<Typography variant="caption" sx={{ 
-									color: 'text.secondary', 
-									fontWeight: 600, 
-									textTransform: 'uppercase',
-									fontSize: '0.65rem',
-									letterSpacing: 0.5,
-									mb: 1,
-									display: 'block'
-								}}>
-									Assenze
-								</Typography>
-								<Stack spacing={0.75}>
-									{/* Ferie */}
-									<Box sx={{ 
-										display: 'flex', 
-										alignItems: 'center', 
-										gap: 1,
-										p: 0.75,
-										borderRadius: 1,
-										bgcolor: 'rgba(216, 49, 91, 0.05)',
-										border: '1px solid rgba(216, 49, 91, 0.15)',
-										transition: 'all 0.2s',
-										'&:hover': {
-											bgcolor: 'rgba(216, 49, 91, 0.1)',
-											transform: 'translateX(4px)'
-										}
-									}}>
-										<Box sx={{ 
-											display: 'flex', 
-											alignItems: 'center', 
-											justifyContent: 'center',
-											width: 24,
-											height: 24,
-											borderRadius: 1,
-											bgcolor: '#D8315B',
-											color: 'white',
-											flexShrink: 0
-										}}>
-											<BeachAccessIcon sx={{ fontSize: 14 }} />
-										</Box>
-										<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', minWidth: 60 }}>
-											Ferie
-										</Typography>
-										<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', ml: 'auto' }}>
-											{riepilogo.ferie.days || 0}g • {riepilogo.ferie.hours || 0}h
-										</Typography>
-									</Box>
-
-									{/* Malattia */}
-									<Box sx={{ 
-										display: 'flex', 
-										alignItems: 'center', 
-										gap: 1,
-										p: 0.75,
-										borderRadius: 1,
-										bgcolor: 'rgba(52, 199, 89, 0.05)',
-										border: '1px solid rgba(52, 199, 89, 0.15)',
-										transition: 'all 0.2s',
-										'&:hover': {
-											bgcolor: 'rgba(52, 199, 89, 0.1)',
-											transform: 'translateX(4px)'
-										}
-									}}>
-										<Box sx={{ 
-											display: 'flex', 
-											alignItems: 'center', 
-											justifyContent: 'center',
-											width: 24,
-											height: 24,
-											borderRadius: 1,
-											bgcolor: '#34C759',
-											color: 'white',
-											flexShrink: 0
-										}}>
-											<LocalHospitalIcon sx={{ fontSize: 14 }} />
-										</Box>
-										<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', minWidth: 60 }}>
-											Malattia
-										</Typography>
-										<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', ml: 'auto' }}>
-											{riepilogo.malattia.days || 0}g • {riepilogo.malattia.hours || 0}h
-										</Typography>
-									</Box>
-
-									{/* Permesso */}
-									<Box sx={{ 
-										display: 'flex', 
-										alignItems: 'center', 
-										gap: 1,
-										p: 0.75,
-										borderRadius: 1,
-										bgcolor: 'rgba(2, 136, 209, 0.05)',
-										border: '1px solid rgba(2, 136, 209, 0.15)',
-										transition: 'all 0.2s',
-										'&:hover': {
-											bgcolor: 'rgba(2, 136, 209, 0.1)',
-											transform: 'translateX(4px)'
-										}
-									}}>
-										<Box sx={{ 
-											display: 'flex', 
-											alignItems: 'center', 
-											justifyContent: 'center',
-											width: 24,
-											height: 24,
-											borderRadius: 1,
-											bgcolor: '#0288d1',
-											color: 'white',
-											flexShrink: 0
-										}}>
-											<ScheduleIcon sx={{ fontSize: 14 }} />
-										</Box>
-										<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', minWidth: 60 }}>
-											Permesso
-										</Typography>
-										<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', ml: 'auto' }}>
-											{riepilogo.permesso.days || 0}g • {riepilogo.permesso.hours || 0}h
-										</Typography>
-									</Box>
-
-									{/* ROL */}
-									<Box sx={{ 
-										display: 'flex', 
-										alignItems: 'center', 
-										gap: 1,
-										p: 0.75,
-										borderRadius: 1,
-										bgcolor: 'rgba(2, 136, 209, 0.05)',
-										border: '1px solid rgba(2, 136, 209, 0.15)',
-										transition: 'all 0.2s',
-										'&:hover': {
-											bgcolor: 'rgba(2, 136, 209, 0.1)',
-											transform: 'translateX(4px)'
-										}
-									}}>
-										<Box sx={{ 
-											display: 'flex', 
-											alignItems: 'center', 
-											justifyContent: 'center',
-											width: 24,
-											height: 24,
-											borderRadius: 1,
-											bgcolor: '#0288d1',
-											color: 'white',
-											flexShrink: 0
-										}}>
-											<EventBusyIcon sx={{ fontSize: 14 }} />
-										</Box>
-										<Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', minWidth: 60 }}>
-											ROL
-										</Typography>
-										<Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', ml: 'auto' }}>
-											{riepilogo.rol.days || 0}g • {riepilogo.rol.hours || 0}h
-										</Typography>
-									</Box>
-								</Stack>
-							</Box>
-
-						</Stack>
-					</Box>
-
-				</Stack>
+				</Box>
 			</Stack>
 		</Paper>
 	);

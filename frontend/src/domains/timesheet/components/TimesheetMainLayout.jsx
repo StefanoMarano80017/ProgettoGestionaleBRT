@@ -50,7 +50,7 @@ export function TimesheetMainLayout({
             width: { xs: '100%', md: 420 },
             display: 'flex',
             flexDirection: 'column',
-            height: { xs: 'auto', md: 850 },
+            height: { xs: 'auto', md: 960 },
           }}
         >
           <Stack spacing={1.5}>
@@ -89,6 +89,9 @@ export function TimesheetMainLayout({
                 variant="wide"
                 highlightedDays={highlightedDays}
                 stagedMeta={stagedMeta}
+                period={period}
+                onPeriodChange={onPeriodChange}
+                showRiepilogo={true}
               />
             </Paper>
           </Stack>
@@ -100,7 +103,7 @@ export function TimesheetMainLayout({
           minWidth: 0, 
           display: 'flex', 
           flexDirection: 'column',
-          height: { xs: 'auto', md: 850 }
+          height: { xs: 'auto', md: 960 }
         }}>
           {selectedDay && commesseLoading && (
             <Alert severity="info" sx={{ mb: 1 }}>
@@ -119,6 +122,7 @@ export function TimesheetMainLayout({
               data={mergedData}
               period={period}
               refDate={refDate}
+              selectedDay={selectedDay}
               onPeriodChange={onPeriodChange}
             />
           </Box>

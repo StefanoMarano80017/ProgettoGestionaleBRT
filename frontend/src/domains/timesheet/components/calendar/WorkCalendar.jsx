@@ -28,6 +28,9 @@ WorkCalendar.propTypes = {
   selectorVariant: PropTypes.string,
   selectorLabels: PropTypes.string,
   stagedMeta: PropTypes.object,
+  period: PropTypes.oneOf(['week', 'month', 'year', 'none']),
+  onPeriodChange: PropTypes.func,
+  showRiepilogo: PropTypes.bool,
 };
 
 export default React.memo(WorkCalendar);
