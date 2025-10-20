@@ -1,12 +1,15 @@
 import React from "react";
-import useAuth from "@/domains/auth/hooks/useAuth";
 import { ROLES } from "@mocks/UsersMock";
 import DipendenteTimesheet from "@domains/timesheet/pages/DipendenteTimesheet";
 import DashboardAmministrazioneTimesheet from "@domains/timesheet/pages/DashboardAmministrazioneTimesheet";
 import PMCampoTimesheet from "@domains/timesheet/pages/PMCampoTimesheet";
+import { useUser } from "@/context/UserContext";
 
 export default function TimesheetRouter() {
-  const { roles } = useAuth();
+  const { user, loading } = useUser();
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>Please login</div>;
+  const roles = user.rolesString;
 
   // Priorità: Admin > Coordinatore > Dipendente
   if (

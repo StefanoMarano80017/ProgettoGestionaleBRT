@@ -1,48 +1,67 @@
-import React from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Box, Paper, Stack, Typography, TextField, Button, Alert,
+  Box,
+  Paper,
+  Stack,
+  Typography,
+  TextField,
+  Button,
+  Alert,
 } from "@mui/material";
-import useAuth from "@/domains/auth/hooks/useAuth";
 import LogoGestionale from "@assets/LogoGestionale.png";
+import { useAuth } from "../auth/AuthProvider";
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuth();
-  const nav = useNavigate();
-  const location = useLocation();
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      nav("/home", { replace: true });
-    }
-  }, [isAuthenticated, nav]);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = React.useState({ username: "", password: "" });
-  const [error, setError] = React.useState("");
-
-  const onSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
+    setError(null);
+    setLoading(true);
+
+    console.group("🧩 LOGIN DEBUG");
+    console.log("➡️ Login form submitted");
+    console.log("👤 Username:", username);
+    console.log("🔒 Password length:", password.length);
+
     try {
-      await login(form.username, form.password);
-      // Dopo il login, se veniamo da RequireAuth naviga alla destinazione originale
-      const dest = location?.state?.from?.pathname || "/Home";
-      nav(dest, { replace: true });
+      const result = await login(username, password);
+      console.log("✅ Login API call resolved:", result);
+
+      if (result.ok) {
+        console.log("➡️ Login successful, navigating to /");
+        navigate("/home", { replace: true });
+      } else {
+        console.warn("⚠️ Login API returned ok=false, staying on login page.");
+        setError("Login fallito");
+      }
+
     } catch (err) {
-      setError(err.message || "Errore di autenticazione");
+      console.error("❌ Login failed:", err);
+      setError(err.message || "Login fallito");
+    } finally {
+      setLoading(false);
+      console.groupEnd();
     }
-  };
+  }
 
   return (
     <Box
       sx={{
         position: "fixed",
-        inset: 0,                  // top:0, right:0, bottom:0, left:0
+        inset: 0,
         display: "grid",
-        placeItems: "center",      // centro verticale + orizzontale
+        placeItems: "center",
         bgcolor: "background.default",
         p: 2,
-        zIndex: (t) => t.zIndex.modal + 1, // sopra eventuali layout
+        zIndex: (t) => t.zIndex.modal + 1,
       }}
     >
       <Box
@@ -53,49 +72,67 @@ export default function Login() {
           py: 6,
           px: { xs: 3, sm: 6 },
           width: "min(640px, 92vw)",
+          position: "relative",
         }}
       >
         <Stack spacing={3} alignItems="center">
-          <Box component="img" src={LogoGestionale} alt="Logo applicazione" sx={{ height: 56, objectFit: "contain" }} />
+          <Box
+            component="img"
+            src={LogoGestionale}
+            alt="Logo applicazione"
+            sx={{ height: 56, objectFit: "contain" }}
+          />
           <Paper sx={{ p: 3, width: "100%" }}>
-            <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}> Accedi </Typography>
-            <form onSubmit={onSubmit}>
+            <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
+              Accedi
+            </Typography>
+
+            <form onSubmit={handleSubmit}>
               <Stack spacing={2}>
                 <TextField
                   label="Username"
-                  value={form.username}
-                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   autoFocus
                   fullWidth
                 />
                 <TextField
                   label="Password"
                   type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   fullWidth
                 />
+
                 {error && <Alert severity="error">{error}</Alert>}
-                <Button type="submit" variant="contained" fullWidth> Entra </Button>
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  disabled={loading}
+                >
+                  {loading ? "Accesso in corso..." : "Entra"}
+                </Button>
               </Stack>
             </form>
           </Paper>
         </Stack>
-        
-        {/* Footer */}
-        <Box 
-          sx={{ 
-            position: 'absolute',
+
+        <Box
+          sx={{
+            position: "absolute",
             bottom: 16,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            textAlign: 'center',
-            width: '100%',
+            left: "50%",
+            transform: "translateX(-50%)",
+            textAlign: "center",
+            width: "100%",
             px: 2,
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            Sistema Gestionale BRT • Developed by : <strong>Andrea Manfellotti & Stefano Marano</strong>
+            Sistema Gestionale BRT • Developed by:{" "}
+            <strong>Andrea Manfellotti &amp; Stefano Marano</strong>
           </Typography>
         </Box>
       </Box>

@@ -6,37 +6,44 @@ import Login from "@/Pages/Login";
 import RequireAuth from "@/Routes/RequireAuth";
 import TimesheetRouter from "@domains/timesheet/pages/TimesheetRouter";
 import DipendenteTimesheet from "@domains/timesheet/pages/DipendenteTimesheet";
-// import DashboardAmministrazioneTimesheet from "./Pages/DashboardAmministrazioneTimesheet";
-import Home from "@/Pages/Home"; // <-- aggiunto
+import Home from "@/Pages/Home";
 import Commesse from "@/Pages/Commesse";
 import CoordinatoreDashboard from "@domains/commesse/pages/CoordinatoreDashboard";
+import { AuthProvider } from "@/auth/AuthProvider"; 
+import { UserProvider } from "@/context/UserContext"; 
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public login route (first page) */}
-      <Route path="/login" element={<Login />} />
+    //fornisce tutti i dati dell'utente tramite const { user, loading } = useUser();
+    <UserProvider>
+      {/* Gestisce in automatico il login e relativo token JWT*/}
+      <AuthProvider>
+        <Routes>
+          {/* Public route: login */}
+          <Route path="/login" element={<Login />} />
+          <Route index element={<Navigate to="/login" replace />} />
 
-      {/* Root index: show Login as the first page */}
-      <Route index element={<Login />} />
+          {/* Protected routes */}
+          <Route
+            element={
+              <RequireAuth>
+                <MainLayout />
+              </RequireAuth>
+            }
+          >
+            <Route path="/home" element={<Home />} />
+            <Route path="/Home" element={<Navigate to="/home" replace />} />
+            <Route path="/timesheet" element={<TimesheetRouter />} />
+            <Route path="/commesse" element={<Commesse />} />
+            <Route path="/commesse/coordinatore" element={<CoordinatoreDashboard />} />
+            <Route path="/dipendente" element={<DipendenteTimesheet />} />
+            <Route path="/app" element={<Home />} />
+          </Route>
 
-      {/* Protected routes wrapped in RequireAuth + MainLayout */}
-      <Route
-        element={
-          <RequireAuth>
-            <MainLayout />
-          </RequireAuth>
-        }
-      >
-        {/* All protected routes as children - rendered via <Outlet /> in MainLayout */}
-        <Route path="/home" element={<Home />} />
-        <Route path="/Home" element={<Home />} />
-        <Route path="/timesheet" element={<TimesheetRouter />} />
-    <Route path="/commesse" element={<Commesse />} />
-    <Route path="/commesse/coordinatore" element={<CoordinatoreDashboard />} />
-        <Route path="/dipendente" element={<DipendenteTimesheet />} />
-        <Route path="/app" element={<Home />} />
-      </Route>
-    </Routes>
+          {/* Catch-all → redirect al login */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AuthProvider>
+    </UserProvider>
   );
 }

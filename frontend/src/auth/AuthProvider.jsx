@@ -1,104 +1,136 @@
-// src/auth/AuthProvider.jsx
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import api, { setAuthService } from "../api/axios";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "../context/UserContext";
 
-/**
- * AuthContext:
- * - login(credentials) -> calls /authBff/login
- * - logout() -> calls /authBff/logout + clears state + redirect to login
- * - triggerRefresh() -> calls /authBff/refresh (used by axios interceptor)
- * - isAuthenticated boolean (best-effort)
- *
- * Nota: perché i token sono HttpOnly, non possiamo leggere lo stato "autenticato" direttamente.
- * Usare una flag locale aggiornata al login/refresh/logout e interrogabile dalle pagine.
- */
+const BFF_BASE_URL = import.meta.env.VITE_BFF_URL || "http://app.local.test";
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
+export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
+  const { setUser, setLoading } = useUser();
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // expiresIn (s) per schedulare refresh proattivo
   const refreshTimerId = useRef(null);
+  const refreshPromiseRef = useRef(null);
   const latestExpiresIn = useRef(null);
 
-  // evita chiamate multiple di refresh
-  let refreshPromiseRef = useRef(null);
-
+  // ====================================
+  // 🔁 SCHEDULAZIONE REFRESH
+  // ====================================
   const scheduleRefresh = useCallback((expiresInSeconds) => {
     latestExpiresIn.current = expiresInSeconds;
-    if (refreshTimerId.current) {
-      clearTimeout(refreshTimerId.current);
-      refreshTimerId.current = null;
-    }
-    // Refresh a 80% del ciclo
+    if (refreshTimerId.current) clearTimeout(refreshTimerId.current);
+
     const ms = Math.max(2000, Math.floor(expiresInSeconds * 0.8 * 1000));
+    console.log(`🕒 Refresh token scheduled in ${Math.floor(ms / 1000)}s`);
+
     refreshTimerId.current = setTimeout(async () => {
+      console.log("🔄 Triggering scheduled token refresh...");
       try {
         await triggerRefresh();
-      } catch (e) {
-        // se il refresh fallisce, logout
+      } catch (err) {
+        console.warn("⚠️ Scheduled refresh failed:", err);
         onLogout();
       }
     }, ms);
   }, []);
 
   const clearScheduledRefresh = useCallback(() => {
-    if (refreshTimerId.current) {
-      clearTimeout(refreshTimerId.current);
-      refreshTimerId.current = null;
-    }
+    if (refreshTimerId.current) clearTimeout(refreshTimerId.current);
+    refreshTimerId.current = null;
     latestExpiresIn.current = null;
   }, []);
 
-  // login: posta credentials al BFF che restituisce expires_in e setta cookie
-  const login = useCallback(async (username, password) => {
-    const resp = await api.post("/authBff/login", { username, password }, { withCredentials: true });
-    if (resp.status === 200 && resp.data && resp.data.expires_in) {
-      setIsAuthenticated(true);
-      scheduleRefresh(resp.data.expires_in);
-      return resp.data;
-    }
-    // fallback: se non ritorna expires_in assumiamo autenticato e non scheduliamo
-    setIsAuthenticated(true);
-    return { ok: true };
-  }, [scheduleRefresh]);
+  // ====================================
+  // 🔐 LOGIN
+  // ====================================
+  const login = useCallback(
+    async (username, password) => {
+      console.group("🔑 LOGIN FLOW");
+      try {
+        const resp = await fetch(`${BFF_BASE_URL}/authBff/login`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
 
-  // logout: chiama BFF logout e pulisce stato
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          console.error("❌ Login failed:", err);
+          throw new Error(err.error || "Login fallito");
+        }
+
+        const data = await resp.json();
+        console.log("✅ Login response payload:", data);
+
+        setIsAuthenticated(true);
+        if (data.user) setUser(data.user); // salva il profilo nel contesto
+        if (data.expires_in) scheduleRefresh(data.expires_in);
+
+        console.groupEnd();
+        return data;
+      } catch (err) {
+        setIsAuthenticated(false);
+        setUser(null);
+        clearScheduledRefresh();
+        console.groupEnd();
+        throw err;
+      }
+    },
+    [scheduleRefresh, clearScheduledRefresh, setUser]
+  );
+
+  // ====================================
+  // 🚪 LOGOUT
+  // ====================================
   const onLogout = useCallback(async () => {
+    console.log("🚪 Performing logout...");
     try {
-      await api.post("/authBff/logout", {}, { withCredentials: true });
-    } catch (e) {
-      // ignora errori di logout remoto
+      await fetch(`${BFF_BASE_URL}/authBff/logout`, { method: "POST", credentials: "include" });
+    } catch (err) {
+      console.warn("⚠️ Logout request failed:", err);
     } finally {
       clearScheduledRefresh();
       setIsAuthenticated(false);
-      // redirect to login page
+      setUser(null);
+      setLoading(false);
       navigate("/login", { replace: true });
     }
-  }, [navigate, clearScheduledRefresh]);
+  }, [navigate, clearScheduledRefresh, setUser, setLoading]);
 
-  // triggerRefresh: usato sia proattivamente che dall'interceptor
+  // ====================================
+  // 🔄 REFRESH TOKEN
+  // ====================================
   const triggerRefresh = useCallback(async () => {
-    // se c'è già un refresh in corso, ritorna la stessa promessa
     if (refreshPromiseRef.current) return refreshPromiseRef.current;
 
     refreshPromiseRef.current = (async () => {
+      console.group("🔄 REFRESH FLOW");
       try {
-        const resp = await api.post("/authBff/refresh", {}, { withCredentials: true });
-        if (resp.status === 200 && resp.data && resp.data.expires_in) {
-          setIsAuthenticated(true);
-          scheduleRefresh(resp.data.expires_in);
-          return resp.data;
-        } else {
-          // consideriamo refresh fallito
+        const resp = await fetch(`${BFF_BASE_URL}/authBff/refresh`, { method: "POST", credentials: "include" });
+
+        if (!resp.ok) {
           setIsAuthenticated(false);
-          throw new Error("Refresh failed");
+          setUser(null);
+          throw new Error("Refresh non riuscito");
         }
+
+        const data = await resp.json();
+        console.log("✅ Refresh response payload:", data);
+
+        setIsAuthenticated(true);
+        if (data.user) setUser(data.user); // aggiorna profilo
+        if (data.expires_in) scheduleRefresh(data.expires_in);
+
+        console.groupEnd();
+        return data;
       } catch (err) {
         setIsAuthenticated(false);
+        setUser(null);
         clearScheduledRefresh();
+        console.groupEnd();
         throw err;
       } finally {
         refreshPromiseRef.current = null;
@@ -106,40 +138,32 @@ export function AuthProvider({ children }) {
     })();
 
     return refreshPromiseRef.current;
-  }, [scheduleRefresh, clearScheduledRefresh]);
+  }, [scheduleRefresh, clearScheduledRefresh, setUser]);
 
-  // init: potremmo chiamare un whoami opzionale lato BFF per capire stato iniziale
+  // ====================================
+  // 🔍 INITIAL REFRESH ALL’AVVIO
+  // ====================================
   useEffect(() => {
-    // set authService in axios for interceptor usage
-    const authService = {
-      triggerRefresh,
-      onLogout,
-    };
-    setAuthService(authService);
-
-    // opzionale: we can call /authBff/whoami to determine initial state
-    // ma non tutti i BFF espongono whoami; se lo fai, che risponda 200 quando cookie valido
-    (async function init() {
+    (async () => {
+      console.log("🚀 Initial auth check → calling refresh...");
       try {
-        const who = await api.get("/authBff/whoami", { withCredentials: true });
-        if (who.status === 200) {
-          setIsAuthenticated(true);
-          // If backend returns expires_in here, schedule
-          if (who.data?.expires_in) scheduleRefresh(who.data.expires_in);
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch (e) {
-        // non autenticato all'avvio
+        const data = await triggerRefresh();
+        if (data?.expires_in) scheduleRefresh(data.expires_in);
+        setIsAuthenticated(true);
+        console.log("✅ Initial refresh OK — user authenticated");
+      } catch (err) {
+        console.warn("⚠️ Initial refresh failed:", err);
         setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
     })();
+  }, [triggerRefresh, scheduleRefresh, setLoading, setUser]);
 
-    return () => {
-      clearScheduledRefresh();
-    };
-  }, [triggerRefresh, onLogout, scheduleRefresh, clearScheduledRefresh]);
-
+  // ====================================
+  // 🧩 CONTEXT VALUE
+  // ====================================
   const value = {
     isAuthenticated,
     login,
@@ -148,8 +172,6 @@ export function AuthProvider({ children }) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+};
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => useContext(AuthContext);

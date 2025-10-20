@@ -14,7 +14,7 @@ import {
 import { TimesheetMainLayout } from '@domains/timesheet/components';
 import DayEntryDialog from '@domains/timesheet/components/calendar/DayEntryDialog';
 import { findUserById } from '@mocks/UsersMock';
-import useAuth from '@/domains/auth/hooks/useAuth';
+import { useUser } from "@/context/UserContext";
 import { getRangeForPeriod, enumerateDateKeys } from '@domains/timesheet/components/admin-grid/utils/periodUtils';
 
 /**
@@ -135,8 +135,8 @@ function InnerDipendente({ employeeId }) {
  * Provides context and renders inner component
  */
 export default function DipendenteTimesheet({ employeeId: propEmployeeId }) {
-  const { user } = useAuth() || {};
-  const effectiveId = propEmployeeId || user?.id || 'emp-001';
+  const { user, user_id, loading } = useUser();
+  const effectiveId = propEmployeeId || user_id || 'emp-001';
   
   return (
     <TimesheetProvider scope="single" employeeIds={[effectiveId]}>

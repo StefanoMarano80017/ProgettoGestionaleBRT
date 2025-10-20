@@ -15,7 +15,7 @@ import DayEntryDialog from '@domains/timesheet/components/calendar/DayEntryDialo
 import AdminTimesheetGrid from '@domains/timesheet/components/admin-grid/AdminTimesheetGrid';
 import AdminFiltersBar from '@domains/timesheet/components/admin-grid/AdminFiltersBar';
 import AdminEmployeeInspector from '@domains/timesheet/components/admin-grid/AdminEmployeeInspector';
-import useAuth from '@/domains/auth/hooks/useAuth';
+import { useUser } from "@/context/UserContext";
 import { ROLES, listAllUsers } from '@mocks/UsersMock';
 import { parseDateKey, getRangeForPeriod, enumerateDateKeys } from '@domains/timesheet/components/admin-grid/utils/periodUtils';
 
@@ -435,7 +435,10 @@ function InnerDashboardAmministrazione() {
  * Container component with provider and auth guard
  */
 export default function DashboardAmministrazioneTimesheet() {
-  const { roles } = useAuth();
+  const { user, loading } = useUser();
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>Please login</div>;
+  const roles = user.rolesString;
   const navigate = useNavigate();
 
   // Auth guard - only AMMINISTRATORE, DIRETTORE_TECNICO, DIRETTORE_GENERALE

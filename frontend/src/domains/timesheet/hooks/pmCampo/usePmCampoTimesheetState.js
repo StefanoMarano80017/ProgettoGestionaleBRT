@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import useAuth from '@domains/auth/hooks/useAuth';
 import { useTimesheetContext, useTimesheetStaging, useDayEditor } from '@domains/timesheet/hooks';
 import { useTimesheetApi } from '@domains/timesheet/hooks/useTimesheetApi';
 import { ROLES, listAllUsers } from '@mocks/UsersMock';
 import { EMPLOYEE_COMMESSE } from '@mocks/ProjectMock';
 import { validatePmCampoDraft } from '@domains/timesheet/hooks/validation/pmCampoValidators';
+import { useUser } from "@/context/UserContext";
 
 const EMPTY_OBJECT = Object.freeze({});
 const NON_WORK_CODES = new Set(['FERIE', 'MALATTIA', 'PERMESSO', 'ROL']);
@@ -112,7 +112,8 @@ function buildCommessaOptionsForEmployee(employeeId, dataMap) {
 }
 
 export function usePmCampoTimesheetState() {
-  const { user, roles = [] } = useAuth();
+  const { user, loading } = useUser();
+  const roles = user.rolesString;
   const ctx = useTimesheetContext();
   const staging = useTimesheetStaging();
   const dayEditor = useDayEditor();

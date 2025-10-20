@@ -2,12 +2,12 @@
 import React from "react";
 import { Box, Typography, Chip } from "@mui/material";
 import { PAGES } from "@/Routes/pagesConfig";
-import useAuth from "@/domains/auth/hooks/useAuth";
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WavingHandIcon from '@mui/icons-material/WavingHand';
 import { PageHero } from '@shared/components/PageHeader/';
 import { StatCard } from '@shared/components/Stats/';
 import { ServiceCard } from '@shared/components/ServiceCard/';
+import { useUser } from "@/context/UserContext";
 
 // Service descriptions mapping
 const SERVICE_DESCRIPTIONS = {
@@ -24,9 +24,19 @@ const renderIcon = (IconOrElement) => {
 };
 
 export default function Home() {
-  const { user } = useAuth();
-  const displayName = user ? `${user.nome} ${user.cognome}` : 'Utente';
-  const firstName = user?.nome || 'Utente';
+
+  const {user, loading } = useUser();
+
+  console.log(user.given_name);
+  console.log(user.family_name);
+  console.log(user.email);
+  console.log(user.role.join(", "));
+
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>Please login</div>;
+
+  const  firstName = user.family_name || 'Utente Sconosciuto'
+  const  displayName = user.given_name || 'Nome Sconosciuto';
 
   // Filtra via la voce Home
   const SERVICES = React.useMemo(
