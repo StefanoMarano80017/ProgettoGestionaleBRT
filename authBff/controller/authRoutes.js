@@ -1,5 +1,6 @@
 const express = require("express");
-const { login, refresh, logout, introspectToken } = require("../services/keycloakService");
+const jwt = require("jsonwebtoken");
+const { login, refresh, logout } = require("../services/keycloakService");
 const { recordLogin, getLastLogins } = require("../session/session.js");
 const { redis, useRedis } = require("../config/redis.js");
 const { revokeSetAdd } = require("../services/revocationService");
@@ -14,120 +15,85 @@ const cookieOptions = {
   path: "/",
 };
 
-// === LOGIN ===
+// --- Helper ---
+const setTokens = (res, accessToken, refreshToken, expiresIn) => {
+  res.cookie("access_token", accessToken, { ...cookieOptions, maxAge: expiresIn * 1000 });
+  res.cookie("refresh_token", refreshToken, cookieOptions);
+};
+
+const saveSession = async (userId, intros) => {
+  if (!useRedis || !intros?.active || !intros.jti) return;
+
+  const sessionKey = `session:${userId}`;
+  await redis.hset(sessionKey, "refresh_jti", intros.jti, "exp", intros.exp || 0);
+
+  if (intros.exp) {
+    const ttl = intros.exp - Math.floor(Date.now() / 1000);
+    if (ttl > 0) await redis.expire(sessionKey, ttl);
+  }
+};
+
+const getSessionInfo = async (userId, intros) => ({
+  lastLogins: userId ? await getLastLogins(userId) : [],
+  refresh_jti: intros?.jti || null,
+  refresh_exp: intros?.exp || null,
+});
+
+const handleAuthResponse = async (res, result) => {
+  setTokens(res, result.access_token, result.refresh_token, result.expires_in);
+
+  if (result.userProfile?.sub) await recordLogin(result.userProfile.sub);
+  await saveSession(result.userProfile?.sub, result.intros);
+
+  res.json({
+    ok: true,
+    expires_in: result.expires_in,
+    user: result.userProfile,
+    session: await getSessionInfo(result.userProfile?.sub, result.intros),
+  });
+};
+
+// --- LOGIN ---
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
     const result = await login(username, password);
-
-    // set cookies
-    res.cookie("access_token", result.access_token, { ...cookieOptions, maxAge: result.expires_in * 1000 });
-    res.cookie("refresh_token", result.refresh_token, cookieOptions);
-
-    // registra login in Redis
-    if (result.userProfile?.sub) {
-      await recordLogin(result.userProfile.sub);
-    }
-
-    // session info
-    const lastLogins = result.userProfile?.sub ? await getLastLogins(result.userProfile.sub) : [];
-
-    // salva session mapping refresh_jti in Redis
-    if (result.intros?.active && result.intros.jti) {
-      const sessionKey = `session:${result.userProfile.sub}`;
-      if (useRedis) {
-        await redis.hset(sessionKey, "refresh_jti", result.intros.jti, "exp", result.intros.exp || 0);
-        if (result.intros.exp) {
-          const ttl = result.intros.exp - Math.floor(Date.now() / 1000);
-          if (ttl > 0) await redis.expire(sessionKey, ttl);
-        }
-      }
-    }
-
-    res.json({
-      ok: true,
-      expires_in: result.expires_in,
-      user: result.userProfile,
-      session: {
-        lastLogins,
-        refresh_jti: result.intros?.jti || null,
-        refresh_exp: result.intros?.exp || null,
-      },
-    });
+    await handleAuthResponse(res, result);
   } catch (err) {
     console.error("❌ Login failed:", err.response?.data || err.message);
     res.status(401).json({ error: "Invalid credentials", details: err.response?.data });
   }
 });
 
-// === REFRESH TOKEN ===
+// --- REFRESH ---
 router.post("/refresh", async (req, res) => {
   const refreshToken = req.cookies.refresh_token;
   if (!refreshToken) return res.status(401).json({ error: "Missing refresh token" });
 
   try {
     const result = await refresh(refreshToken);
-
-    // set cookies
-    res.cookie("access_token", result.access_token, { ...cookieOptions, maxAge: result.expires_in * 1000 });
-    res.cookie("refresh_token", result.refresh_token, cookieOptions);
-
-    // registra refresh come attività opzionale
-    if (result.userProfile?.sub) await recordLogin(result.userProfile.sub);
-
-    // session info
-    const lastLogins = result.userProfile?.sub ? await getLastLogins(result.userProfile.sub) : [];
-
-    // salva session mapping refresh_jti
-    if (result.intros?.active && result.intros.jti) {
-      const sessionKey = `session:${result.userProfile.sub}`;
-      if (useRedis) {
-        await redis.hset(sessionKey, "refresh_jti", result.intros.jti, "exp", result.intros.exp || 0);
-        if (result.intros.exp) {
-          const ttl = result.intros.exp - Math.floor(Date.now() / 1000);
-          if (ttl > 0) await redis.expire(sessionKey, ttl);
-        }
-      }
-    }
-
-    res.json({
-      ok: true,
-      expires_in: result.expires_in,
-      user: result.userProfile,
-      session: {
-        lastLogins,
-        refresh_jti: result.intros?.jti || null,
-        refresh_exp: result.intros?.exp || null,
-      },
-    });
+    await handleAuthResponse(res, result);
   } catch (err) {
     console.error("❌ Refresh token failed:", err.response?.data || err.message);
     res.status(401).json({ error: "Invalid refresh token" });
   }
 });
 
-// === LOGOUT ===
+// --- LOGOUT ---
+const revokeToken = async (token) => {
+  if (!token) return;
+  const decoded = jwt.decode(token);
+  if (decoded?.jti && decoded?.exp) {
+    const ttl = Math.max(1, decoded.exp - Math.floor(Date.now() / 1000));
+    await revokeSetAdd(decoded.jti, ttl);
+  }
+  if (useRedis && decoded?.sub) await redis.del(`session:${decoded.sub}`);
+};
+
 router.post("/logout", async (req, res) => {
-  const refreshToken = req.cookies.refresh_token;
-  const accessToken = req.cookies.access_token;
-
   try {
-    if (refreshToken) await logout(refreshToken);
-
-    // revoca access token localmente
-    if (accessToken) {
-      const decoded = jwt.decode(accessToken);
-      if (decoded?.jti && decoded?.exp) {
-        const ttl = Math.max(1, decoded.exp - Math.floor(Date.now() / 1000));
-        await revokeSetAdd(decoded.jti, ttl);
-      }
-    }
-
-    // pulizia session Redis
-    if (useRedis && accessToken) {
-      const decoded = jwt.decode(accessToken);
-      if (decoded?.sub) await redis.del(`session:${decoded.sub}`);
-    }
+    await logout(req.cookies.refresh_token).catch(() => {});
+    await revokeToken(req.cookies.access_token);
   } catch (err) {
     console.warn("⚠️ Logout non completato:", err.message);
   } finally {
