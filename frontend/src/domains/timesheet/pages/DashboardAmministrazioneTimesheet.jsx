@@ -17,7 +17,6 @@ import AdminFiltersBar from '@domains/timesheet/components/admin-grid/AdminFilte
 import AdminEmployeeInspector from '@domains/timesheet/components/admin-grid/AdminEmployeeInspector';
 import { useUser } from "@/context/UserContext";
 import { PageHero } from '@shared/components/PageHeader/';
-import useAuth from '@/domains/auth/hooks/useAuth';
 import { ROLES, listAllUsers } from '@mocks/UsersMock';
 import { parseDateKey, getRangeForPeriod, enumerateDateKeys } from '@domains/timesheet/components/admin-grid/utils/periodUtils';
 

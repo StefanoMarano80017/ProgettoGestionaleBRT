@@ -6,6 +6,7 @@ const UserContext = createContext(null);
 export const UserProvider = ({ children }) => {
   const [rawUser, setRawUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sessionInfo, setSessionInfo] = useState(null);
 
   // creiamo un oggetto “user” con getter
   const user = useMemo(() => {
@@ -28,11 +29,18 @@ export const UserProvider = ({ children }) => {
       get rolesString() {
         return this.role?.join(', ') || '';
       },
+
+      // getter per ultimo accesso (dal contesto sessionInfo)
+      get lastAccess() {
+        // sessionInfo deve essere disponibile nel contesto
+        if (!sessionInfo?.lastLogins || sessionInfo.lastLogins.length === 0) return null;
+        return sessionInfo.lastLogins[0]; // il più recente
+      },
     };
   }, [rawUser]);
 
   return (
-    <UserContext.Provider value={{ user, setUser: setRawUser, loading, setLoading }}>
+    <UserContext.Provider value={{ user, setUser: setRawUser, loading, setLoading, sessionInfo, setSessionInfo }}>
       {children}
     </UserContext.Provider>
   );

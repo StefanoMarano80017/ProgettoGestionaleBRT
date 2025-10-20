@@ -8,8 +8,7 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
-  const { setUser, setLoading } = useUser();
-
+  const { setUser, setLoading, setSessionInfo } = useUser();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const refreshTimerId = useRef(null);
   const refreshPromiseRef = useRef(null);
@@ -66,7 +65,8 @@ export const AuthProvider = ({ children }) => {
         console.log("✅ Login response payload:", data);
 
         setIsAuthenticated(true);
-        if (data.user) setUser(data.user); // salva il profilo nel contesto
+        if (data.user) setUser(data.user);
+        if (data.session) setSessionInfo(data.session);
         if (data.expires_in) scheduleRefresh(data.expires_in);
 
         console.groupEnd();
@@ -74,6 +74,7 @@ export const AuthProvider = ({ children }) => {
       } catch (err) {
         setIsAuthenticated(false);
         setUser(null);
+        setSessionInfo(null);
         clearScheduledRefresh();
         console.groupEnd();
         throw err;
@@ -81,6 +82,7 @@ export const AuthProvider = ({ children }) => {
     },
     [scheduleRefresh, clearScheduledRefresh, setUser]
   );
+
 
   // ====================================
   // 🚪 LOGOUT

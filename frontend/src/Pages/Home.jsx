@@ -25,12 +25,13 @@ const renderIcon = (IconOrElement) => {
 
 export default function Home() {
 
-  const {user, loading } = useUser();
+  const {user, loading, sessionInfo} = useUser();
 
   console.log(user.given_name);
   console.log(user.family_name);
   console.log(user.email);
   console.log(user.role.join(", "));
+  console.log(sessionInfo?.lastLogins); //puoi accedere agli ultimi 3 coìs, oppure il più recente usando user.lastAccess
 
   if (loading) return <div>Loading...</div>;
   if (!user) return <div>Please login</div>;
@@ -106,7 +107,7 @@ export default function Home() {
 
           <StatCard
             label="Ultima Visita"
-            value="Oggi"
+            value={user.lastAccess}
             color="warning"
             valueVariant="body1"
           />
