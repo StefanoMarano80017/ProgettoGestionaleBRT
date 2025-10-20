@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Box, Typography, Paper, Button, Alert } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { ArrowBack, AdminPanelSettings } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import {
   TimesheetProvider,
@@ -16,6 +16,8 @@ import AdminTimesheetGrid from '@domains/timesheet/components/admin-grid/AdminTi
 import AdminFiltersBar from '@domains/timesheet/components/admin-grid/AdminFiltersBar';
 import AdminEmployeeInspector from '@domains/timesheet/components/admin-grid/AdminEmployeeInspector';
 import { useUser } from "@/context/UserContext";
+import { PageHero } from '@shared/components/PageHeader/';
+import useAuth from '@/domains/auth/hooks/useAuth';
 import { ROLES, listAllUsers } from '@mocks/UsersMock';
 import { parseDateKey, getRangeForPeriod, enumerateDateKeys } from '@domains/timesheet/components/admin-grid/utils/periodUtils';
 
@@ -312,29 +314,14 @@ function InnerDashboardAmministrazione() {
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', py: 3 }}>
       <Box sx={{ width: '100%', px: { xs: 2, md: 4 } }}>
-        {/* Page Header - Compact */}
-        <Paper
-          elevation={0}
-          sx={{
-            mb: 2,
-            p: 2.5,
-            borderRadius: 2,
-            background: (theme) => 
-              `linear-gradient(135deg, ${theme.palette.customBlue3?.main || theme.palette.primary.main} 0%, ${theme.palette.customBlue2?.main || '#006494'} 50%, ${theme.palette.customBlue1?.main || '#00A6FB'} 100%)`,
-            color: '#ffffff',
-            position: 'relative',
-            overflow: 'hidden',
-            border: '1px solid',
-            borderColor: 'customBlue3.main'
-          }}
-        >
-          <Typography variant="h5" sx={{ fontWeight: 700, color: '#ffffff' }}>
-            Timesheet — Amministrazione
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.95, color: '#ffffff' }}>
-            Visualizza e gestisci i timesheet di tutti i dipendenti
-          </Typography>
-        </Paper>
+        {/* Page Header */}
+        <PageHero
+          title="Timesheet — Amministrazione"
+          subtitle="Visualizza e gestisci i timesheet di tutti i dipendenti"
+          icon={AdminPanelSettings}
+          useCustomBlueGradient={true}
+          showStatusChip={true}
+        />
 
         {/* Staging Bar - Compact, top priority */}
         <TimesheetStagingBar sticky={false} />

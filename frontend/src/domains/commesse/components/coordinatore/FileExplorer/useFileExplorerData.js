@@ -40,12 +40,6 @@ const getActivityDate = (commessa) =>
 const buildNode = (commessa, creationDate, activityDate, withinPeriod) => {
   const creationLabel = creationDate ? dateFormatter.format(creationDate) : null;
   const activityLabel = activityDate ? dateFormatter.format(activityDate) : null;
-  const labelParts = [];
-  labelParts.push(creationLabel ? `Creata il ${creationLabel}` : 'Creazione: N/D');
-  if (activityLabel) {
-    labelParts.push(`Ultima modifica ${activityLabel}`);
-  }
-
   return {
     id: commessa.id,
     codice: commessa.codice || commessa.id,
@@ -56,7 +50,7 @@ const buildNode = (commessa, creationDate, activityDate, withinPeriod) => {
     lastActivityAt: commessa.lastActivityAt,
     creationLabel,
     activityLabel,
-    displayLabel: labelParts.join(' · '),
+    displayLabel: commessa.nome || commessa.codice || commessa.id,
     tags: Array.isArray(commessa.tags) ? [...commessa.tags] : [],
     withinPeriod,
   };

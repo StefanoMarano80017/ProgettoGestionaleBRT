@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import Box from '@mui/material/Box';
-import { stringToColor, darkenColor } from './utils/color';
+import { getAvatarPalette } from '@shared/utils/avatarColors.js';
 
 /**
  * AvatarInitials
@@ -54,8 +54,14 @@ export function AvatarInitials({
           if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
           return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
         })();
-    const computedBg = backgroundColor || stringToColor(sourceName || name + surname);
-    const computedBorder = borderColor || darkenColor(computedBg, 0.3);
+    const palette = getAvatarPalette({
+      seed: text != null ? String(text) : undefined,
+      fullName: sourceName,
+      name,
+      surname,
+    });
+    const computedBg = backgroundColor || palette.background;
+    const computedBorder = borderColor || palette.border;
     return {
       displayText: initials,
       bgColor: computedBg,

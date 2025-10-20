@@ -7,34 +7,12 @@ import { listCommesse } from '@mocks/CommesseMock.js';
 import usePeopleWorkloadData from './usePeopleWorkloadData.js';
 import PeopleWorkloadView from './PeopleWorkloadView.jsx';
 
-const PERIOD_PRESETS = {
-  week: 7,
-  month: 30,
-  quarter: 90,
-  year: 365,
-};
-
-const computeStartFor = (mode) => {
-  const days = PERIOD_PRESETS[mode] ?? PERIOD_PRESETS.month;
-  const end = new Date();
-  const start = new Date(end);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - days);
-  return start;
-};
-
-export default function PeopleWorkloadContainer({ period, periodStart }) {
+export default function PeopleWorkloadContainer({ onCommessaOpen }) {
   const [timesheets, setTimesheets] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
-  const [search, setSearch] = React.useState('');
-  const [selectedCommessa, setSelectedCommessa] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [commessaMeta, setCommessaMeta] = React.useState(() => new Map());
-  const [periodMode, setPeriodMode] = React.useState(period || 'month');
-  const [localPeriodStart, setLocalPeriodStart] = React.useState(() => (
-    periodStart instanceof Date ? periodStart : computeStartFor(period || 'month')
-  ));
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -62,7 +40,7 @@ export default function PeopleWorkloadContainer({ period, periodStart }) {
     return () => {
       active = false;
     };
-  }, [period, periodStart]);
+  }, []);
 
   React.useEffect(() => {
     let active = true;
@@ -95,110 +73,49 @@ export default function PeopleWorkloadContainer({ period, periodStart }) {
     };
   }, []);
 
-  const periodEnd = React.useMemo(() => {
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    return end;
-  }, [periodMode, localPeriodStart]);
-
-  React.useEffect(() => {
-    if (!period) return;
-    setPeriodMode(period);
-  }, [period]);
-
-  React.useEffect(() => {
-    if (periodStart instanceof Date) {
-      setLocalPeriodStart(periodStart);
-    }
-  }, [periodStart]);
-
-  const handlePeriodModeChange = React.useCallback((value) => {
-    if (!value) return;
-    setPeriodMode(value);
-    setLocalPeriodStart(computeStartFor(value));
-  }, []);
-
   const workloadData = usePeopleWorkloadData({
     timesheetMap: timesheets,
     employees,
-    periodStart: localPeriodStart,
-    periodEnd,
     commessaMeta,
   });
 
   const rows = Array.isArray(workloadData?.rows) ? workloadData.rows : [];
 
-  const commessaOptions = React.useMemo(() => {
-    const map = new Map();
-    rows.forEach((row) => {
-      row.assigned.forEach((commessa) => {
-        if (!map.has(commessa.id)) {
-          map.set(commessa.id, {
-            id: commessa.id,
-            label: commessa.label,
-          });
-        }
-      });
-    });
-    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, 'it-IT'));
-  }, [rows]);
-
-  React.useEffect(() => {
-    if (!selectedCommessa) return;
-    const exists = commessaOptions.some((option) => option.id === selectedCommessa.id);
-    if (!exists) {
-      setSelectedCommessa(null);
-    }
-  }, [commessaOptions, selectedCommessa]);
-
   const filteredRows = React.useMemo(() => {
-    const searchValue = search.toLowerCase().trim();
     return rows
-      .filter((row) => (selectedCommessa ? row.assigned.some((item) => item.id === selectedCommessa.id) : true))
-      .filter((row) => {
-        if (!searchValue) return true;
-        return row.name.toLowerCase().includes(searchValue) || row.employeeId.toLowerCase().includes(searchValue);
-      })
       .sort((a, b) => {
         if (a.isActive === b.isActive) {
           return b.workHours - a.workHours;
         }
         return a.isActive ? -1 : 1;
-    });
-  }, [rows, search, selectedCommessa]);
+      });
+  }, [rows]);
 
-  const displaySummary = React.useMemo(() => ({
-    total: filteredRows.length,
-    withTimesheet: filteredRows.filter((row) => row.isActive).length,
-  }), [filteredRows]);
-
-  const handleSearchChange = React.useCallback((value) => setSearch(value), []);
-  const handleCommessaChange = React.useCallback((value) => setSelectedCommessa(value), []);
   const handleToggleDrawer = React.useCallback(() => setDrawerOpen((prev) => !prev), []);
   const handleCloseDrawer = React.useCallback(() => setDrawerOpen(false), []);
+  const handleOpenTimesheet = React.useCallback((employeeId) => {
+    if (!employeeId) return;
+    const url = `/dipendente?employeeId=${employeeId}`;
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
 
   return (
     <PeopleWorkloadView
       loading={loading}
       error={error}
       rows={filteredRows}
-      summary={displaySummary}
-      search={search}
-      onSearchChange={handleSearchChange}
-      commessaOptions={commessaOptions}
-      selectedCommessa={selectedCommessa}
-      onCommessaChange={handleCommessaChange}
       isMobile={isMobile}
       drawerOpen={drawerOpen}
       onToggleDrawer={handleToggleDrawer}
       onCloseDrawer={handleCloseDrawer}
-      periodMode={periodMode}
-      onPeriodModeChange={handlePeriodModeChange}
+      onCommessaOpen={onCommessaOpen}
+      onOpenTimesheet={handleOpenTimesheet}
     />
   );
 }
 
 PeopleWorkloadContainer.propTypes = {
-  period: PropTypes.string,
-  periodStart: PropTypes.instanceOf(Date),
+  onCommessaOpen: PropTypes.func,
 };

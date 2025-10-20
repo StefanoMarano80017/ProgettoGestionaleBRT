@@ -13,6 +13,11 @@ import {
   Box,
   Collapse,
   IconButton,
+  TextField,
+  InputAdornment,
+  LinearProgress,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import FolderIcon from '@mui/icons-material/Folder';
@@ -20,6 +25,10 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DescriptionIcon from '@mui/icons-material/Description';
+import SearchIcon from '@mui/icons-material/Search';
+import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { getCommessaColor, getCommessaColorLight } from '@shared/utils/commessaColors.js';
 
 const STATUS_LABEL = {
@@ -80,9 +89,26 @@ CommessaItem.propTypes = {
   selected: PropTypes.bool,
 };
 
-export default function FileExplorerView({ recentNodes, yearGroups, selectedCommessaId, onSelectCommessa, isCompact }) {
+export default function FileExplorerView({
+  recentNodes,
+  yearGroups,
+  selectedCommessaId,
+  onSelectCommessa,
+  isCompact,
+  search,
+  status,
+  period,
+  onSearchChange,
+  onStatusChange,
+  onPeriodChange,
+  loading,
+}) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [expandedYears, setExpandedYears] = React.useState(() => new Set([new Date().getFullYear()]));
   const [expandedMonths, setExpandedMonths] = React.useState(() => new Set());
+  const normalizedStatus = status || 'all';
+  const hasCustomStatus = normalizedStatus !== 'all';
 
   const toggleYear = (year) => {
     setExpandedYears((prev) => {
@@ -108,6 +134,11 @@ export default function FileExplorerView({ recentNodes, yearGroups, selectedComm
     });
   };
 
+  const handleCollapseAll = () => {
+    setExpandedYears(new Set());
+    setExpandedMonths(new Set());
+  };
+
   return (
     <Paper
       elevation={2}
@@ -124,10 +155,126 @@ export default function FileExplorerView({ recentNodes, yearGroups, selectedComm
       }}
     >
       <Stack spacing={2} sx={{ width: '100%', flex: 1, minHeight: 0 }}>
-        <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FolderIcon fontSize="small" />
-          Esplora commesse
-        </Typography>
+        <Stack spacing={1.5}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <FolderIcon fontSize="small" />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              Esplora commesse
+            </Typography>
+          </Stack>
+          <Stack spacing={1.5}>
+            {/* Search bar */}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <TextField
+                value={search}
+                onChange={(event) => onSearchChange?.(event.target.value)}
+                size="small"
+                placeholder="Cerca per codice o nome"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  flex: 1,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5,
+                  }
+                }}
+              />
+              <Tooltip title="Chiudi tutte le cartelle">
+                <IconButton
+                  size="small"
+                  onClick={handleCollapseAll}
+                  disabled={expandedYears.size === 0 && expandedMonths.size === 0}
+                  sx={{
+                    borderRadius: 1.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: 'action.hover',
+                    },
+                    '&.Mui-disabled': {
+                      opacity: 0.4,
+                    }
+                  }}
+                >
+                  <UnfoldLessIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
+            {/* Status Filter - Inline Chips */}
+            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mr: 0.5 }}>
+                Stato:
+              </Typography>
+              <Chip
+                size="small"
+                label="Tutte"
+                icon={normalizedStatus === 'all' ? <CheckCircleIcon /> : undefined}
+                onClick={() => onStatusChange?.('all')}
+                variant={normalizedStatus === 'all' ? 'filled' : 'outlined'}
+                color={normalizedStatus === 'all' ? 'primary' : 'default'}
+                sx={{
+                  borderRadius: 1.5,
+                  fontWeight: normalizedStatus === 'all' ? 600 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: 1,
+                  }
+                }}
+              />
+              <Chip
+                size="small"
+                label="Attive"
+                icon={normalizedStatus === 'attiva' ? <CheckCircleIcon /> : undefined}
+                onClick={() => onStatusChange?.('attiva')}
+                variant={normalizedStatus === 'attiva' ? 'filled' : 'outlined'}
+                color={normalizedStatus === 'attiva' ? 'success' : 'default'}
+                sx={{
+                  borderRadius: 1.5,
+                  fontWeight: normalizedStatus === 'attiva' ? 600 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: 1,
+                  }
+                }}
+              />
+              <Chip
+                size="small"
+                label="Chiuse"
+                icon={normalizedStatus === 'chiusa' ? <CancelIcon /> : undefined}
+                onClick={() => onStatusChange?.('chiusa')}
+                variant={normalizedStatus === 'chiusa' ? 'filled' : 'outlined'}
+                color={normalizedStatus === 'chiusa' ? 'default' : 'default'}
+                sx={{
+                  borderRadius: 1.5,
+                  fontWeight: normalizedStatus === 'chiusa' ? 600 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  bgcolor: normalizedStatus === 'chiusa' ? 'action.selected' : 'transparent',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: 1,
+                  }
+                }}
+              />
+            </Stack>
+          </Stack>
+          {loading && <LinearProgress />}
+        </Stack>
         {recentNodes.length > 0 && (
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -228,4 +375,11 @@ FileExplorerView.propTypes = {
   selectedCommessaId: PropTypes.string,
   onSelectCommessa: PropTypes.func,
   isCompact: PropTypes.bool,
+  search: PropTypes.string,
+  status: PropTypes.string,
+  period: PropTypes.string,
+  onSearchChange: PropTypes.func,
+  onStatusChange: PropTypes.func,
+  onPeriodChange: PropTypes.func,
+  loading: PropTypes.bool,
 };

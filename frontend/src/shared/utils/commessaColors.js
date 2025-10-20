@@ -2,16 +2,21 @@
  * Utility functions for generating consistent colors for commesse and special entries
  * 
  * Color Algorithm Strategy:
- * - Work type suffixes (DL, INST, PROG, MANUT, RILIEVI) dominate the color (80% weight)
- * - Same work type across different projects will have similar color families
- * - Project prefix adds variation (20% weight) for distinction
+ * - Uses a curated palette of 20 carefully selected, visually pleasing colors
+ * - Work type suffixes (DL, INST, PROG, MANUT, etc.) get themed color families
+ * - Same work type across different projects will have similar color families (blues for DL, teals for INST, etc.)
+ * - Project prefix determines which color from the family is selected
+ * - All colors are professionally chosen for high contrast and visual appeal
  * 
- * Example color families by work type:
- * - DL (Direzione Lavori): Blue tones
- * - INST (Installazione): Green/Teal tones  
- * - PROG (Progettazione): Purple/Violet tones
- * - MANUT (Manutenzione): Orange/Amber tones
- * - RILIEVI (Rilievi): Cyan/Turquoise tones
+ * Color families by work type:
+ * - DL (Direzione Lavori): Blue family (4 shades)
+ * - INST (Installazione): Teal/Cyan family (4 shades)
+ * - PROG (Progettazione): Purple family (4 shades)
+ * - MANUT (Manutenzione): Orange family (4 shades)
+ * - RILIEVI (Rilievi): Cyan/Blue mix family (4 shades)
+ * - STR (Strutturale): Green family (4 shades)
+ * - UPG (Upgrade): Pink family (4 shades)
+ * - Unknown types: Main curated palette (20 colors)
  */
 
 // Special entry color mappings (matching legend colors)
@@ -22,10 +27,46 @@ const SPECIAL_ENTRY_COLORS = {
   'ROL': '#0288d1', // info blue
 };
 
+// Curated palette of visually pleasing, highly distinguishable colors
+// Carefully selected for good contrast and visual appeal
+const COLOR_PALETTE = [
+  '#1976d2', // Blue
+  '#00897B', // Teal
+  '#7B1FA2', // Purple
+  '#E64A19', // Deep Orange
+  '#0288D1', // Light Blue
+  '#C2185B', // Pink
+  '#5E35B1', // Deep Purple
+  '#00ACC1', // Cyan
+  '#D84315', // Red Orange
+  '#6A1B9A', // Purple Dark
+  '#0277BD', // Blue Dark
+  '#00796B', // Teal Dark
+  '#F57C00', // Orange
+  '#303F9F', // Indigo
+  '#1565C0', // Blue Bright
+  '#AD1457', // Pink Dark
+  '#00838F', // Cyan Dark
+  '#4527A0', // Deep Purple Dark
+  '#EF6C00', // Orange Dark
+  '#2E7D32', // Green Dark
+];
+
+// Work type color families for consistent theming
+const WORK_TYPE_COLORS = {
+  'DL': ['#1976d2', '#0288D1', '#1565C0', '#0277BD'], // Blues
+  'INST': ['#00897B', '#00ACC1', '#00796B', '#00838F'], // Teals/Cyans
+  'PROG': ['#7B1FA2', '#5E35B1', '#6A1B9A', '#4527A0'], // Purples
+  'MANUT': ['#E64A19', '#D84315', '#F57C00', '#EF6C00'], // Oranges
+  'RILIEVI': ['#00ACC1', '#00838F', '#0288D1', '#0277BD'], // Cyan/Blue mix
+  'STR': ['#2E7D32', '#388E3C', '#43A047', '#66BB6A'], // Greens
+  'UPG': ['#C2185B', '#AD1457', '#D81B60', '#E91E63'], // Pinks
+};
+
 /**
- * Deterministically convert a string to a hex color using enhanced hash algorithm
+ * Deterministically convert a string to a hex color using curated palette
  * Optimized for sottocommessa IDs with work type suffixes (VS-25-01-DL, VS-25-01-INST, etc.)
- * The algorithm gives extra weight to the suffix after the last hyphen for maximum color variation
+ * Uses a carefully selected palette of visually pleasing colors
  * @param {string} str - Sottocommessa ID (e.g., "VS-25-01-DL")
  * @returns {string} hex color
  */
@@ -37,62 +78,32 @@ function stringToColor(str = '') {
   const suffix = parts[parts.length - 1] || ''; // e.g., "DL", "INST", "PROG"
   const prefix = parts.slice(0, -1).join('-'); // e.g., "VS-25-01"
   
-  // Hash the suffix with EXTREME weight (work type determines base color)
-  let suffixHash = 5381;
-  for (let i = 0; i < suffix.length; i++) {
-    const char = suffix.charCodeAt(i);
-    // Each character in suffix gets exponentially more weight
-    suffixHash = ((suffixHash << 7) + suffixHash) + (char * Math.pow(3, i + 1));
+  // Check if we have a color family for this work type
+  if (WORK_TYPE_COLORS[suffix]) {
+    const colorFamily = WORK_TYPE_COLORS[suffix];
+    
+    // Hash the prefix to select a color from the family
+    let hash = 0;
+    for (let i = 0; i < prefix.length; i++) {
+      hash = ((hash << 5) - hash) + prefix.charCodeAt(i);
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    // Select color from family based on hash
+    const index = Math.abs(hash) % colorFamily.length;
+    return colorFamily[index];
   }
   
-  // Hash the prefix normally (provides variation within same work type)
-  let prefixHash = 5381;
-  for (let i = 0; i < prefix.length; i++) {
-    const char = prefix.charCodeAt(i);
-    prefixHash = ((prefixHash << 5) + prefixHash) + char; // Standard DJB2
+  // For unknown work types or general commesse, use the main palette
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash; // Convert to 32-bit integer
   }
   
-  // Combine hashes: suffix dominates (80%), prefix adds variation (20%)
-  let hash = Math.abs(suffixHash * 4 + prefixHash);
-  
-  // Advanced bit mixing for better distribution
-  hash ^= (hash >>> 16);
-  hash ^= (hash >>> 8);
-  hash *= 0x85ebca6b; // Prime multiplier
-  hash ^= (hash >>> 13);
-  
-  // Generate hue - suffix determines the color family
-  // Different work types will be in different color zones
-  const hue = hash % 360;
-  
-  // Higher saturation range for vibrant, distinguishable colors
-  const saturation = 70 + (hash % 20); // 70-90%
-  const lightness = 50 + ((hash >> 12) % 15); // 50-65%
-  
-  // Convert HSL to RGB
-  const hslToRgb = (h, s, l) => {
-    s /= 100;
-    l /= 100;
-    
-    const k = n => (n + h / 30) % 12;
-    const a = s * Math.min(l, 1 - l);
-    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-    
-    return [
-      Math.round(255 * f(0)),
-      Math.round(255 * f(8)),
-      Math.round(255 * f(4))
-    ];
-  };
-  
-  const [r, g, b] = hslToRgb(hue, saturation, lightness);
-  
-  const toHex = (val) => {
-    const hex = val.toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  };
-  
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  // Select from curated palette
+  const index = Math.abs(hash) % COLOR_PALETTE.length;
+  return COLOR_PALETTE[index];
 }
 
 /**

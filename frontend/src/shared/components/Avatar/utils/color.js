@@ -1,21 +1,51 @@
 /** Color utility helpers for avatar components. */
 
+// Curated palette of visually pleasing colors for avatars
+// Carefully selected for good contrast against light backgrounds
+// and excellent readability of white text
+const AVATAR_COLOR_PALETTE = [
+  '#1976d2', // Blue
+  '#388E3C', // Green
+  '#D32F2F', // Red
+  '#7B1FA2', // Purple
+  '#00796B', // Teal
+  '#F57C00', // Orange
+  '#0288D1', // Light Blue
+  '#C2185B', // Pink
+  '#5E35B1', // Deep Purple
+  '#00897B', // Teal Dark
+  '#E64A19', // Deep Orange
+  '#1565C0', // Blue Dark
+  '#0097A7', // Cyan
+  '#303F9F', // Indigo
+  '#689F38', // Light Green
+  '#E53935', // Red Bright
+  '#00ACC1', // Cyan Bright
+  '#FB8C00', // Orange Bright
+  '#8E24AA', // Purple Bright
+  '#43A047', // Green Bright
+];
+
 /**
- * Deterministically convert a string to a hex color.
- * @param {string} str
+ * Deterministically convert a string to a hex color using curated palette.
+ * Same string always produces the same color, but from a professionally
+ * selected palette of visually appealing colors.
+ * @param {string} str - The seed string (name, email, etc.)
  * @returns {string} hex color
  */
 export function stringToColor(str = '') {
+  if (!str) return '#1976d2';
+  
+  // Simple hash function for deterministic selection
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    hash = hash & hash; // Convert to 32-bit integer
   }
-  let color = '#';
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xff;
-    color += (`00${value.toString(16)}`).slice(-2);
-  }
-  return color;
+  
+  // Select color from curated palette
+  const index = Math.abs(hash) % AVATAR_COLOR_PALETTE.length;
+  return AVATAR_COLOR_PALETTE[index];
 }
 
 /**

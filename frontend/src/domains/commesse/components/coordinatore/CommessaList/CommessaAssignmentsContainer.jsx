@@ -7,7 +7,7 @@ import {
 } from '@mocks/CommesseMock.js';
 import { listAllUsers, ROLES } from '@mocks/UsersMock';
 import { EMPLOYEE_COMMESSE } from '@mocks/ProjectMock';
-import { DISCIPLINES, DISCIPLINE_LABEL } from '@shared/utils/discipline.js';
+import { getCommessaColor } from '@shared/utils/commessaColors.js';
 import CommessaAssignmentsView from './CommessaAssignmentsView.jsx';
 
 const ELIGIBLE_ROLES = new Set([ROLES.DIPENDENTE]);
@@ -34,8 +34,6 @@ const mapAssignments = (codes) => {
   }, []);
 };
 
-const resolveDisciplineLabel = (disciplineCode) => DISCIPLINE_LABEL[disciplineCode] || disciplineCode || 'N/D';
-
 export default function CommessaAssignmentsContainer({ commessaId, commessaMeta, onAssignmentsChange }) {
   const [details, setDetails] = React.useState(null);
   const [employees, setEmployees] = React.useState([]);
@@ -44,8 +42,8 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
   const [error, setError] = React.useState(null);
   const [selection, setSelection] = React.useState([]);
   const [search, setSearch] = React.useState('');
-  const [disciplineFilter, setDisciplineFilter] = React.useState('');
   const [snack, setSnack] = React.useState({ open: false, message: '', severity: 'success' });
+  const [assignmentNotes, setAssignmentNotes] = React.useState({});
 
   const fetchDetails = React.useCallback(() => {
     if (!commessaId) return;
@@ -72,10 +70,6 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
     setEmployees(users || []);
   }, []);
 
-  const disciplineOptions = React.useMemo(() => {
-    return Array.isArray(DISCIPLINES) ? [...DISCIPLINES] : [];
-  }, []);
-
   const assignedIds = details?.assignedEmployeeIds ?? [];
 
   const assignedEmployees = React.useMemo(() => (
@@ -86,22 +80,31 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
         ...meta,
         id: employeeId,
         assignments,
-        disciplineLabel: resolveDisciplineLabel(meta.discipline),
+        assignmentLabel: assignmentNotes[employeeId]?.label || null,
       };
     })
-  ), [assignedIds, employees]);
+  ), [assignedIds, employees, assignmentNotes]);
+
+  React.useEffect(() => {
+    setAssignmentNotes((prev) => {
+      const next = {};
+      assignedIds.forEach((id) => {
+        if (prev[id]) {
+          next[id] = prev[id];
+        }
+      });
+      if (Object.keys(next).length === Object.keys(prev).length) {
+        return prev;
+      }
+      return next;
+    });
+  }, [assignedIds]);
 
   const availableEmployees = React.useMemo(() => {
     const searchValue = search.toLowerCase();
-    const filterValue = (disciplineFilter || '').trim().toLowerCase();
     return employees
       .filter((emp) => emp.roles?.some((role) => ELIGIBLE_ROLES.has(role)))
       .filter((emp) => !assignedIds.includes(emp.id))
-      .filter((emp) => {
-        if (!filterValue) return true;
-        const empDiscipline = (emp.discipline || '').toLowerCase();
-        return empDiscipline.includes(filterValue) || filterValue.includes(empDiscipline);
-      })
       .filter((emp) => {
         if (!searchValue) return true;
         const fullName = buildFullName(emp).toLowerCase();
@@ -109,16 +112,12 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
       })
       .map((emp) => ({
         ...emp,
-        assignments: null,
+        assignments: mapAssignments(getEmployeeAssignments(emp.id)),
       }));
-  }, [employees, assignedIds, disciplineFilter, search]);
+  }, [employees, assignedIds, search]);
 
   const handleSelectionChange = React.useCallback((ids) => {
     setSelection(ids);
-  }, []);
-
-  const handleDisciplineFilterChange = React.useCallback((value) => {
-    setDisciplineFilter(value || '');
   }, []);
 
   const handleSearchChange = React.useCallback((value) => {
@@ -129,13 +128,21 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
     setSnack({ open: true, message, severity });
   }, []);
 
-  const handleAssign = React.useCallback(async () => {
+  const handleAssign = React.useCallback(async (assignmentLabel) => {
     if (!selection.length) return;
     try {
       setMutating(true);
       await Promise.all(selection.map((employeeId) => addEmployeeCommessa(employeeId, commessaId)));
       setSelection([]);
-      showSnack('Assegnazione completata');
+      if (assignmentLabel) {
+        setAssignmentNotes((prev) => {
+          const next = { ...prev };
+          selection.forEach((employeeId) => {
+            next[employeeId] = { label: assignmentLabel };
+          });
+          return next;
+        });
+      }
       fetchDetails();
       onAssignmentsChange?.();
     } catch (err) {
@@ -150,6 +157,12 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
       setMutating(true);
       await removeEmployeeCommessa(employeeId, commessaId);
       showSnack('Risorsa rimossa');
+      setAssignmentNotes((prev) => {
+        if (!prev[employeeId]) return prev;
+        const next = { ...prev };
+        delete next[employeeId];
+        return next;
+      });
       fetchDetails();
       onAssignmentsChange?.();
     } catch (err) {
@@ -158,6 +171,24 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
       setMutating(false);
     }
   }, [commessaId, fetchDetails, onAssignmentsChange, showSnack]);
+
+    const handleUpdateAssignment = React.useCallback((employeeId, assignmentLabel) => {
+      const trimmed = (assignmentLabel || '').trim();
+      setAssignmentNotes((prev) => {
+        const next = { ...prev };
+        if (!trimmed) {
+          delete next[employeeId];
+        } else {
+          next[employeeId] = { label: trimmed };
+        }
+        return next;
+      });
+      if (trimmed) {
+        showSnack('Attività aggiornata');
+      } else {
+        showSnack('Attività rimossa');
+      }
+    }, [showSnack]);
 
   const handleCloseSnack = React.useCallback(() => {
     setSnack((prev) => ({ ...prev, open: false }));
@@ -181,14 +212,13 @@ export default function CommessaAssignmentsContainer({ commessaId, commessaMeta,
       assignedEmployees={assignedEmployees}
       selection={selection}
       onSelectionChange={handleSelectionChange}
-      disciplineFilter={disciplineFilter}
-      onDisciplineFilterChange={handleDisciplineFilterChange}
-      disciplineOptions={disciplineOptions}
       search={search}
       onSearchChange={handleSearchChange}
       onAssign={handleAssign}
       onRemoveEmployee={handleRemove}
       onOpenTimesheet={handleOpenTimesheet}
+      onUpdateAssignment={handleUpdateAssignment}
+      commessaColor={getCommessaColor(commessaMeta?.codice || commessaId)}
       snack={snack}
       onCloseSnack={handleCloseSnack}
     />

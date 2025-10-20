@@ -52,11 +52,25 @@ export function WorkCalendarGrid({
           px: 0.5,
         }}
       >
-        {headers.map((h) => (
-          <Typography key={h} variant="caption" sx={{ textAlign: "center", color: "text.secondary" }}>
-            {h}
-          </Typography>
-        ))}
+        {headers.map((h, index) => {
+          // index: 0=Lun, 5=Sab, 6=Dom
+          const isWeekendHeader = index === 5 || index === 6;
+          return (
+            <Typography 
+              key={h} 
+              variant="caption" 
+              sx={{ 
+                textAlign: "center", 
+                color: "text.secondary",
+                bgcolor: isWeekendHeader ? 'rgba(0,0,0,0.1)' : 'transparent',
+                py: 0.5,
+                borderRadius: 0.5,
+              }}
+            >
+              {h}
+            </Typography>
+          );
+        })}
       </Box>
 
       {/* Griglia giorni */}
@@ -80,6 +94,7 @@ export function WorkCalendarGrid({
               <DayEntryTile
                 dateStr={r.dateStr}
                 day={r.day}
+                isWeekend={r.isWeekend}
                 isSelected={false}
                 status={r.status}
                 variant={height < 44 ? 'compact' : 'default'}

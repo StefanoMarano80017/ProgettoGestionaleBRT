@@ -21,7 +21,10 @@ export function WorkCalendarContainer({
   gap = 1,
   distributeGaps = false,
   variant = 'default',
-  stagedMeta = null // optional { dateKey: 'create'|'update'|'delete' }
+  stagedMeta = null, // optional { dateKey: 'create'|'update'|'delete' }
+  period = 'month',
+  onPeriodChange,
+  showRiepilogo = false
 }) {
   // Selective context consumption to reduce re-renders
   const selectedEmployeeId = useTimesheetSelector(
@@ -157,6 +160,10 @@ export function WorkCalendarContainer({
       gap={gap}
       distributeGaps={distributeGaps}
       variant={variant}
+      period={period}
+      onPeriodChange={onPeriodChange}
+      showRiepilogo={showRiepilogo}
+      data={data}
     />
   );
 }
