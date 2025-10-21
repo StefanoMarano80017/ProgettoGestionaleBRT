@@ -10,9 +10,10 @@ const router = express.Router();
 const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: "none",
-  domain: ".local.test",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  domain: "local.test",
   path: "/",
+  overwrite: true,
 };
 
 // --- Helper ---
@@ -29,6 +30,7 @@ const saveSession = async (userId, intros) => {
 
   if (intros.exp) {
     const ttl = intros.exp - Math.floor(Date.now() / 1000);
+    console.log("TTL Redis session:", ttl);
     if (ttl > 0) await redis.expire(sessionKey, ttl);
   }
 };
@@ -72,6 +74,7 @@ router.post("/refresh", async (req, res) => {
 
   try {
     const result = await refresh(refreshToken);
+    console.log("REFRESH RESULT:", result);
     await handleAuthResponse(res, result);
   } catch (err) {
     console.error("❌ Refresh token failed:", err.response?.data || err.message);
@@ -85,6 +88,7 @@ const revokeToken = async (token) => {
   const decoded = jwt.decode(token);
   if (decoded?.jti && decoded?.exp) {
     const ttl = Math.max(1, decoded.exp - Math.floor(Date.now() / 1000));
+    console.log("TTL Redis session:", ttl);
     await revokeSetAdd(decoded.jti, ttl);
   }
   if (useRedis && decoded?.sub) await redis.del(`session:${decoded.sub}`);

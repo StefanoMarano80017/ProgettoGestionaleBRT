@@ -1,52 +1,88 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+// src/auth/AuthProvider.jsx
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 
 const BFF_BASE_URL = import.meta.env.VITE_BFF_URL || "http://app.local.test";
-
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const { setUser, setLoading, setSessionInfo } = useUser();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   const refreshTimerId = useRef(null);
   const refreshPromiseRef = useRef(null);
-  const latestExpiresIn = useRef(null);
+  const bcRef = useRef(null); // 🔊 BroadcastChannel reference
 
-  // ====================================
-  // 🔁 SCHEDULAZIONE REFRESH
-  // ====================================
-  const scheduleRefresh = useCallback((expiresInSeconds) => {
-    latestExpiresIn.current = expiresInSeconds;
-    if (refreshTimerId.current) clearTimeout(refreshTimerId.current);
+  /** Inizializza il broadcast channel */
+  useEffect(() => {
+    const bc = new BroadcastChannel("auth_channel");
+    bcRef.current = bc;
 
-    const ms = Math.max(2000, Math.floor(expiresInSeconds * 0.8 * 1000));
-    console.log(`🕒 Refresh token scheduled in ${Math.floor(ms / 1000)}s`);
+    bc.onmessage = async (event) => {
+      const { type, payload } = event.data || {};
+      console.log("📡 Broadcast received:", type, payload);
 
-    refreshTimerId.current = setTimeout(async () => {
-      console.log("🔄 Triggering scheduled token refresh...");
-      try {
-        await triggerRefresh();
-      } catch (err) {
-        console.warn("⚠️ Scheduled refresh failed:", err);
-        onLogout();
+      switch (type) {
+        case "logout":
+          await onLogout(true); // true = da broadcast
+          break;
+        case "login":
+        case "refresh":
+          await triggerRefresh(); // aggiorna anche questa tab
+          break;
+        default:
+          break;
       }
-    }, ms);
+    };
+
+    return () => bc.close();
   }, []);
 
+  const broadcast = useCallback((type, payload = null) => {
+    if (bcRef.current) {
+      console.log("📢 Broadcast:", type, payload);
+      bcRef.current.postMessage({ type, payload });
+    }
+  }, []);
+
+  /** 🧹 Cancella eventuali timer di refresh */
   const clearScheduledRefresh = useCallback(() => {
     if (refreshTimerId.current) clearTimeout(refreshTimerId.current);
     refreshTimerId.current = null;
-    latestExpiresIn.current = null;
   }, []);
 
-  // ====================================
-  // 🔐 LOGIN
-  // ====================================
+  /** ⏱️ Pianifica il prossimo refresh automatico */
+  const scheduleRefresh = useCallback(
+    (expiresInSeconds) => {
+      clearScheduledRefresh();
+      const ms = Math.max(2000, Math.floor(expiresInSeconds * 0.8 * 1000));
+
+      refreshTimerId.current = setTimeout(async () => {
+        try {
+          console.info("⏰ Scheduled refresh triggered");
+          await triggerRefresh();
+        } catch (err) {
+          console.warn("Scheduled refresh failed:", err);
+          onLogout();
+        }
+      }, ms);
+    },
+    [clearScheduledRefresh]
+  );
+
+  /** 🔐 Login */
   const login = useCallback(
     async (username, password) => {
-      console.group("🔑 LOGIN FLOW");
+      setLoading(true);
       try {
         const resp = await fetch(`${BFF_BASE_URL}/authBff/login`, {
           method: "POST",
@@ -54,81 +90,52 @@ export const AuthProvider = ({ children }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
         });
-
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({}));
-          console.error("❌ Login failed:", err);
-          throw new Error(err.error || "Login fallito");
-        }
-
+        if (!resp.ok) throw new Error("Login fallito");
         const data = await resp.json();
-        console.log("✅ Login response payload:", data);
-
         setIsAuthenticated(true);
-        if (data.user) setUser(data.user);
-        if (data.session) setSessionInfo(data.session);
+        setUser(data.user);
+        setSessionInfo(data.session);
         if (data.expires_in) scheduleRefresh(data.expires_in);
-
-        console.groupEnd();
+        broadcast("login", { user: data.user });
         return data;
-      } catch (err) {
-        setIsAuthenticated(false);
-        setUser(null);
-        setSessionInfo(null);
-        clearScheduledRefresh();
-        console.groupEnd();
-        throw err;
+      } finally {
+        setLoading(false);
       }
     },
-    [scheduleRefresh, clearScheduledRefresh, setUser]
+    [setUser, setSessionInfo, scheduleRefresh, setLoading, broadcast]
   );
 
-
-  // ====================================
-  // 🚪 LOGOUT
-  // ====================================
-  const onLogout = useCallback(async () => {
-    console.log("🚪 Performing logout...");
-    try {
-      await fetch(`${BFF_BASE_URL}/authBff/logout`, { method: "POST", credentials: "include" });
-    } catch (err) {
-      console.warn("⚠️ Logout request failed:", err);
-    } finally {
-      clearScheduledRefresh();
-      setIsAuthenticated(false);
-      setUser(null);
-      setLoading(false);
-      navigate("/login", { replace: true });
-    }
-  }, [navigate, clearScheduledRefresh, setUser, setLoading]);
-
-  // ====================================
-  // 🔄 REFRESH TOKEN
-  // ====================================
+  /** ♻️ Refresh */
   const triggerRefresh = useCallback(async () => {
     if (refreshPromiseRef.current) return refreshPromiseRef.current;
 
     refreshPromiseRef.current = (async () => {
       console.group("🔄 REFRESH FLOW");
       try {
-        const resp = await fetch(`${BFF_BASE_URL}/authBff/refresh`, { method: "POST", credentials: "include" });
+        const resp = await fetch(`${BFF_BASE_URL}/authBff/refresh`, {
+          method: "POST",
+          credentials: "include",
+        });
 
         if (!resp.ok) {
-          setIsAuthenticated(false);
-          setUser(null);
+          console.error("❌ Refresh HTTP failed:", resp.status);
           throw new Error("Refresh non riuscito");
         }
 
         const data = await resp.json();
-        console.log("✅ Refresh response payload:", data);
+        console.log("✅ Refresh payload:", data);
 
-        setIsAuthenticated(true);
-        if (data.user) setUser(data.user); // aggiorna profilo
+        setIsAuthenticated(!!data.user);
+        if (data.user) setUser(data.user);
+        if (data.session) setSessionInfo(data.session);
         if (data.expires_in) scheduleRefresh(data.expires_in);
+
+        broadcast("refresh", { user: data.user });
 
         console.groupEnd();
         return data;
       } catch (err) {
+        console.error("❌ Refresh token failed:", err);
         setIsAuthenticated(false);
         setUser(null);
         clearScheduledRefresh();
@@ -140,40 +147,88 @@ export const AuthProvider = ({ children }) => {
     })();
 
     return refreshPromiseRef.current;
-  }, [scheduleRefresh, clearScheduledRefresh, setUser]);
+  }, [scheduleRefresh, clearScheduledRefresh, setUser, setSessionInfo, broadcast]);
 
-  // ====================================
-  // 🔍 INITIAL REFRESH ALL’AVVIO
-  // ====================================
+  /** 🚪 Logout */
+  const onLogout = useCallback(
+    async (fromBroadcast = false) => {
+      try {
+        await fetch(`${BFF_BASE_URL}/authBff/logout`, {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch {}
+
+      clearScheduledRefresh();
+      setIsAuthenticated(false);
+      setUser(null);
+      setSessionInfo(null);
+      setLoading(false);
+
+      if (!fromBroadcast) broadcast("logout");
+      navigate("/login", { replace: true });
+    },
+    [clearScheduledRefresh, setUser, setSessionInfo, setLoading, navigate, broadcast]
+  );
+
+  /** 🚀 Refresh iniziale */
   useEffect(() => {
     (async () => {
-      console.log("🚀 Initial auth check → calling refresh...");
       try {
-        const data = await triggerRefresh();
-        if (data?.expires_in) scheduleRefresh(data.expires_in);
-        setIsAuthenticated(true);
-        console.log("✅ Initial refresh OK — user authenticated");
-      } catch (err) {
-        console.warn("⚠️ Initial refresh failed:", err);
+        await triggerRefresh();
+      } catch {
         setIsAuthenticated(false);
         setUser(null);
+        setSessionInfo(null);
       } finally {
         setLoading(false);
       }
     })();
-  }, [triggerRefresh, scheduleRefresh, setLoading, setUser]);
+  }, [triggerRefresh, setUser, setSessionInfo, setLoading]);
 
-  // ====================================
-  // 🧩 CONTEXT VALUE
-  // ====================================
-  const value = {
-    isAuthenticated,
-    login,
-    logout: onLogout,
-    triggerRefresh,
-  };
+  /** 👁️ Refresh quando la scheda torna attiva */
+  useEffect(() => {
+    const handleFocus = async () => {
+      console.log("🪟 Window focused → refreshing");
+      try {
+        await triggerRefresh();
+      } catch {
+        onLogout();
+      }
+    };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    const handleVisibility = async () => {
+      if (document.visibilityState === "visible") {
+        console.log("👁️ Tab visibile → refreshing");
+        try {
+          await triggerRefresh();
+        } catch {
+          onLogout();
+        }
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [triggerRefresh, onLogout]);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        login,
+        logout: onLogout,
+        triggerRefresh,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => useContext(AuthContext);

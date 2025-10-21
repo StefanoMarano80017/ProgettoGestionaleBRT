@@ -17,7 +17,7 @@ export default function Sidebar({ userName, collapsed = false }) {
   const { user } = useUser();
   const {logout} = useAuth();
  
-  const displayName = user.given_name;
+  const displayName = user?.given_name  || "Utente";
   const initials = useMemo(() => getInitials(displayName), [displayName]);
 
   const avatarBackground = useMemo(() => getCommessaColor(displayName), [displayName]);

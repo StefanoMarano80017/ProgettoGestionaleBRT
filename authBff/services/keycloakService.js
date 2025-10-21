@@ -67,11 +67,15 @@ async function refresh(refreshToken) {
 
   const { access_token, refresh_token: newRefreshToken, expires_in } = res.data;
   const decoded = jwt.decode(access_token);
+
   const intros = await introspectToken(newRefreshToken);
-  const oldIntros = await introspectToken(refreshToken);
-  if (oldIntros?.active && oldIntros.jti && oldIntros.exp) {
-    const ttl = Math.max(1, oldIntros.exp - Math.floor(Date.now() / 1000));
-    await revokeSetAdd(oldIntros.jti, ttl);
+  // revoca solo se Keycloak ha effettivamente ruotato il refresh token
+  if (newRefreshToken !== refreshToken) {
+    const oldIntros = await introspectToken(refreshToken);
+    if (oldIntros?.active && oldIntros.jti && oldIntros.exp) {
+      const ttl = Math.max(1, oldIntros.exp - Math.floor(Date.now() / 1000));
+      await revokeSetAdd(oldIntros.jti, ttl);
+    }
   }
 
   const userProfile = {

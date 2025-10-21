@@ -24,7 +24,6 @@ http:
             - type: cookie 
               key: access_token
             
-
           # Debug
           log_level: debug
     prefix-strip:

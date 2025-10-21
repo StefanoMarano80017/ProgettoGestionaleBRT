@@ -22,24 +22,18 @@ export default function App() {
           {/* Public route: login */}
           <Route path="/login" element={<Login />} />
           <Route index element={<Navigate to="/login" replace />} />
-
           {/* Protected routes */}
-          <Route
-            element={
-              <RequireAuth>
-                <MainLayout />
-              </RequireAuth>
-            }
-          >
-            <Route path="/home" element={<Home />} />
-            <Route path="/Home" element={<Navigate to="/home" replace />} />
-            <Route path="/timesheet" element={<TimesheetRouter />} />
-            <Route path="/commesse" element={<Commesse />} />
-            <Route path="/commesse/coordinatore" element={<CoordinatoreDashboard />} />
-            <Route path="/dipendente" element={<DipendenteTimesheet />} />
-            <Route path="/app" element={<Home />} />
+          <Route element={<MainLayout />}>
+            <Route element={<RequireAuth />}>
+              <Route path="/home" element={<Home />} />
+              <Route path="/Home" element={<Navigate to="/home" replace />} />
+              <Route path="/timesheet" element={<TimesheetRouter />} />
+              <Route path="/commesse" element={<Commesse />} />
+              <Route path="/commesse/coordinatore" element={<CoordinatoreDashboard />} />
+              <Route path="/dipendente" element={<DipendenteTimesheet />} />
+              <Route path="/app" element={<Home />} />
+            </Route>
           </Route>
-
           {/* Catch-all → redirect al login */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

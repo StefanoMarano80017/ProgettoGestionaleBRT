@@ -1,18 +1,20 @@
+// src/Routes/RequireAuth.jsx
 import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/auth/AuthProvider";
+import { Navigate, Outlet } from "react-router-dom";
+import { useUser } from "../context/UserContext";
 
-export default function RequireAuth({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
+const RequireAuth = () => {
+  const { user, loading } = useUser();
 
-  if (isLoading) {
-    return <div>Caricamento sessione...</div>;
+  if (loading) {
+    return <div>Loading...</div>; // oppure uno spinner
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
-  return children;
-}
+  return <Outlet />;
+};
+
+export default RequireAuth;
