@@ -22,12 +22,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
 import com.brt.TimesheetService.modules.timesheet.domain.TimesheetDay;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 
+@Component
 public class TimesheetCacheManager {
 
     private static final Logger log = LoggerFactory.getLogger(TimesheetCacheManager.class);

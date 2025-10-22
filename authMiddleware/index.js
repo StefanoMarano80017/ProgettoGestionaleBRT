@@ -5,7 +5,7 @@ const { refreshJwksCache } = require("./services/jwksService");
 const logger = require("./utils/logger");
 
 app.listen(config.port, () => {
-  logger.info(`🚀 BFF running on port ${config.port}`);
+  logger.info(`🚀 MIDDLEWARE running on port ${config.port}`);
   refreshJwksCache().catch(() => {});
   startBackgroundJobs();
 });

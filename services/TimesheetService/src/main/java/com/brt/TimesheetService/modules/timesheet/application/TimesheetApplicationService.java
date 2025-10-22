@@ -166,10 +166,10 @@ public class TimesheetApplicationService extends BaseTimesheetService {
                     cacheManager.invalidateRangeCachesContaining(employeeId, date);
                     log.trace("[{}] Range cache invalidate per date={}", "deleteTimesheetUser", date);
                 } catch (Exception e) {
-                    log.warn("[{}] Fallita invalidazione range cache: {}",
-                            "deleteTimesheetUser", e.getMessage());
+                    log.warn("[{}] Fallita invalidazione range cache: {}", "deleteTimesheetUser", e.getMessage());
                 }
             });
+            return null;
         });
     }
 

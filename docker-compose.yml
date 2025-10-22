@@ -3,9 +3,11 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
+  postgres_keycloak_data:
     driver: local
   keycloak_data:
+    driver: local
+  timesheet_data:
     driver: local
 
 services:
@@ -26,16 +28,16 @@ services:
     networks:
       - gestionale_network
 
-  # === DATABASE ===
-  postgres:
+  # === DATABASE PRINCIPALE ===
+  postgres_keycloak:
     image: postgres:16.2
-    container_name: postgres
+    container_name: postgres_keycloak
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_keycloak_data:/var/lib/postgresql/data
     networks:
       - gestionale_network
 
@@ -52,7 +54,7 @@ services:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
       - KC_DB=${KEYCLOAK_DB}
-      - KC_DB_URL=jdbc:postgresql://postgres/${POSTGRES_DB}
+      - KC_DB_URL=jdbc:postgresql://postgres_keycloak/${POSTGRES_DB}
       - KC_DB_USERNAME=${POSTGRES_USER}
       - KC_DB_PASSWORD=${POSTGRES_PASSWORD}
     ports:
@@ -61,7 +63,7 @@ services:
       - keycloak_data:/opt/keycloak/data
       - ./keycloak/import:/opt/keycloak/data/import:ro
     depends_on:
-      - postgres
+      - postgres_keycloak
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`${APP_HOST}`) && PathPrefix(`/auth`)"
@@ -85,35 +87,35 @@ services:
       - "traefik.http.services.frontend.loadbalancer.server.port=${FRONTEND_PORT}"
 
   # === BFF NODE.JS ===
-  bff:
-    build: ./authBff
-    container_name: authBff
+  auth_middleware:
+    build: ./authMiddleware
+    container_name: authMiddleware
     environment:
-      - PORT=${BFF_PORT}
+      - PORT=${AUTH_PORT}
       - KEYCLOAK_URL=http://keycloak:8080
       - KEYCLOAK_REALM=${KEYCLOAK_REALM}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
       - REDIS_URL=${REDIS_URL}
       - FRONTEND_ORIGIN=http://${FRONTEND_HOST}
-      - COOKIE_SECRET=${BFF_COOKIE_SECRET}
-      - NODE_ENV=${BFF_NODE_ENV}
-      - JWKS_REFRESH_INTERVAL_MS=${BFF_JWKS_REFRESH_INTERVAL_MS}
-      - SESSION_CLEANUP_INTERVAL_MS=${BFF_SESSION_CLEANUP_INTERVAL_MS}
+      - COOKIE_SECRET=${AUTH_COOKIE_SECRET}
+      - NODE_ENV=${AUTH_NODE_ENV}
+      - JWKS_REFRESH_INTERVAL_MS=${AUTH_JWKS_REFRESH_INTERVAL_MS}
+      - SESSION_CLEANUP_INTERVAL_MS=${AUTH_SESSION_CLEANUP_INTERVAL_MS}
     depends_on:
       - keycloak
     networks:
       - gestionale_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.bff.rule=Host(`${APP_HOST}`) && PathPrefix(`${BFF_PATH}`)"
-      - "traefik.http.middlewares.prefix-strip.stripprefix.prefixes=${BFF_PATH}"
+      - "traefik.http.routers.bff.rule=Host(`${APP_HOST}`) && PathPrefix(`${AUTH_PATH}`)"
+      - "traefik.http.middlewares.prefix-strip.stripprefix.prefixes=${AUTH_PATH}"
       - "traefik.http.routers.bff.entrypoints=web"
-      - "traefik.http.services.bff.loadbalancer.server.port=${BFF_PORT}"
-  
-  # === REDIS (per caching nel BFF) ===
-  redis:
-    container_name: CacheBFF
+      - "traefik.http.services.bff.loadbalancer.server.port=${AUTH_PORT}"
+
+  # === REDIS ===
+  CacheAuth:
+    container_name: CacheAuth
     image: redis:7.4
     command: redis-server --save "" --appendonly no
     networks:
@@ -133,3 +135,43 @@ services:
       - "traefik.http.routers.whoami.entrypoints=web"
       - "traefik.http.routers.whoami.middlewares=secure-api@file"
       - "traefik.http.services.whoami.loadbalancer.server.port=80"
+
+  # === TIMESHEET SERVICE ===
+  timesheet_db:
+    image: postgres:15
+    container_name: timesheet_db
+    environment:
+      POSTGRES_DB: timesheet
+      POSTGRES_USER: timesheet_user
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - timesheet_data:/var/lib/postgresql/data
+    networks:
+      - gestionale_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timesheet_user -d timesheet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  timesheet_app:
+    build: ./services/TimesheetService
+    container_name: timesheet_app
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://timesheet_db:5432/timesheet
+      SPRING_DATASOURCE_USERNAME: timesheet_user
+      SPRING_DATASOURCE_PASSWORD: secret
+    depends_on:
+      timesheet_db:
+        condition: service_healthy
+    networks:
+      - gestionale_network
+    expose:
+      - "8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.timesheet.rule=Host(`${APP_HOST}`) && PathPrefix(`/api/timesheet`)"
+      - "traefik.http.routers.timesheet.entrypoints=web"
+      - "traefik.http.routers.timesheet.middlewares=secure-api@file"
+      - "traefik.http.services.timesheet.loadbalancer.server.port=8080"

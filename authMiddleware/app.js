@@ -5,7 +5,6 @@ const bodyParser = require("body-parser");
 const config = require("./config/env");
 const logger = require("./utils/logger");
 const authRoutes = require("./controller/authRoutes");
-const profileRoutes = require("./controller/profileRoutes");
 const healthRoutes = require("./controller/healthRoutes");
 
 const app = express();
@@ -27,8 +26,7 @@ app.use((req, res, next) => {
 });
 
 // rotte principali
-app.use("/authBff", authRoutes);
-app.use("/authBff", profileRoutes);
+app.use("/auth", authRoutes);
 app.use("/", healthRoutes);
 
 module.exports = app;

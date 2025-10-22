@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }) => {
     async (username, password) => {
       setLoading(true);
       try {
-        const resp = await fetch(`${BFF_BASE_URL}/authBff/login`, {
+        const resp = await fetch(`${BFF_BASE_URL}/auth/login`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -112,7 +112,7 @@ export const AuthProvider = ({ children }) => {
     refreshPromiseRef.current = (async () => {
       console.group("🔄 REFRESH FLOW");
       try {
-        const resp = await fetch(`${BFF_BASE_URL}/authBff/refresh`, {
+        const resp = await fetch(`${BFF_BASE_URL}/auth/refresh`, {
           method: "POST",
           credentials: "include",
         });
@@ -153,7 +153,7 @@ export const AuthProvider = ({ children }) => {
   const onLogout = useCallback(
     async (fromBroadcast = false) => {
       try {
-        await fetch(`${BFF_BASE_URL}/authBff/logout`, {
+        await fetch(`${BFF_BASE_URL}/auth/logout`, {
           method: "POST",
           credentials: "include",
         });
