@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+# Installiamo wget e bash
+RUN apk add --no-cache wget bash
+
+# Copiamo lo script nello container
+COPY wait-for-keycloak.sh /wait-for-keycloak.sh
+RUN chmod +x /wait-for-keycloak.sh
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --production
+
+COPY . .
+
+EXPOSE 3002
+
+CMD ["node", "src/app.js"]

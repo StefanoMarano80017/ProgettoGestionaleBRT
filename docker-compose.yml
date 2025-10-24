@@ -48,7 +48,7 @@ services:
     command:
       - start-dev
       - --hostname-strict=false
-      - --hostname-url=http://${APP_HOST}/auth
+      - --hostname-url=http://${APP_HOST}
       - --import-realm
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
@@ -66,7 +66,7 @@ services:
       - postgres_keycloak
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.keycloak.rule=Host(`${APP_HOST}`) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.keycloak.rule=Host(`${APP_HOST}`)"
       - "traefik.http.routers.keycloak.entrypoints=web"
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
     networks:
@@ -96,7 +96,7 @@ services:
       - KEYCLOAK_REALM=${KEYCLOAK_REALM}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
-      - REDIS_URL=${REDIS_URL}
+      - REDIS_URL=${REDIS_URL_AUTH}
       - FRONTEND_ORIGIN=http://${FRONTEND_HOST}
       - COOKIE_SECRET=${AUTH_COOKIE_SECRET}
       - NODE_ENV=${AUTH_NODE_ENV}
@@ -131,7 +131,7 @@ services:
       - gestionale_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`${APP_HOST}`) && PathPrefix(`/api/whoami`)"
+      - "traefik.http.routers.whoami.rule=Host(`${APP_HOST}`) && PathPrefix(``)"
       - "traefik.http.routers.whoami.entrypoints=web"
       - "traefik.http.routers.whoami.middlewares=secure-api@file"
       - "traefik.http.services.whoami.loadbalancer.server.port=80"
@@ -171,7 +171,46 @@ services:
       - "8080"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.timesheet.rule=Host(`${APP_HOST}`) && PathPrefix(`/api/timesheet`)"
+      - "traefik.http.routers.timesheet.rule=Host(`${APP_HOST}`) && PathPrefix(`/timesheet`)"
       - "traefik.http.routers.timesheet.entrypoints=web"
       - "traefik.http.routers.timesheet.middlewares=secure-api@file"
       - "traefik.http.services.timesheet.loadbalancer.server.port=8080"
+
+  # === USERS SERVICE ===
+  users_service:
+    build: ./users-service
+    container_name: users_service
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      - KEYCLOAK_CLIENT_USERNAME=${KEYCLOAK_CLIENT_USERNAME}
+      - KEYCLOAK_CLIENT_PASSWORD=${KEYCLOAK_CLIENT_PASSWORD}
+      - REDIS_URL=${REDIS_URL_USERS}
+      - USER_SYNC_INTERVAL_MS=600000
+    depends_on:
+      - keycloak
+      - CacheAuth
+    networks:
+      - gestionale_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.users.rule=Host(`${APP_HOST}`) && PathPrefix(`/users`)"
+      - "traefik.http.routers.users.entrypoints=web"
+      - "traefik.http.routers.users.middlewares=secure-api@file"
+      - "traefik.http.routers.users.middlewares=secure-api@file,users-strip"
+      - "traefik.http.middlewares.users-strip.stripprefix.prefixes=/api/users"
+      - "traefik.http.services.users.loadbalancer.server.port=3002"
+
+  # === USERS CACHE ===
+  users_cache:
+    container_name: users_cache
+    image: redis:7.4
+    command: redis-server --save "" --appendonly no
+    networks:
+      - gestionale_network
+    expose:
+      - "6379"

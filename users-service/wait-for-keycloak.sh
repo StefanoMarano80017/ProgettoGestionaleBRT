@@ -8,4 +8,4 @@ until wget -qO- http://keycloak:8080/realms/traefik-realm/protocol/openid-connec
   sleep 2
 done
 
-echo "Keycloak is ready, starting AUTHMIDDLEWARE..."
+echo "Keycloak is ready, starting USERSERVICE..."
